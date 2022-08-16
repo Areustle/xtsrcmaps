@@ -1,5 +1,6 @@
 #include <xtsrcmaps/config.hxx>
 #include <xtsrcmaps/fitsfuncs.hxx>
+#include <xtsrcmaps/misc.hxx>
 #include <xtsrcmaps/parse_src_mdl.hxx>
 #include <xtsrcmaps/psf.hxx>
 #include <xtsrcmaps/source.hxx>
@@ -7,6 +8,13 @@
 
 #include <fmt/format.h>
 #include <xtsrcmaps/fmt_source.hxx>
+
+#include <numeric>
+#include <ranges>
+#include <vector>
+
+using std::vector;
+using std::ranges::views::transform;
 
 int
 main()
@@ -27,22 +35,35 @@ main()
     // : load-counts : Load the fits file count maps
     auto opt_energies = Fermi::fits::ccube_energies(cfg.cmap);
     auto energies     = opt_energies.value();
-    // : load-psf parameters
-    auto opt_psfpars  = Fermi::fits::read_psf(cfg._psf_name);
-    auto raw_psfpars  = opt_psfpars.value();
+    auto logEs        = to<vector<double>>(energies | transform(::log10));
 
     // skipping ROI cuts.
     // skipping edisp_bin expansion.
 
     // : load-exposure : Load the fits file exposure maps
-    // auto exp_costheta = std::vector<double>(dirs.size() * 40, 1.0);
+    auto opt_ltcube   = Fermi::fits::read_ltcube(cfg.expcube).value();
+    auto exp_costheta = vector<double>(dirs.size() * 40);
+    for (size_t i = 0; i < exp_costheta.size(); ++i)
+    {
+        exp_costheta[i] = double(i) / double(exp_costheta.size());
+    }
+    fmt::print("cosths: {}\n",
+               std::reduce(exp_costheta.cbegin(), exp_costheta.cend(), 0.0));
 
+    // : load-psf parameters
+    auto opt_psfpars = Fermi::fits::read_psf(cfg._psf_name);
+    auto raw_psfpars = opt_psfpars.value();
     // : compute-psf : Compute the actual PSF
-    // std::vector<std::pair<double, double>> dirs(8, { 1.0, 1.0 });
-    // std::vector<double>                    energies(8, 10.0);
-    auto psfdata      = Fermi::prepare_psf_data(raw_psfpars);
-    auto moffats      = Fermi::psf_fixed_grid(psfdata);
-    fmt::print("{} {}\n", moffats.front(), moffats.back());
+    // vector<std::pair<double, double>> dirs(8, { 1.0, 1.0 });
+    auto psfdata     = Fermi::prepare_psf_data(raw_psfpars);
+    fmt::print("psfdata: {}\t",
+               std::reduce(psfdata.logEs.begin(), psfdata.logEs.end(), 0.0));
+    fmt::print("{}\t", std::reduce(psfdata.cosths.begin(), psfdata.cosths.end(), 0.0));
+    fmt::print("{}\n", std::reduce(psfdata.params.begin(), psfdata.params.end(), 0.0));
+    auto kings = Fermi::psf_fixed_grid(psfdata);
+    fmt::print("kings: {}\n", std::reduce(kings.begin(), kings.end(), 0.0));
+    auto bilerps = Fermi::bilerp(kings, logEs, exp_costheta, psfdata);
+    fmt::print("bilerps: {}\n", std::reduce(bilerps.begin(), bilerps.end(), 0.0));
 
     // : convolve-psf :
 

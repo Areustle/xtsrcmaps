@@ -10,7 +10,6 @@ namespace Fermi
 struct PsfData
 {
     std::vector<double> logEs;
-    std::vector<double> Energies;
     std::vector<double> cosths;
     std::vector<double> params;
 };
@@ -22,9 +21,10 @@ prepare_psf_data(fits::PsfParamData const& pars) -> PsfData;
 auto
 psf_fixed_grid(PsfData const& pars) -> std::vector<double>;
 
-// auto
-// psf_fixed_grid(Fermi::fits::PsfParamData const& pars,
-//                std::vector<double> const&       energies,
-//                std::vector<double> const&       costheta) -> std::vector<double>;
+auto
+bilerp(std::vector<double> const& kings,
+       std::vector<double> const& energies,
+       std::vector<double> const& cosBins,
+       PsfData const&             pars) -> std::vector<double>;
 
 } // namespace Fermi
