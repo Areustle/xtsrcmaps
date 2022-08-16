@@ -33,7 +33,7 @@ poly_root_deriv(double const x) -> std::pair<double, double>
 namespace Fermi
 {
 
-template <size_t N=8>
+template <size_t N = 8>
 constexpr auto
 legendre_poly_rw(double const eps = 1e-15) -> std::vector<std::pair<double, double>>
 {
