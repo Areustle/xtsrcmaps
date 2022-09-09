@@ -135,7 +135,7 @@ co_king(auto A, auto D, auto P) noexcept
 }
 
 auto
-Fermi::psf_fixed_grid(PsfData const& pars) -> vector<double>
+Fermi::psf_fixed_grid(IrfData const& pars) -> vector<double>
 {
 
     auto kings  = vector<double>(400 * 10 * 25, 0.0);

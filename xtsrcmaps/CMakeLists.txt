@@ -3,7 +3,7 @@ add_executable(
   bilerp.cxx
   fitsfuncs.cxx
   parse_src_mdl.cxx
-  prepare_psf_data.cxx
+  prepare_irf_data.cxx
   psf_v2.cxx
   source_utils.cxx
   xtsrcmaps.cxx

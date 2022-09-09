@@ -59,7 +59,7 @@ bilerp(double const tt,
 // IE (IRF energies)   [Me]
 // IC (IRF costheta)   [Mc]
 inline void
-co_bilerp_base(auto        B,
+co_bilerp_base(auto        R,
                auto const& C,
                auto const& E,
                auto const& IP,
@@ -67,16 +67,16 @@ co_bilerp_base(auto        B,
                auto const& IC) noexcept
 {
 
-    for (size_t s = 0; s < B.extent(0); ++s)
+    for (size_t s = 0; s < R.extent(0); ++s)
     {
-        auto elerps = vector<pair<double, size_t>>(B.extent(2));
-        for (size_t i = 0; i < B.extent(2); ++i) { elerps[i] = lerp(IE, E(i)); }
+        auto elerps = vector<pair<double, size_t>>(R.extent(2));
+        for (size_t i = 0; i < R.extent(2); ++i) { elerps[i] = lerp(IE, E(i)); }
         auto clerps = vector<pair<double, size_t>>(C.extent(1));
         for (size_t i = 0; i < C.extent(1); ++i) { clerps[i] = lerp(IC, C(s, i)); }
 
-        for (size_t d = 0; d < B.extent(1); ++d)
+        for (size_t d = 0; d < R.extent(1); ++d)
         {
-            for (size_t e = 0; e < B.extent(2); ++e)
+            for (size_t e = 0; e < R.extent(2); ++e)
             {
                 // auto [tt, eidx] = lerp(std::cbegin(IE), std::cend(IE), E(e));
                 for (size_t c = 0; c < C.extent(1); ++c)
@@ -87,7 +87,7 @@ co_bilerp_base(auto        B,
                     auto& uu   = std::get<0>(clerps[c]);
                     auto& cidx = std::get<1>(clerps[c]);
 
-                    B(s, d, e) += C(s, c) * bilerp(tt, uu, d, eidx, cidx, IP);
+                    R(s, d, e) += C(s, c) * bilerp(tt, uu, d, eidx, cidx, IP);
                 }
             }
         }
@@ -169,7 +169,7 @@ split_IRF_Angles(auto const& IP,
 // IE (IRF energies)   [Me]
 // IC (IRF costheta)   [Mc]
 void
-co_bilerp(auto B, auto C, auto E, auto IP, auto IE, auto IC) noexcept
+co_bilerp(auto R, auto C, auto E, auto IP, auto IE, auto IC) noexcept
 {
     /*
      * Invariant Assumptions
@@ -182,19 +182,19 @@ co_bilerp(auto B, auto C, auto E, auto IP, auto IE, auto IC) noexcept
      */
 
     // check for base case
-    if (is_co_psf_base(B.extent(0), B.extent(1), B.extent(2)))
+    if (is_co_psf_base(R.extent(0), R.extent(1), R.extent(2)))
     {
         // Do base case computation
-        return co_bilerp_base(B, C, E, IP, IE, IC);
+        return co_bilerp_base(R, C, E, IP, IE, IC);
     }
 
-    char const ld = largest_dim(B.extent(0), B.extent(1), B.extent(2), C.extent(1));
+    char const ld = largest_dim(R.extent(0), R.extent(1), R.extent(2), C.extent(1));
 
     if (ld == 0) // Ns is the largest. Cut B[0] and C[0]
     {
-        auto const& z    = B.extent(0);
-        auto        Out1 = submdspan(B, pair(0, z / 2), full_extent, full_extent);
-        auto        Out2 = submdspan(B, pair(z / 2, z), full_extent, full_extent);
+        auto const& z    = R.extent(0);
+        auto        Out1 = submdspan(R, pair(0, z / 2), full_extent, full_extent);
+        auto        Out2 = submdspan(R, pair(z / 2, z), full_extent, full_extent);
         auto        C1   = submdspan(C, pair(0, z / 2), full_extent);
         auto        C2   = submdspan(C, pair(z / 2, z), full_extent);
         co_bilerp(Out1, C1, E, IP, IE, IC);
@@ -203,9 +203,9 @@ co_bilerp(auto B, auto C, auto E, auto IP, auto IE, auto IC) noexcept
     }
     else if (ld == 1) // Nd is the largest. Split B[1] and IP[0]
     {
-        auto const& z    = B.extent(1);
-        auto        Out1 = submdspan(B, full_extent, pair(0, z / 2), full_extent);
-        auto        Out2 = submdspan(B, full_extent, pair(z / 2, z), full_extent);
+        auto const& z    = R.extent(1);
+        auto        Out1 = submdspan(R, full_extent, pair(0, z / 2), full_extent);
+        auto        Out2 = submdspan(R, full_extent, pair(z / 2, z), full_extent);
         auto        IP1  = submdspan(IP, pair(0, z / 2), full_extent, full_extent);
         auto        IP2  = submdspan(IP, pair(z / 2, z), full_extent, full_extent);
         co_bilerp(Out1, C, E, IP1, IE, IC);
@@ -214,9 +214,9 @@ co_bilerp(auto B, auto C, auto E, auto IP, auto IE, auto IC) noexcept
     }
     else if (ld == 2) // Ne is largest. Split B[2], E[0], and IP[1], IE[0]
     {
-        auto const& z    = B.extent(2);
-        auto        Out1 = submdspan(B, full_extent, full_extent, pair(0, z / 2));
-        auto        Out2 = submdspan(B, full_extent, full_extent, pair(z / 2, z));
+        auto const& z    = R.extent(2);
+        auto        Out1 = submdspan(R, full_extent, full_extent, pair(0, z / 2));
+        auto        Out2 = submdspan(R, full_extent, full_extent, pair(z / 2, z));
         auto        E1   = submdspan(E, pair(0, z / 2));
         auto        E2   = submdspan(E, pair(z / 2, z));
         // Search + split IP[0], IE
@@ -237,8 +237,8 @@ co_bilerp(auto B, auto C, auto E, auto IP, auto IE, auto IC) noexcept
                                submdspan(C1, full_extent, C1.extent(1) - 1),
                                submdspan(C2, full_extent, 0));
         // Note, Must be sequential! Otherwise B will see a data race.
-        co_bilerp(B, C1, E, IP1, IE, IC1);
-        co_bilerp(B, C2, E, IP2, IE, IC2);
+        co_bilerp(R, C1, E, IP1, IE, IC1);
+        co_bilerp(R, C2, E, IP2, IE, IC2);
         return;
     }
 }
@@ -247,20 +247,40 @@ auto
 Fermi::bilerp(vector<double> const& kings,
               vector<double> const& logEs,
               vector<double> const& cosBins,
-              PsfData const&        pars) -> vector<double>
+              IrfData const&        pars) -> vector<double>
 {
 
     size_t N_src   = cosBins.size() / 40;
     auto   bilerps = vector<double>(N_src * 400 * logEs.size(), 0.0);
-    auto   B       = mdspan(bilerps.data(), N_src, 400, logEs.size());
+    auto   R       = mdspan(bilerps.data(), N_src, 400, logEs.size());
     auto   C       = mdspan(cosBins.data(), N_src, 40);
     auto   E       = mdspan(logEs.data(), logEs.size());
     auto   IP      = mdspan(kings.data(), 400, 10, 25);
     auto   IE      = span(pars.logEs.cbegin(), pars.logEs.cend());
     auto   IC      = span(pars.cosths.cbegin(), pars.cosths.cend());
 
-    // co_bilerp(B, C, E, IP, IE, IC);
-    co_bilerp_base(B, C, E, IP, IE, IC);
+    co_bilerp_base(R, C, E, IP, IE, IC);
 
     return bilerps;
 }
+
+// auto
+// Fermi::bilerp(vector<double> const& kings,
+//               vector<double> const& logEs,
+//               vector<double> const& cosBins,
+//               PsfData const&        pars) -> vector<double>
+// {
+//
+//     size_t N_src   = cosBins.size() / 40;
+//     auto   bilerps = vector<double>(N_src * 400 * logEs.size(), 0.0);
+//     auto   B       = mdspan(bilerps.data(), N_src, 400, logEs.size());
+//     auto   C       = mdspan(cosBins.data(), N_src, 40);
+//     auto   E       = mdspan(logEs.data(), logEs.size());
+//     auto   IP      = mdspan(kings.data(), 400, 10, 25);
+//     auto   IE      = span(pars.logEs.cbegin(), pars.logEs.cend());
+//     auto   IC      = span(pars.cosths.cbegin(), pars.cosths.cend());
+//
+//     co_bilerp_base(B, C, E, IP, IE, IC);
+//
+//     return bilerps;
+// }
