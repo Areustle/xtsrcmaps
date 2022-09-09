@@ -195,14 +195,16 @@ Fermi::psf_fixed_grid(vector<pair<double, double>> const& dirs,
                       vector<double> const&               energies) -> vector<double>
 {
 
-    auto sep = separations(1e-4, 70.0, 400);
+    auto sep   = separations(1e-4, 70.0, 400);
+    auto logEs = vector<double>(energies.size());
+    for (size_t i = 0; i < logEs.size(); ++i) { logEs[i] = std::log(energies[i]); }
 
-    auto out = vector<double>(dirs.size() * energies.size() * sep.size(), 0.0);
+    auto out = vector<double>(dirs.size() * logEs.size() * sep.size(), 0.0);
 
-    auto A   = mdspan(out.data(), dirs.size(), energies.size(), sep.size());
-    auto D   = std::span(dirs.begin(), dirs.end());
-    auto E   = std::span(energies.begin(), energies.end());
-    auto S   = std::span(sep.begin(), sep.end());
+    auto A   = mdspan(out.data(), dirs.size(), logEs.size(), sep.size());
+    auto D   = std::span(dirs.cbegin(), dirs.cend());
+    auto E   = std::span(logEs.cbegin(), logEs.cend());
+    auto S   = std::span(sep.cbegin(), sep.cend());
 
     fmt::print("D: {}\t", D.size());
     fmt::print("E: {}\t", E.size());

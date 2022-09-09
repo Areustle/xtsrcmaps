@@ -25,7 +25,8 @@ struct XtCfg
     //"Source maps output file"
     std::string outfile       = analysis_base + "3C279_binned_srcmaps_local.fits";
     std::string irfs          = "CALDB"; //"Response functions"
-    std::string _psf_name     = analysis_base + "psf_P8R3_SOURCE_V2_FB.fits";
+    std::string psf_name      = analysis_base + "psf_P8R3_SOURCE_V2_FB.fits";
+    std::string aeff_name     = analysis_base + "aeff_P8R3_SOURCE_V2_FB.fits";
     double      minbinsz      = 0.1; // "Minimum pixel size for rebinning fine maps"
     int         evtype        = -1;  //"Event type selections"
     int         rfactor       = 2;   //"Resampling factor"
