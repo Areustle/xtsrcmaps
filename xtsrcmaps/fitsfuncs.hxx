@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <string>
 #include <utility>
@@ -73,8 +74,16 @@ struct IrfScale
 };
 
 auto
-read_irf_scale(std::string const&, std::string const&)
-    -> std::optional<IrfScale>;
+read_irf_scale(std::string const&, std::string const&) -> std::optional<IrfScale>;
+
+struct IrfEffic
+{
+    std::array<float, 6> p0;
+    std::array<float, 6> p1;
+};
+
+auto
+read_irf_efficiency(std::string const&, std::string const&) -> std::optional<IrfEffic>;
 
 
 } // namespace fits

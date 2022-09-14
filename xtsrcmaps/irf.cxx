@@ -23,7 +23,7 @@ using std::experimental::submdspan;
 // data tensors for future sampling.
 //************************************************************************************
 auto
-Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData
+Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3
 {
 
     // Get sizing params
@@ -41,7 +41,7 @@ Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData
         cosths[1 + k] = 0.5 * (pars.costhe_lo[k] + pars.costhe_hi[k]);
     }
     // padded cosine bin values.
-    cosths.front() = -1.0;
+    cosths.front() = 0.0;
     cosths.back()  = 1.0;
 
     // scale and pad the energy data
@@ -75,7 +75,9 @@ Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData
         }
     }
 
-    return { cosths, logEs, params, M_t, M_e, pars.Ngrids };
+    return { cosths,
+             logEs,
+             mdarray3(params, pv.extent(0), pv.extent(1), pv.extent(2)) };
 }
 
 
@@ -142,11 +144,11 @@ psf3_psf_base_integral(double const radius, double const scale_factor, auto cons
 }
 
 auto
-Fermi::normalize_irf_data(IrfData& data, fits::IrfScale const& scale) -> void
+Fermi::normalize_irf_data(IrfData3& data, fits::IrfScale const& scale) -> void
 {
 
     // span the IrfData params (should pass mdarray)
-    auto pv = mdspan(data.params.data(), data.extent0, data.extent1, data.extent2);
+    // auto pv = mdspan(data.params.data(), data.extent0, data.extent1, data.extent2);
     // Next normalize and scale.
 
     auto scaleFactor = [sp0 = (scale.scale0 * scale.scale0),
@@ -159,6 +161,11 @@ Fermi::normalize_irf_data(IrfData& data, fits::IrfScale const& scale) -> void
     // An integration is required below, so let's precompute the orthogonal legendre
     // polynomials here for future use.
     auto const polypars = legendre_poly_rw<64>(1e-15);
+
+    auto pv             = mdspan(data.params.data(),
+                     data.params.extent(0),
+                     data.params.extent(1),
+                     data.params.extent(2));
 
     for (size_t t = 0; t < pv.extent(0); ++t) // costheta
     {
