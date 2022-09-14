@@ -275,18 +275,22 @@ Fermi::fits::read_irf_grid(std::string const& filename, std::string const& tblna
     auto cthet_lo  = vector<float>(Ncosthe, 0.0f);
     auto cthet_hi  = vector<float>(Ncosthe, 0.0f);
 
-    fits_read_col(ifile, TFLOAT, 1, 1, 1, 23, nullptr, &energ_lo[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 1, 1, 1, Nenergy, nullptr, &energ_lo[0], nullptr, &status);
     if (status) fmt::print("Failed to access T1. Status {}\n", status);
-    fits_read_col(ifile, TFLOAT, 2, 1, 1, 23, nullptr, &energ_hi[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 2, 1, 1, Nenergy, nullptr, &energ_hi[0], nullptr, &status);
     if (status) fmt::print("Failed to access T2. Status {}\n", status);
-    fits_read_col(ifile, TFLOAT, 3, 1, 1, 8, nullptr, &cthet_lo[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 3, 1, 1, Ncosthe, nullptr, &cthet_lo[0], nullptr, &status);
     if (status) fmt::print("Failed to access T3. Status {}\n", status);
-    fits_read_col(ifile, TFLOAT, 4, 1, 1, 8, nullptr, &cthet_hi[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 4, 1, 1, Ncosthe, nullptr, &cthet_hi[0], nullptr, &status);
     if (status) fmt::print("Failed to access T4. Status {}\n", status);
 
     size_t Ngrids = tfields - 4;
 
-    auto params      = vector<vector<float>>(Ngrids);
+    auto params   = vector<vector<float>>(Ngrids);
 
     for (size_t i = 0; i < Ngrids; ++i)
     {
@@ -347,5 +351,52 @@ Fermi::fits::read_irf_scale(std::string const& filename, std::string const& tbln
 
     return {
         {scale[0], scale[1], scale[2]}
+    };
+}
+
+auto
+Fermi::fits::read_irf_efficiency(std::string const& filename,
+                                 std::string const& tblname) -> std::optional<IrfEffic>
+{
+
+    // Use CFITSIO to open the ccube and read the energies in the header.
+    int       status = 0;
+    fitsfile* ifile;
+    fits_open_file(&ifile, filename.c_str(), READONLY, &status);
+
+    // open the file, or return a null optional if it cannot open.
+    if (status)
+    {
+        fmt::print("Failed to open {}. Status {}. Returning an empty optional.\n",
+                   filename,
+                   status);
+        return std::nullopt;
+    }
+
+    char c_tbl[128] {};
+    tblname.copy(c_tbl, tblname.size() > 127 ? 127 : tblname.size());
+    c_tbl[127] = '\0';
+    // Move to the efficiency params table
+    fits_movnam_hdu(ifile, BINARY_TBL, c_tbl, 0, &status);
+    if (status) fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
+    if (status) return std::nullopt;
+
+    // Populate the Efficiency parameters.
+    auto p0 = std::array<float, 6> { 0.0 };
+    auto p1 = std::array<float, 6> { 0.0 };
+    fits_read_col(ifile, TFLOAT, 1, 1, 1, 6, nullptr, &p0[0], nullptr, &status);
+    fits_read_col(ifile, TFLOAT, 1, 2, 1, 6, nullptr, &p1[0], nullptr, &status);
+    if (status)
+        fmt::print("Failed to access Efficiency Params in table {}. Status {}\n",
+                   tblname,
+                   status);
+    if (status) return std::nullopt;
+
+    fits_close_file(ifile, &status);
+    if (status) fmt::print("Failed to Close. Status {}\n", status);
+    if (status) return std::nullopt;
+
+    return {
+        {p0, p1}
     };
 }

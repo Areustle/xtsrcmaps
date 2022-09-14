@@ -44,15 +44,15 @@ add_compile_options(
   -pedantic
   -Werror
   -march=native
-  # -fsanitize=address
-  # -fsanitize=leak
-  # -fsanitize=undefined
-  # -fno-omit-frame-pointer
-  # -fno-common
+  -fsanitize=address
+  -fsanitize=leak
+  -fsanitize=undefined
+  -fno-omit-frame-pointer
+  -fno-common
 )
-# add_link_options(
-#   -fsanitize=address -fsanitize=leak -fsanitize=undefined
-#   -fno-omit-frame-pointer -fno-common
-# )
+add_link_options(
+  -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  -fno-omit-frame-pointer -fno-common
+)
 
 add_subdirectory(xtsrcmaps)

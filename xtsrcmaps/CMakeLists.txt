@@ -1,9 +1,11 @@
 add_executable(
   xtsrcmaps
   bilerp.cxx
+  exposure.cxx
   fitsfuncs.cxx
+  irf.cxx
   parse_src_mdl.cxx
-  prepare_irf_data.cxx
+  psf_bilerp.cxx
   psf_v2.cxx
   source_utils.cxx
   xtsrcmaps.cxx

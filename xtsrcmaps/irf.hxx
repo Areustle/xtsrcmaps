@@ -1,34 +1,68 @@
 #pragma once
 
-#include <vector>
-
 #include "xtsrcmaps/fitsfuncs.hxx"
+#include "xtsrcmaps/tensor_types.hxx"
+
+#include "experimental/mdspan"
+
+#include <vector>
 
 namespace Fermi
 {
 
-struct IrfData
+struct IrfData3
 {
     std::vector<double> cosths;
     std::vector<double> logEs;
-    std::vector<double> params;
-    size_t              extent0;
-    size_t              extent1;
-    size_t              extent2;
+    mdarray3            params;
+
+    auto
+    mdspan() -> mdspan3
+    {
+        return mdspan3(
+            params.data(), params.extent(0), params.extent(1), params.extent(2));
+    }
 };
 
-auto
-prepare_psf_data(fits::PsfParamData const& pars) -> IrfData;
+namespace Psf
+{
+
+struct Data
+{
+    IrfData3 rpsf;
+    IrfData3 psf_scaling_params;
+    IrfData3 fisheye_correction;
+};
+
+struct Pass8
+{
+    Psf::Data front;
+    Psf::Data back;
+};
+
+} // namespace Psf
+
+namespace Aeff
+{
+
+struct Data
+{
+    IrfData3 effective_area;
+    IrfData3 phi_dependence;
+    IrfData3 efficiency_params;
+};
+
+struct Pass8
+{
+    Aeff::Data front;
+    Aeff::Data back;
+};
+} // namespace Aeff
 
 auto
-irf_fixed_grid(IrfData const& pars) -> std::vector<double>;
+prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3;
 
 auto
-prepare_irf_data(fits::IrfGrid const& pars) -> IrfData;
-
-auto
-normalize_irf_data(IrfData&, fits::IrfScale const&) -> void;
-
-
+normalize_irf_data(IrfData3&, fits::IrfScale const&) -> void;
 
 } // namespace Fermi
