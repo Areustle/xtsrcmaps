@@ -9,7 +9,7 @@ namespace Fermi
 //
 struct XtCfg
 {
-    std::string analysis_base = "/home/areustle/nasa/fermi/xtsrcmaps/analysis/";
+    std::string analysis_base = "/Users/areustle/nasa/fermi/xtsrcmaps/analysis/";
     std::string scfile        = "";        //,,,"Spacecraft data file"
     std::string sctable       = "SC_DATA"; //,,,Spacecraft data extension
     //"Exposure hypercube file"

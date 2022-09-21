@@ -225,7 +225,7 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
             return std::nullopt;
         }
         // Copy the raw bytes into the float array.
-        std::memcpy(bytes.data(), rowdata[n].data(), sz);
+        std::memcpy(rowdata[n].data(), bytes.data(), sz);
     }
 
     fits_close_file(ifile, &status);

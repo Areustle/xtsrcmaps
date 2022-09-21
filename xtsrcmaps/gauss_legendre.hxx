@@ -9,7 +9,7 @@ namespace
 {
 // Estimate the polynomial's root and derivative
 template <size_t N>
-constexpr auto
+auto
 poly_root_deriv(double const x) -> std::pair<double, double>
 {
     double       val      = x;
@@ -34,7 +34,7 @@ namespace Fermi
 {
 
 template <size_t N = 8>
-constexpr auto
+auto
 legendre_poly_rw(double const eps = 1e-15) -> std::vector<std::pair<double, double>>
 {
     auto result = std::vector<std::pair<double, double>>();
@@ -62,7 +62,7 @@ legendre_poly_rw(double const eps = 1e-15) -> std::vector<std::pair<double, doub
 }
 
 template <typename F>
-constexpr auto
+auto
 gauss_legendre_integral(
     double const                                  a,
     double const                                  b,
