@@ -31,26 +31,6 @@ struct LiveTimeCubeData
 auto
 read_ltcube(std::string const&) -> std::optional<LiveTimeCubeData>;
 
-struct PsfParamData
-{
-    std::vector<float> energy_lo;
-    std::vector<float> energy_hi;
-    std::vector<float> costhe_lo;
-    std::vector<float> costhe_hi;
-    std::vector<float> ncore;
-    std::vector<float> ntail;
-    std::vector<float> score;
-    std::vector<float> stail;
-    std::vector<float> gcore;
-    std::vector<float> gtail;
-    float              scale0;
-    float              scale1;
-    float              scale_index;
-};
-
-auto
-read_psf(std::string const&) -> std::optional<PsfParamData>;
-
 struct IrfGrid
 {
     std::vector<float>              energy_lo;
@@ -65,6 +45,17 @@ struct IrfGrid
 
 auto
 read_irf_grid(std::string const&, std::string const&) -> std::optional<IrfGrid>;
+
+struct TablePars
+{
+    std::vector<size_t>             extents;
+    std::vector<std::vector<float>> rowdata;
+};
+
+
+auto
+read_irf_pars(std::string const&, std::string const&) -> std::optional<TablePars>;
+
 
 struct IrfScale
 {
