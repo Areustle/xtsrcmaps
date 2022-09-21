@@ -1,7 +1,7 @@
 #include "xtsrcmaps/source_utils.hxx"
 
 #include <algorithm>
-#include <ranges>
+#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -10,7 +10,7 @@ Fermi::directions_from_point_sources(std::vector<Fermi::Source> const& srcs)
     -> std::vector<std::pair<double, double>>
 {
     auto dirs = std::vector<std::pair<double, double>>();
-    std::ranges::transform(
+    std::transform(
         srcs.cbegin(),
         srcs.cend(),
         std::back_inserter(dirs),
@@ -20,8 +20,8 @@ Fermi::directions_from_point_sources(std::vector<Fermi::Source> const& srcs)
             auto params = std::get<SkyDirFunctionSpatialModel>(
                               std::get<PointSource>(s).spatial_model)
                               .params;
-            auto ra_it  = std::ranges::find_if(params, is_ra);
-            auto dec_it = std::ranges::find_if(params, is_dec);
+            auto ra_it  = std::find_if(params.cbegin(), params.cend(), is_ra);
+            auto dec_it = std::find_if(params.cbegin(), params.cend(), is_dec);
             return { ra_it->value, dec_it->value };
         });
 

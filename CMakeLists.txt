@@ -43,16 +43,40 @@ add_compile_options(
   -Wextra
   -pedantic
   -Werror
-  -march=native
-  -fsanitize=address
-  -fsanitize=leak
-  -fsanitize=undefined
+  # -march=native
+  # -fsanitize=address
+  # -fsanitize=leak
+  # -fsanitize=undefined
   -fno-omit-frame-pointer
   -fno-common
 )
 add_link_options(
-  -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  # -fsanitize=address
+  # -fsanitize=leak
+  # -fsanitize=undefined
   -fno-omit-frame-pointer -fno-common
 )
 
+# ##############################################################################
+# Doctest testing
+find_package(Git REQUIRED)
+include(ExternalProject)
+
+ExternalProject_Add(
+    doctest
+    PREFIX ${CMAKE_BINARY_DIR}/doctest
+    GIT_REPOSITORY https://github.com/doctest/doctest.git
+    TIMEOUT 10
+    UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+    LOG_DOWNLOAD ON
+)
+
+ExternalProject_Get_Property(doctest source_dir)
+set(DOCTEST_INCLUDE_DIR ${source_dir}/doctest CACHE INTERNAL "Path to include folder for doctest")
+
 add_subdirectory(xtsrcmaps)
+
+# target_include_directories(my_target PUBLIC ${DOCTEST_INCLUDE_DIR})

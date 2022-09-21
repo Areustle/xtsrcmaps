@@ -228,6 +228,7 @@ struct fmt::formatter<Fermi::UnknownSpatialModel>
     auto
     format(Fermi::UnknownSpatialModel const& v, FormatContext& ctx)
     {
+        (void)(v);
         return fmt::format_to(ctx.out(), "<UnknownSpatialModel>", "");
     }
 };

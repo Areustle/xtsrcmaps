@@ -11,12 +11,11 @@
 #include <fmt/format.h>
 #include <xtsrcmaps/fmt_source.hxx>
 
+#include <algorithm>
 #include <numeric>
-#include <ranges>
 #include <vector>
 
 using std::vector;
-using std::ranges::views::transform;
 
 int
 main()
@@ -42,7 +41,9 @@ main()
         return 1;
     }
     auto energies   = opt_energies.value();
-    auto logEs      = to<vector<double>>(energies | transform(::log10));
+    auto logEs   = vector<double>(energies.size(), 0.0);
+    std::transform(energies.cbegin(), energies.cend(), logEs.begin(),
+        [](auto const& v){return std::log10(v);});
 
     // skipping ROI cuts.
     // skipping edisp_bin expansion.
@@ -64,63 +65,27 @@ main()
     //********************************************************************************
     // Read IRF Fits Files.
     //********************************************************************************
-    auto opt_aeff_area
-        = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFECTIVE AREA_FRONT");
-    if (!opt_aeff_area)
-    {
-        fmt::print("Cannot read Aeff table EFFECTIVE AREA_FRONT!\n");
-        return 1;
-    }
-    auto raw_aeff_area = opt_aeff_area.value();
+    auto opt_aeff = Fermi::load_aeff(cfg.aeff_name);
+    if (!opt_aeff) {return 1;}
+
+    auto opt_psf = Fermi::load_psf(cfg.psf_name);
+    if (!opt_psf) {return 1;}
+
+    auto aeff = opt_aeff.value();
+    auto psf = opt_psf.value();
+    // fmt::print(
+    //     "mdaeff: {:+.0f}\n",
+    //     fmt::join(aeff.front.effective_area.cosths, ""));
     //
-    auto opt_aeff_phidep
-        = Fermi::fits::read_irf_pars(cfg.aeff_name, "PHI_DEPENDENCE_FRONT");
-    if (!opt_aeff_phidep)
-    {
-        fmt::print("Cannot read Aeff table PHI_DEPENDENCE_FRONT!\n");
-        return 1;
-    }
-    auto raw_aeff_phidep = opt_aeff_phidep.value();
-    // //
-    // auto opt_aeff_effic
-    //     = Fermi::fits::read_irf_efficiency(cfg.aeff_name, "EFFICIENCY_PARAMS_FRONT");
-    // if (!opt_aeff_effic)
-    // {
-    //     fmt::print("Cannot read Aeff table EFFICIENCY_PARAMS_FRONT!\n");
-    //     return 1;
-    // }
-    // auto raw_aeff_effic = opt_aeff_effic.value();
-    // //
-    auto opt_psf_rpsf    = Fermi::fits::read_irf_pars(cfg.psf_name, "RPSF_FRONT");
-    if (!opt_psf_rpsf)
-    {
-        fmt::print("Cannot read PSF table RPSF_FRONT!\n");
-        return 1;
-    }
-    // auto raw_psf_rpsf = opt_psf_rpsf.value();
-    // //
-    // auto opt_psf_scale
-    //     = Fermi::fits::read_irf_scale(cfg.psf_name, "PSF_SCALING_PARAMS_FRONT");
-    // if (!opt_psf_scale)
-    // {
-    //     fmt::print("Cannot read PSF table PSF_SCALING_PARAMS_FRONT!\n");
-    //     return 1;
-    // }
-    // auto psf_scale   = opt_psf_scale.value();
+    // // // : load-psf parameters
+    // // // auto opt_psfpars = Fermi::fits::read_psf(cfg.psf_name);
+    // // // auto raw_psfpars = opt_psfpars.value();
+    // // // : compute-psf : Compute the actual PSF
+    // auto exp_area = Fermi::aeff_value(exp_costheta, logEs, aeff.front.effective_area);
     //
-    // // : load-psf parameters
-    // // auto opt_psfpars = Fermi::fits::read_psf(cfg.psf_name);
-    // // auto raw_psfpars = opt_psfpars.value();
-    // // : compute-psf : Compute the actual PSF
-    // auto aeff_area   = Fermi::prepare_irf_table(raw_aeff_area);
-    // auto aeff_phidep = Fermi::prepare_irf_table(raw_aeff_phidep);
-    // auto psf_rpsf    = Fermi::prepare_irf_table(raw_psf_rpsf);
-    // Fermi::normalize_irf_data(psf_rpsf, psf_scale);
-    //
-    // auto exp_area = Fermi::aeff_value(exp_costheta, logEs, aeff_area);
-    // // fmt::print(
-    // //     "mdaeff: {:+.0f}\n",
-    // //     fmt::join(exp_area.container().begin(), exp_area.container().end(), ""));
+    // fmt::print(
+    //     "mdaeff: {:+.0f}\n",
+    //     fmt::join(exp_area.container(), ""));
     // // Need to figure out how to determine if the phiDepPars or m_usePhiDependence
     // // parameters are set. If so this calculation can be skipped entirely and just
     // // the unmodulated Aeff value used.

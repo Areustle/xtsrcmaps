@@ -65,8 +65,8 @@ Fermi::aeff_value(vector<double> const& costhet,
     auto R    = mdspan(aeff.data(), costhet.size(), logEs.size());
     auto C    = mdspan(costhet.data(), costhet.size());
     auto E    = mdspan(logEs.data(), logEs.size());
-    auto IC   = span(pars.cosths.cbegin(), pars.cosths.cend());
-    auto IE   = span(pars.logEs.cbegin(), pars.logEs.cend());
+    auto IC   = span(pars.cosths);
+    auto IE   = span(pars.logEs);
     assert(pars.params.extent(2) == 1);
     auto IP = mdspan(pars.params.data(),
                      pars.params.extent(0),
@@ -135,8 +135,8 @@ Fermi::phi_mod(vector<double> const& cosBins,
     {
         auto C  = mdspan(cosBins.data(), cosBins.size());
         auto E  = mdspan(logEs.data(), logEs.size());
-        auto IC = span(pars.cosths.cbegin(), pars.cosths.cend());
-        auto IE = span(pars.logEs.cbegin(), pars.logEs.cend());
+        auto IC = span(pars.cosths);
+        auto IE = span(pars.logEs);
         auto IP = mdspan(pars.params.data(),
                          pars.params.extent(0),
                          pars.params.extent(1),

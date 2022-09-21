@@ -31,50 +31,14 @@ struct LiveTimeCubeData
 auto
 read_ltcube(std::string const&) -> std::optional<LiveTimeCubeData>;
 
-struct IrfGrid
-{
-    std::vector<float>              energy_lo;
-    std::vector<float>              energy_hi;
-    std::vector<float>              costhe_lo;
-    std::vector<float>              costhe_hi;
-    std::vector<std::vector<float>> params;
-    size_t                          Nenergy;
-    size_t                          Ncosthe;
-    size_t                          Ngrids;
-};
-
-auto
-read_irf_grid(std::string const&, std::string const&) -> std::optional<IrfGrid>;
-
 struct TablePars
 {
     std::vector<size_t>             extents;
     std::vector<std::vector<float>> rowdata;
 };
 
-
 auto
 read_irf_pars(std::string const&, std::string const&) -> std::optional<TablePars>;
-
-
-struct IrfScale
-{
-    float scale0;
-    float scale1;
-    float scale_index;
-};
-
-auto
-read_irf_scale(std::string const&, std::string const&) -> std::optional<IrfScale>;
-
-struct IrfEffic
-{
-    std::array<float, 6> p0;
-    std::array<float, 6> p1;
-};
-
-auto
-read_irf_efficiency(std::string const&, std::string const&) -> std::optional<IrfEffic>;
 
 
 } // namespace fits

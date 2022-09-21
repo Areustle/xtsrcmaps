@@ -256,8 +256,8 @@ Fermi::bilerp(vector<double> const& kings,
     auto   C       = mdspan(cosBins.data(), N_src, 40);
     auto   E       = mdspan(logEs.data(), logEs.size());
     auto   IP      = mdspan(kings.data(), 400, 10, 25);
-    auto   IE      = span(pars.logEs.cbegin(), pars.logEs.cend());
-    auto   IC      = span(pars.cosths.cbegin(), pars.cosths.cend());
+    auto   IE      = span(pars.logEs);
+    auto   IC      = span(pars.cosths);
 
     co_aeff_value_base(R, C, E, IP, IE, IC);
 
