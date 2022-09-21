@@ -65,7 +65,7 @@ main()
     // Read IRF Fits Files.
     //********************************************************************************
     auto opt_aeff_area
-        = Fermi::fits::read_irf_grid(cfg.aeff_name, "EFFECTIVE AREA_FRONT");
+        = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFECTIVE AREA_FRONT");
     if (!opt_aeff_area)
     {
         fmt::print("Cannot read Aeff table EFFECTIVE AREA_FRONT!\n");
@@ -74,7 +74,7 @@ main()
     auto raw_aeff_area = opt_aeff_area.value();
     //
     auto opt_aeff_phidep
-        = Fermi::fits::read_irf_grid(cfg.aeff_name, "PHI_DEPENDENCE_FRONT");
+        = Fermi::fits::read_irf_pars(cfg.aeff_name, "PHI_DEPENDENCE_FRONT");
     if (!opt_aeff_phidep)
     {
         fmt::print("Cannot read Aeff table PHI_DEPENDENCE_FRONT!\n");
@@ -91,53 +91,53 @@ main()
     // }
     // auto raw_aeff_effic = opt_aeff_effic.value();
     // //
-    auto opt_psf_rpsf   = Fermi::fits::read_irf_grid(cfg.psf_name, "RPSF_FRONT");
+    auto opt_psf_rpsf    = Fermi::fits::read_irf_pars(cfg.psf_name, "RPSF_FRONT");
     if (!opt_psf_rpsf)
     {
         fmt::print("Cannot read PSF table RPSF_FRONT!\n");
         return 1;
     }
-    auto raw_psf_rpsf = opt_psf_rpsf.value();
+    // auto raw_psf_rpsf = opt_psf_rpsf.value();
+    // //
+    // auto opt_psf_scale
+    //     = Fermi::fits::read_irf_scale(cfg.psf_name, "PSF_SCALING_PARAMS_FRONT");
+    // if (!opt_psf_scale)
+    // {
+    //     fmt::print("Cannot read PSF table PSF_SCALING_PARAMS_FRONT!\n");
+    //     return 1;
+    // }
+    // auto psf_scale   = opt_psf_scale.value();
     //
-    auto opt_psf_scale
-        = Fermi::fits::read_irf_scale(cfg.psf_name, "PSF_SCALING_PARAMS_FRONT");
-    if (!opt_psf_scale)
-    {
-        fmt::print("Cannot read PSF table PSF_SCALING_PARAMS_FRONT!\n");
-        return 1;
-    }
-    auto psf_scale   = opt_psf_scale.value();
-
-    // : load-psf parameters
-    // auto opt_psfpars = Fermi::fits::read_psf(cfg.psf_name);
-    // auto raw_psfpars = opt_psfpars.value();
-    // : compute-psf : Compute the actual PSF
-    auto aeff_area   = Fermi::prepare_irf_data(raw_aeff_area);
-    auto aeff_phidep = Fermi::prepare_irf_data(raw_aeff_phidep);
-    auto psf_rpsf    = Fermi::prepare_irf_data(raw_psf_rpsf);
-    Fermi::normalize_irf_data(psf_rpsf, psf_scale);
-
-    auto exp_area = Fermi::aeff_value(exp_costheta, logEs, aeff_area);
-    // fmt::print(
-    //     "mdaeff: {:+.0f}\n",
-    //     fmt::join(exp_area.container().begin(), exp_area.container().end(), ""));
-    // Need to figure out how to determine if the phiDepPars or m_usePhiDependence
-    // parameters are set. If so this calculation can be skipped entirely and just
-    // the unmodulated Aeff value used.
-    auto exp_phid = Fermi::phi_mod(exp_costheta, logEs, aeff_phidep, false);
-    auto expo     = Fermi::exposure(exp_area, exp_phid, exp_costheta);
-    fmt::print("expo: {:+4.2g}\n",
-               fmt::join(expo.container().begin(), expo.container().end(), " "));
-
-    auto seps  = Fermi::separations(1e-4, 70.0, 400);
-    auto kings = Fermi::psf_fixed_grid(seps, psf_rpsf);
-    fmt::print("kings: {}\n", std::reduce(kings.begin(), kings.end(), 0.0));
-
-    // auto bilerps = Fermi::bilerp(kings, logEs, exp_costheta, psf_rpsf);
-    // fmt::print("bilerps: {}\n", std::reduce(bilerps.begin(), bilerps.end(), 0.0));
-
-    // : convolve-psf :
-
-    // : write-results : write the results back out to file
-    return 0;
+    // // : load-psf parameters
+    // // auto opt_psfpars = Fermi::fits::read_psf(cfg.psf_name);
+    // // auto raw_psfpars = opt_psfpars.value();
+    // // : compute-psf : Compute the actual PSF
+    // auto aeff_area   = Fermi::prepare_irf_table(raw_aeff_area);
+    // auto aeff_phidep = Fermi::prepare_irf_table(raw_aeff_phidep);
+    // auto psf_rpsf    = Fermi::prepare_irf_table(raw_psf_rpsf);
+    // Fermi::normalize_irf_data(psf_rpsf, psf_scale);
+    //
+    // auto exp_area = Fermi::aeff_value(exp_costheta, logEs, aeff_area);
+    // // fmt::print(
+    // //     "mdaeff: {:+.0f}\n",
+    // //     fmt::join(exp_area.container().begin(), exp_area.container().end(), ""));
+    // // Need to figure out how to determine if the phiDepPars or m_usePhiDependence
+    // // parameters are set. If so this calculation can be skipped entirely and just
+    // // the unmodulated Aeff value used.
+    // auto exp_phid = Fermi::phi_mod(exp_costheta, logEs, aeff_phidep, false);
+    // auto expo     = Fermi::exposure(exp_area, exp_phid, exp_costheta);
+    // fmt::print("expo: {:+4.2g}\n",
+    //            fmt::join(expo.container().begin(), expo.container().end(), " "));
+    //
+    // auto seps  = Fermi::separations(1e-4, 70.0, 400);
+    // auto kings = Fermi::psf_fixed_grid(seps, psf_rpsf);
+    // fmt::print("kings: {}\n", std::reduce(kings.begin(), kings.end(), 0.0));
+    //
+    // // auto bilerps = Fermi::bilerp(kings, logEs, exp_costheta, psf_rpsf);
+    // // fmt::print("bilerps: {}\n", std::reduce(bilerps.begin(), bilerps.end(), 0.0));
+    //
+    // // : convolve-psf :
+    //
+    // // : write-results : write the results back out to file
+    // return 0;
 }

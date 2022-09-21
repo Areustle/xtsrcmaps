@@ -5,6 +5,7 @@
 
 #include "experimental/mdspan"
 
+#include <cmath>
 #include <vector>
 
 namespace Fermi
@@ -24,13 +25,26 @@ struct IrfData3
     }
 };
 
+struct IrfScale
+{
+    float scale0;
+    float scale1;
+    float scale_index;
+};
+
+struct IrfEffic
+{
+    std::array<float, 6> p0;
+    std::array<float, 6> p1;
+};
+
 namespace Psf
 {
 
 struct Data
 {
     IrfData3 rpsf;
-    IrfData3 psf_scaling_params;
+    IrfScale psf_scaling_params;
     IrfData3 fisheye_correction;
 };
 
@@ -49,7 +63,7 @@ struct Data
 {
     IrfData3 effective_area;
     IrfData3 phi_dependence;
-    IrfData3 efficiency_params;
+    IrfEffic efficiency_params;
 };
 
 struct Pass8
@@ -60,9 +74,34 @@ struct Pass8
 } // namespace Aeff
 
 auto
-prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3;
+prepare_grid(fits::TablePars const& pars) -> IrfData3;
 
 auto
-normalize_irf_data(IrfData3&, fits::IrfScale const&) -> void;
+prepare_scale(fits::TablePars const& pars) -> IrfScale;
+
+auto
+normalize_rpsf(Psf::Data&) -> void;
+
+auto
+prepare_psf_data(fits::TablePars const&,
+                 fits::TablePars const&,
+                 fits::TablePars const&,
+                 fits::TablePars const&,
+                 fits::TablePars const&,
+                 fits::TablePars const&) -> Psf::Pass8;
+
+auto
+prepare_aeff_data(fits::TablePars const&,
+                  fits::TablePars const&,
+                  fits::TablePars const&,
+                  fits::TablePars const&,
+                  fits::TablePars const&,
+                  fits::TablePars const&) -> Aeff::Pass8;
+
+auto
+load_aeff(std::string const&) -> std::optional<Aeff::Pass8>;
+
+auto
+load_psf(std::string const&) -> std::optional<Psf::Pass8>;
 
 } // namespace Fermi

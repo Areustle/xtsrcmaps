@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <utility>
 
 #include "experimental/mdspan"
@@ -23,22 +24,32 @@ using std::experimental::submdspan;
 // data tensors for future sampling.
 //************************************************************************************
 auto
-Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3
+Fermi::prepare_grid(fits::TablePars const& pars) -> IrfData3
 {
 
-    // Get sizing params
-    size_t const M_t_base = pars.costhe_lo.size();
-    size_t const M_t      = M_t_base + 2;
+    assert(pars.extents.size() >= 5);
+    assert(pars.extents[0] > 1);
+    assert(pars.extents[0] == pars.extents[1]);
+    assert(pars.extents[2] > 1);
+    assert(pars.extents[2] == pars.extents[3]);
+    assert(pars.extents[4] == pars.extents[0] * pars.extents[2]);
+    assert(pars.rowdata.size() == 0);
 
-    size_t const M_e_base = pars.energy_lo.size();
-    size_t const M_e      = M_e_base + 2;
+    auto offsets = std::vector<size_t>(pars.extents.size(), 0);
+    std::partial_sum(pars.extents.cbegin(), pars.extents.cend(), offsets.begin());
 
-    // scale and pad the energy data
+    size_t const M_t_base = pars.extents[0];
+    size_t const M_t      = pars.extents[0] + 2;
+    size_t const M_e_base = pars.extents[2];
+    size_t const M_e      = pars.extents[2] + 2;
+
+    auto const& row       = pars.rowdata[0];
+
     std::vector<double> cosths(M_t, 0.0);
     for (size_t k(0); k < M_t_base; k++)
     {
         // Arithmetic mean of cosine bins
-        cosths[1 + k] = 0.5 * (pars.costhe_lo[k] + pars.costhe_hi[k]);
+        cosths[1 + k] = 0.5 * (row[offsets[2] + k] + row[offsets[3] + k]);
     }
     // padded cosine bin values.
     cosths.front() = 0.0;
@@ -49,15 +60,16 @@ Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3
     for (size_t k(0); k < M_e_base; k++)
     {
         // Geometric mean of energy bins
-        logEs[1 + k] = std::log10(std::sqrt(pars.energy_lo[k] * pars.energy_hi[k]));
+        logEs[1 + k] = std::log10(std::sqrt(row[offsets[0] + k] * row[offsets[1] + k]));
     }
 
     // padded energy bin values.
     logEs.front() = 0.0;
     logEs.back()  = 10.0;
 
-    auto params   = vector<double>(M_t * M_e * pars.Ngrids);
-    auto pv       = mdspan(params.data(), M_t, M_e, pars.Ngrids);
+    auto Ngrids   = pars.extents.size();
+    auto params   = std::vector<double>(M_t * M_e * Ngrids);
+    auto pv       = std::experimental::mdspan(params.data(), M_t, M_e, Ngrids);
 
     /// First let's assign the data values into the params block structure.
     /// Pad with value duplication.
@@ -69,8 +81,9 @@ Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3
             size_t const e_ = e == 0 ? 0 : e >= M_e_base ? M_e_base - 1 : e - 1;
             for (size_t p = 0; p < pv.extent(2); ++p) // params
             {
-                auto parview = mdspan(pars.params[p].data(), M_t_base, M_e_base);
-                pv(t, e, p)  = parview(t_, e_);
+                auto parview = std::experimental::mdspan(
+                    &row[offsets[4 + p]], M_t_base, M_e_base);
+                pv(t, e, p) = parview(t_, e_);
             }
         }
     }
@@ -78,6 +91,34 @@ Fermi::prepare_irf_data(fits::IrfGrid const& pars) -> IrfData3
     return { cosths,
              logEs,
              mdarray3(params, pv.extent(0), pv.extent(1), pv.extent(2)) };
+}
+
+auto
+Fermi::prepare_scale(fits::TablePars const& pars) -> IrfScale
+{
+    assert(pars.extents.size() == 1);
+    assert(pars.extents[0] == 3);
+    assert(pars.extents.size() == pars.rowdata.size());
+
+    return { pars.rowdata[0][0], pars.rowdata[0][1], pars.rowdata[0][2] };
+}
+
+auto
+prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
+{
+
+    assert(pars.extents.size() == 1);
+    assert(pars.extents[0] == 6);
+    assert(pars.rowdata.size() == 2);
+    assert(pars.rowdata[0].size() == 6);
+    assert(pars.rowdata[1].size() == 6);
+
+    auto p0 = std::array<float, 6> { 0.0 };
+    auto p1 = std::array<float, 6> { 0.0 };
+    std::copy(pars.rowdata[0].cbegin(), pars.rowdata[0].cend(), p0.begin());
+    std::copy(pars.rowdata[1].cbegin(), pars.rowdata[1].cend(), p1.begin());
+
+    return { p1, p1 };
 }
 
 
@@ -144,14 +185,16 @@ psf3_psf_base_integral(double const radius, double const scale_factor, auto cons
 }
 
 auto
-Fermi::normalize_irf_data(IrfData3& data, fits::IrfScale const& scale) -> void
+Fermi::normalize_rpsf(Psf::Data& psfdata) -> void
 {
 
+    IrfData3&       data  = psfdata.rpsf;
+    IrfScale const& scale = psfdata.psf_scaling_params;
     // span the IrfData params (should pass mdarray)
     // auto pv = mdspan(data.params.data(), data.extent0, data.extent1, data.extent2);
     // Next normalize and scale.
 
-    auto scaleFactor = [sp0 = (scale.scale0 * scale.scale0),
+    auto scaleFactor      = [sp0 = (scale.scale0 * scale.scale0),
                         sp1 = (scale.scale1 * scale.scale1),
                         si  = scale.scale_index](double const energy) {
         double const tt = std::pow(energy / 100., si);
@@ -194,9 +237,104 @@ Fermi::normalize_irf_data(IrfData3& data, fits::IrfScale const& scale) -> void
 };
 
 //************************************************************************************
-// Convert the raw arrays read in from an IRF PSF FITS file into a useable set of PSF
-// data tensors for future sampling.
 //************************************************************************************
+auto
+Fermi::prepare_psf_data(fits::TablePars const& front_rpsf,
+                        fits::TablePars const& front_scaling,
+                        fits::TablePars const& front_fisheye,
+                        fits::TablePars const& back_rpsf,
+                        fits::TablePars const& back_scaling,
+                        fits::TablePars const& back_fisheye) -> Psf::Pass8
+{
+
+    auto front = Psf::Data { prepare_grid(front_rpsf),
+                             prepare_scale(front_scaling),
+                             prepare_grid(front_fisheye) };
+    auto back  = Psf::Data { prepare_grid(back_rpsf),
+                            prepare_scale(back_scaling),
+                            prepare_grid(back_fisheye) };
+
+    normalize_rpsf(front);
+    normalize_rpsf(back);
+
+    return { front, back };
+}
+
+//************************************************************************************
+//************************************************************************************
+auto
+Fermi::prepare_aeff_data(fits::TablePars const& front_eff_area,
+                         fits::TablePars const& front_phi_dep,
+                         fits::TablePars const& front_effici,
+                         fits::TablePars const& back_eff_area,
+                         fits::TablePars const& back_phi_dep,
+                         fits::TablePars const& back_effici) -> Aeff::Pass8
+{
+    return {
+        {prepare_grid(front_eff_area),
+         prepare_grid(front_phi_dep),
+         prepare_effic(front_effici)},
+        { prepare_grid(back_eff_area),
+         prepare_grid(back_phi_dep),
+         prepare_effic(back_effici) }
+    };
+}
+
+auto
+read_opt(auto&& F, std::string const& filename, std::string const& tablename)
+    -> decltype(auto)
+{
+    auto irf_obj_opt = F(filename, tablename);
+    if (!irf_obj_opt) fmt::print("Cannot read {} table {}!\n", filename, tablename);
+    return irf_obj_opt;
+}
+
+auto
+Fermi::load_aeff(std::string const& filename) -> std::optional<Aeff::Pass8>
+{
+    auto f   = fits::read_irf_pars;
+    auto o0f = read_opt(f, filename, "EFFECTIVE AREA_FRONT");
+    auto o1f = read_opt(f, filename, "PHI_DEPENDENCE_FRONT");
+    auto o2f = read_opt(f, filename, "EFFICIENCY_PARAMS_FRONT");
+    auto o0b = read_opt(f, filename, "EFFECTIVE AREA_BACK");
+    auto o1b = read_opt(f, filename, "PHI_DEPENDENCE_BACK");
+    auto o2b = read_opt(f, filename, "EFFICIENCY_PARAMS_BACK");
+
+    if (o0f && o1f && o2f && o0b && o1b && o2b)
+    {
+        return { prepare_aeff_data(o0f.value(),
+                                   o1f.value(),
+                                   o2f.value(),
+                                   o0b.value(),
+                                   o1b.value(),
+                                   o2b.value()) };
+    }
+    else { return std::nullopt; }
+}
+
+auto
+Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
+{
+    auto f   = fits::read_irf_pars;
+    auto o0f = read_opt(f, filename, "RPSF_FRONT");
+    auto o1f = read_opt(f, filename, "PSF_SCALING_PARAMS_FRONT");
+    auto o2f = read_opt(f, filename, "FISHEYE_CORRECTION_FRONT");
+    auto o0b = read_opt(f, filename, "RPSF_BACK");
+    auto o1b = read_opt(f, filename, "PSF_SCALING_PARAMS_BACK");
+    auto o2b = read_opt(f, filename, "FISHEYE_CORRECTION_BACK");
+
+    if (o0f && o1f && o2f && o0b && o1b && o2b)
+    {
+        return { prepare_psf_data(o0f.value(),
+                                  o1f.value(),
+                                  o2f.value(),
+                                  o0b.value(),
+                                  o1b.value(),
+                                  o2b.value()) };
+    }
+    else { return std::nullopt; }
+}
+
 // auto
 // Fermi::prepare_psf_data(fits::PsfParamData const& pars) -> IrfData
 // {
