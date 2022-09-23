@@ -4,6 +4,7 @@
 
 #include "experimental/mdspan"
 
+#include <array>
 #include <cmath>
 #include <vector>
 

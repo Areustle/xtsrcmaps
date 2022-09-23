@@ -34,6 +34,7 @@ read_ltcube(std::string const&) -> std::optional<LiveTimeCubeData>;
 struct TablePars
 {
     std::vector<size_t>             extents;
+    std::vector<size_t>             offsets;
     std::vector<std::vector<float>> rowdata;
 };
 
