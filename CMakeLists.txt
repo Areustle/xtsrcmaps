@@ -1,11 +1,11 @@
 # Fermi xtsrcmaps Author: Alexander Reustle (2022)
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.21)
 
 project(
   xtsrcmaps
   VERSION 0.0.1
   LANGUAGES CXX
-  DESCRIPTION "Fermi xtsrcmaps experimental source map generator."
+  DESCRIPTION "Fermi LAT experimental source map generator."
 )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -17,7 +17,6 @@ include(CMakePackageConfigHelpers)
 include(CMakeDependentOption)
 include(CheckCXXCompilerFlag)
 include(GNUInstallDirs)
-include(CTest)
 include(FetchContent)
 
 # Externals: The dependent packages on which the tool relies. ##
@@ -35,48 +34,28 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
 
 # ##############################################################################
-# foreach(pkg ${FERMI_COMPONENTS}) add_subdirectory(src/${pkg}
-# ${CMAKE_BINARY_DIR}/${pkg}) endforeach()
 
 add_compile_options(
-  -Wall
-  -Wextra
-  -pedantic
-  -Werror
-  # -march=native
-  # -fsanitize=address
-  # -fsanitize=leak
-  # -fsanitize=undefined
-  -fno-omit-frame-pointer
-  -fno-common
+  -Wall -Wextra -pedantic -Werror
+  # -march=native -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  -fno-omit-frame-pointer -fno-common
 )
 add_link_options(
-  # -fsanitize=address
-  # -fsanitize=leak
-  # -fsanitize=undefined
+  # -fsanitize=address -fsanitize=leak -fsanitize=undefined
   -fno-omit-frame-pointer -fno-common
 )
 
-# ##############################################################################
-# Doctest testing
-find_package(Git REQUIRED)
-include(ExternalProject)
-
-ExternalProject_Add(
-    doctest
-    PREFIX ${CMAKE_BINARY_DIR}/doctest
-    GIT_REPOSITORY https://github.com/doctest/doctest.git
-    TIMEOUT 10
-    UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND ""
-    LOG_DOWNLOAD ON
-)
-
-ExternalProject_Get_Property(doctest source_dir)
-set(DOCTEST_INCLUDE_DIR ${source_dir}/doctest CACHE INTERNAL "Path to include folder for doctest")
-
 add_subdirectory(xtsrcmaps)
 
+# ##############################################################################
+
+FetchContent_Declare(
+  doctest
+  GIT_REPOSITORY https://github.com/doctest/doctest
+  GIT_TAG master
+)
+FetchContent_MakeAvailable(doctest)
+
 # target_include_directories(my_target PUBLIC ${DOCTEST_INCLUDE_DIR})
+include(CTest)
+enable_testing()

@@ -3,7 +3,6 @@
 #include <cwchar>
 #include <vector>
 
-#include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/irf.hxx"
 
 namespace Fermi

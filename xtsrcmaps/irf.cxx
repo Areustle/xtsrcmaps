@@ -47,11 +47,8 @@ Fermi::prepare_grid(fits::TablePars const& pars) -> IrfData3
     assert(pars.rowdata.size() == 1);
 
     auto const& extents = pars.extents;
+    auto const& offsets = pars.offsets;
     auto const& row     = pars.rowdata[0];
-
-    // compute the offsets for each fits vector in the row data.
-    auto offsets = std::vector<size_t>(extents.size(), 0);
-    std::exclusive_scan(extents.cbegin(), extents.cend(), offsets.begin(), 0.0);
 
     size_t const M_t_base = extents[0];
     size_t const M_t      = extents[0] + 2;
