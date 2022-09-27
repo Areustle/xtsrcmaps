@@ -11,20 +11,17 @@ namespace Fermi
 
 struct LiveTimeExposure
 {
-
     std::size_t nside;
+    std::size_t nbins;
     mdarray2    params; // Healpix, CosineBin
-
-    auto
-    mdspan() -> mdspan2
-    {
-        return mdspan2(params.data(), params.extent(0), params.extent(1));
-    }
 };
 
 auto
-lt_exposure(std::optional<fits::LiveTimeCubeData> const& data)
-    -> std::optional<Fermi::LiveTimeExposure>;
+lt_exposure(fits::LiveTimeCubeData const&) -> LiveTimeExposure;
+
+auto
+src_exp_cosbins(std::vector<std::pair<double, double>> const&, LiveTimeExposure const&)
+    -> mdarray2;
 
 auto
 aeff_value(std::vector<double> const&, std::vector<double> const&, IrfData3 const&)

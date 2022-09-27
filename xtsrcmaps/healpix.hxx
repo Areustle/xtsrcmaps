@@ -3,16 +3,21 @@
 
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 namespace Fermi::Healpix
 {
 
 // Get the pixel index for a healpix nested ordering map from a spherical coordinate
 auto
-ang2pix(double const z, double const phi, int64_t const nside_) -> uint64_t;
+ang2pix(double const theta, double const phi, int64_t const nside_) -> uint64_t;
 
 auto
 ang2pix(std::pair<double, double> const ang, int64_t const nside_) -> uint64_t;
+
+auto
+ang2pix(std::vector<std::pair<double, double>> const& angs, int64_t const nside_)
+    -> std::vector<uint64_t>;
 
 // Get the pixel index for a healpix nested ordering map from a spherical coordinate
 auto

@@ -2,6 +2,7 @@
 
 #include "xtsrcmaps/bilerp.hxx"
 #include "xtsrcmaps/healpix.hxx"
+#include "xtsrcmaps/misc.hxx"
 
 #include "experimental/mdspan"
 #include <fmt/format.h>
@@ -21,24 +22,44 @@ using std::experimental::mdspan;
 
 
 auto
-Fermi::lt_exposure(std::optional<fits::LiveTimeCubeData> const& data)
-    -> std::optional<Fermi::LiveTimeExposure>
+Fermi::lt_exposure(fits::LiveTimeCubeData const& data) -> LiveTimeExposure
 {
-    if (!data) { return std::nullopt; }
-    if (data->ordering != "NESTED") { return std::nullopt; }
+    size_t const& nside = data.nside;
+    size_t const  npix  = 12 * nside * nside;
+    size_t const  nbins = data.nbrbins;
+    auto          v     = std::vector<double>(data.cosbins.size());
+    std::copy(data.cosbins.begin(), data.cosbins.end(), v.begin());
 
-    size_t const nside = data->nside;
-    size_t const npix  = 12 * nside * nside;
-    size_t const nbins = data->nbrbins;
-
-    auto v             = std::vector<double>(data->cosbins.size());
-    std::copy(data->cosbins.begin(), data->cosbins.end(), v.begin());
-
-    return {
-        {nside, mdarray2(v, npix, nbins)}
-    };
+    return { nside, nbins, mdarray2(v, npix, nbins) };
 }
 
+auto
+Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
+                       LiveTimeExposure const&             expmap) -> mdarray2
+{
+    using dir_t  = pair<double, double>;
+
+    // get theta, phi (radians) in appropriate coordinate system
+    auto convert = [](dir_t const p) -> dir_t {
+        return { halfpi - radians(p.second), pi_180 * p.first };
+    };
+
+    auto theta_phi_dirs = vector<dir_t>(dirs.size(), { 0., 0. });
+    std::transform(dirs.cbegin(), dirs.cend(), theta_phi_dirs.begin(), convert);
+
+    auto const nbins = expmap.nbins;
+    auto const pixs  = Fermi::Healpix::ang2pix(theta_phi_dirs, expmap.nside);
+    auto       data  = vector<double>(theta_phi_dirs.size() * nbins, 0.0);
+    auto       A     = mdarray2(data, theta_phi_dirs.size(), nbins);
+
+    for (size_t i = 0; i < pixs.size(); ++i)
+    {
+        auto const& pix = pixs[i];
+        std::copy(&expmap.params(pix, 0), &expmap.params(pix, nbins), &A(i, 0));
+    }
+
+    return A;
+}
 
 
 // B                   [Nc, Ne]

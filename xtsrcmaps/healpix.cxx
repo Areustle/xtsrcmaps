@@ -1,16 +1,14 @@
 #include "xtsrcmaps/healpix.hxx"
 
+#include "xtsrcmaps/misc.hxx"
+
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <tuple>
 
-constexpr double pi         = 3.141592653589793238462643383279502884197;
-// constexpr double twopi      = 6.283185307179586476925286766559005768394;
-constexpr double halfpi     = 1.570796326794896619231321691639751442099;
-constexpr double inv_halfpi = 0.6366197723675813430755350534900574;
-constexpr double twothird   = 2.0 / 3.0;
 
-constexpr uint16_t utab[]   = {
+constexpr uint16_t utab[] = {
 #define Z(a) 0x##a##0, 0x##a##1, 0x##a##4, 0x##a##5
 #define Y(a) Z(a##0), Z(a##1), Z(a##4), Z(a##5)
 #define X(a) Y(a##0), Y(a##1), Y(a##4), Y(a##5)
@@ -142,6 +140,59 @@ nside2order(int64_t const nside) -> int
     return ((nside) & (nside - 1)) ? -1 : ilog2(nside);
 }
 
+// Get the angle pair for a healpix nested ordering map from a pixel index
+auto
+Fermi::Healpix::pix2ang(uint64_t const pix, int64_t const nside_)
+    -> std::pair<double, double>
+{
+    int64_t const npface_   = nside_ * nside_;
+    int64_t const npix_     = 12 * npface_;
+    double const  fact2_    = 4. / npix_;
+    double const  fact1_    = (nside_ << 1) * fact2_;
+    int const     order_    = nside2order(nside_);
+    auto [ix, iy, face_num] = nest2xyf(pix, order_, npface_);
+
+    int64_t jjr             = (jrll[face_num] << order_) - ix - iy - 1;
+
+    int64_t r               = 0;
+    double  z = 0.0, sintheta = 0.0;
+    bool    have_sth = false;
+    if (jjr < nside_)
+    {
+        r          = jjr;
+        double tmp = (r * r) * fact2_;
+        z          = 1 - tmp;
+        if (z > 0.99)
+        {
+            sintheta = sqrt(tmp * (2. - tmp));
+            have_sth = true;
+        }
+    }
+    else if (jjr > 3 * nside_)
+    {
+        r          = nside_ * 4 - jjr;
+        double tmp = (r * r) * fact2_;
+        z          = tmp - 1;
+        if (z < -0.99)
+        {
+            sintheta = sqrt(tmp * (2. - tmp));
+            have_sth = true;
+        }
+    }
+    else
+    {
+        r = nside_;
+        z = (2 * nside_ - jjr) * fact1_;
+    }
+
+    int64_t t = jpll[face_num] * r + ix - iy;
+    assert(t < 8 * r);
+    if (t < 0) t += 8 * r;
+    double phi = (r == nside_) ? 0.75 * halfpi * t * fact1_ : (0.5 * halfpi * t) / r;
+
+    return { have_sth ? std::atan2(sintheta, z) : std::acos(z), phi };
+}
+
 // Get the pixel index for a healpix nested ordering map from an angle
 auto
 Fermi::Healpix::ang2pix(double const theta, double const phi, int64_t const nside_)
@@ -195,55 +246,13 @@ Fermi::Healpix::ang2pix(std::pair<double, double> const ang, int64_t const nside
     return ang2pix(ang.first, ang.second, nside_);
 }
 
-// Get the angle pair for a healpix nested ordering map from a pixel index
 auto
-Fermi::Healpix::pix2ang(uint64_t const pix, int64_t const nside_)
-    -> std::pair<double, double>
+Fermi::Healpix::ang2pix(std::vector<std::pair<double, double>> const& angs,
+                        int64_t const nside_) -> std::vector<std::size_t>
 {
-    int64_t const npface_   = nside_ * nside_;
-    int64_t const npix_     = 12 * npface_;
-    double const  fact2_    = 4. / npix_;
-    double const  fact1_    = (nside_ << 1) * fact2_;
-    int const     order_    = nside2order(nside_);
-    auto [ix, iy, face_num] = nest2xyf(pix, order_, npface_);
-
-    int64_t jjr             = (jrll[face_num] << order_) - ix - iy - 1;
-
-    int64_t r               = 0;
-    double  z = 0.0, sintheta = 0.0;
-    bool    have_sth = false;
-    if (jjr < nside_)
-    {
-        r          = jjr;
-        double tmp = (r * r) * fact2_;
-        z          = 1 - tmp;
-        if (z > 0.99)
-        {
-            sintheta = sqrt(tmp * (2. - tmp));
-            have_sth = true;
-        }
-    }
-    else if (jjr > 3 * nside_)
-    {
-        r          = nside_ * 4 - jjr;
-        double tmp = (r * r) * fact2_;
-        z          = tmp - 1;
-        if (z < -0.99)
-        {
-            sintheta = sqrt(tmp * (2. - tmp));
-            have_sth = true;
-        }
-    }
-    else
-    {
-        r = nside_;
-        z = (2 * nside_ - jjr) * fact1_;
-    }
-
-    int64_t t = jpll[face_num] * r + ix - iy;
-    assert(t < 8 * r);
-    if (t < 0) t += 8 * r;
-    double phi = (r == nside_) ? 0.75 * halfpi * t * fact1_ : (0.5 * halfpi * t) / r;
-
-    return { have_sth ? std::atan2(sintheta, z) : std::acos(z), phi };
+    auto pixs = std::vector<std::size_t>(angs.size(), 0);
+    std::transform(angs.begin(), angs.end(), pixs.begin(), [&nside_](auto p) {
+        return ang2pix(p, nside_);
+    });
+    return pixs;
 }

@@ -47,12 +47,9 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
     return energies;
 }
 
-
-/*
- * TODO Exposure and Weighted Exposure too
- */
 auto
-Fermi::fits::read_ltcube(std::string const& filename) -> std::optional<LiveTimeCubeData>
+Fermi::fits::read_ltcube(std::string const& filename, std::string const& tblname)
+    -> std::optional<LiveTimeCubeData>
 {
     // Use CFITSIO to open the ltcube and read the values in the header.
     int       status = 0;
@@ -69,9 +66,12 @@ Fermi::fits::read_ltcube(std::string const& filename) -> std::optional<LiveTimeC
     }
 
     // Read the Exposure parameters
-    char expsr[] { "EXPOSURE" };
-    fits_movnam_hdu(ifile, BINARY_TBL, expsr, 0, &status);
-    if (status) fmt::print("Failed to access Exposure header. Status {}\n", status);
+    char   c_tbl[128] {};
+    size_t tbsz = tblname.size() > 127 ? 127 : tblname.size();
+    tblname.copy(c_tbl, tbsz);
+    c_tbl[tbsz] = '\0';
+    fits_movnam_hdu(ifile, BINARY_TBL, c_tbl, 0, &status);
+    if (status) fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
     if (status) return std::nullopt;
 
     // HDU keys
@@ -99,6 +99,21 @@ Fermi::fits::read_ltcube(std::string const& filename) -> std::optional<LiveTimeC
     fits_read_key(ifile, TSTRING, "THETABIN", &thetabin, nullptr, &status);
     if (status) fmt::print("Failed to read THETABIN. Status {}.\n", status);
     if (status) return std::nullopt;
+
+    if (std::string { ordering } != "NESTED")
+    {
+        fmt::print("LiveTimeCube Healpix Ordering {} is Unsupported. Please use NESTED "
+                   "order.\n",
+                   ordering);
+        return std::nullopt;
+    }
+    if (std::string { coordsys } != "EQU")
+    {
+        fmt::print(
+            "LiveTimeCube COORDSYS {} is Unsupported. Please use EQU coordinates.\n",
+            ordering);
+        return std::nullopt;
+    }
 
     // Populate the local Exposure Param vectors.
     size_t const npix    = 12 * nside * nside;
