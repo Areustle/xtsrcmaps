@@ -1,6 +1,7 @@
 #include "xtsrcmaps/exposure.hxx"
 
 #include "xtsrcmaps/bilerp.hxx"
+#include "xtsrcmaps/healpix.hxx"
 
 #include "experimental/mdspan"
 #include <fmt/format.h>
@@ -15,9 +16,29 @@
 using std::pair;
 using std::span;
 using std::vector;
-// using std::experimental::full_extent;
 using std::experimental::mdspan;
-// using std::experimental::submdspan;
+
+
+
+auto
+Fermi::lt_exposure(std::optional<fits::LiveTimeCubeData> const& data)
+    -> std::optional<Fermi::LiveTimeExposure>
+{
+    if (!data) { return std::nullopt; }
+    if (data->ordering != "NESTED") { return std::nullopt; }
+
+    size_t const nside = data->nside;
+    size_t const npix  = 12 * nside * nside;
+    size_t const nbins = data->nbrbins;
+
+    auto v             = std::vector<double>(data->cosbins.size());
+    std::copy(data->cosbins.begin(), data->cosbins.end(), v.begin());
+
+    return {
+        {nside, mdarray2(v, npix, nbins)}
+    };
+}
+
 
 
 // B                   [Nc, Ne]
@@ -58,7 +79,7 @@ co_aeff_value_base(auto        R,
 auto
 Fermi::aeff_value(vector<double> const& costhet,
                   vector<double> const& logEs,
-                  IrfData3 const&        pars) -> mdarray2
+                  IrfData3 const&       pars) -> mdarray2
 {
 
     auto aeff = vector<double>(costhet.size() * logEs.size(), 0.0);
@@ -124,7 +145,7 @@ co_phi_mod_base(auto        R,
 auto
 Fermi::phi_mod(vector<double> const& cosBins,
                vector<double> const& logEs,
-               IrfData3 const&        pars,
+               IrfData3 const&       pars,
                bool                  phi_dep = false) -> mdarray2
 {
 

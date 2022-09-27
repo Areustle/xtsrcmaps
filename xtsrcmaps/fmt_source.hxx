@@ -1,6 +1,7 @@
 #pragma once
 
 #include <xtsrcmaps/source.hxx>
+#include <xtsrcmaps/tensor_types.hxx>
 
 #include <fmt/format.h>
 
@@ -396,5 +397,44 @@ struct fmt::formatter<std::pair<double, double>>
     {
         return fmt::format_to(
             ctx.out(), "({}, {})", std::get<0>(par), std::get<1>(par));
+    }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// MDSPAN and MDARRAY
+////////////////////////////////////////////////////////////////////////////////
+///
+template <>
+struct fmt::formatter<mdarray3>
+{
+    template <typename ParseContext>
+    constexpr auto
+    parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto
+    format(mdarray3 const& par, FormatContext& ctx)
+    {
+        // ctx.out() = fmt::format_to(ctx.out(), "((\n");
+        ctx.out() = fmt::format_to(ctx.out(), "[");
+        for (size_t i = 0; i < par.extent(0); ++i)
+        {
+            ctx.out() = fmt::format_to(ctx.out(), "");
+            for (size_t j = 0; j < par.extent(1); ++j)
+            {
+                for (size_t k = 0; k < par.extent(2); ++k)
+                {
+                    ctx.out() = fmt::format_to(ctx.out(), "{}, ", par(i, j, k));
+                }
+                if (par.extent(2) > 1) ctx.out() = fmt::format_to(ctx.out(), "\n");
+            }
+            if (par.extent(1) > 1) ctx.out() = fmt::format_to(ctx.out(), "\n");
+        }
+        ctx.out() = fmt::format_to(ctx.out(), "]");
+        return ctx.out();
     }
 };

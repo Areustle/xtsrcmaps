@@ -1,5 +1,6 @@
 #include "xtsrcmaps/irf.hxx"
 
+#include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/gauss_legendre.hxx"
 
 #include <cmath>
@@ -35,7 +36,7 @@ using std::experimental::submdspan;
 // column n: Data parameter in linearized (costheta x energy) grid.
 //************************************************************************************
 auto
-Fermi::prepare_grid(fits::TablePars const& pars) -> IrfData3
+prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
 {
 
     assert(pars.extents.size() >= 5);
@@ -46,14 +47,14 @@ Fermi::prepare_grid(fits::TablePars const& pars) -> IrfData3
     assert(pars.extents[4] == pars.extents[0] * pars.extents[2]);
     assert(pars.rowdata.size() == 1);
 
-    auto const& extents = pars.extents;
-    auto const& offsets = pars.offsets;
-    auto const& row     = pars.rowdata[0];
+    auto const& extents   = pars.extents;
+    auto const& offsets   = pars.offsets;
+    auto const& row       = pars.rowdata[0];
 
-    size_t const M_t_base = extents[0];
-    size_t const M_t      = extents[0] + 2;
-    size_t const M_e_base = extents[2];
-    size_t const M_e      = extents[2] + 2;
+    size_t const M_e_base = extents[0];
+    size_t const M_e      = extents[0] + 2;
+    size_t const M_t_base = extents[2];
+    size_t const M_t      = extents[2] + 2;
 
 
     vector<double> cosths(M_t, 0.0);
@@ -105,7 +106,7 @@ Fermi::prepare_grid(fits::TablePars const& pars) -> IrfData3
 }
 
 auto
-Fermi::prepare_scale(fits::TablePars const& pars) -> IrfScale
+prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale
 {
     assert(pars.extents.size() == 1);
     assert(pars.extents[0] == 3);
@@ -132,20 +133,17 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
     return { p1, p1 };
 }
 
-
-inline constexpr auto
-psf_base_function(double u, double gamma) -> double
-{
-    // ugly kluge because of sloppy programming in handoff_response
-    // when setting boundaries of fit parameters for the PSF.
-    if (gamma == 1) { gamma = 1.001; }
-    return (1. - 1. / gamma) * std::pow(1. + u / gamma, -gamma);
-}
-
 //
 inline constexpr auto
 evaluate_king(double const sep, double const scale_factor, auto const pars) -> double
 {
+    auto f = [](double u, double gamma) -> double {
+        // ugly kluge because of sloppy programming in handoff_response
+        // when setting boundaries of fit parameters for the PSF.
+        if (gamma == 1) { gamma = 1.001; }
+        return (1. - 1. / gamma) * std::pow(1. + u / gamma, -gamma);
+    };
+
     double const ncore = pars[0];
     double const ntail = pars[1];
     double const score = pars[2] * scale_factor;
@@ -158,23 +156,19 @@ evaluate_king(double const sep, double const scale_factor, auto const pars) -> d
 
     double rt          = sep / stail;
     double ut          = rt * rt / 2.;
-    return (ncore * psf_base_function(uc, gcore)
-            + ntail * ncore * psf_base_function(ut, gtail));
-}
-
-inline constexpr auto
-psf2_psf_base_integral(double u, double gamma) -> double
-{
-    double arg(1. + u / gamma);
-    if (arg < 0) { throw std::runtime_error("neg. arg to pow"); }
-    return 1. - std::pow(arg, 1. - gamma);
+    return (ncore * f(uc, gcore) + ntail * ncore * f(ut, gtail));
 }
 
 inline constexpr auto
 psf3_psf_base_integral(double const radius, double const scale_factor, auto const pars)
     -> double
 {
-    fmt::print("base: [{} {} {} {} {} {}]\n", pars[0], pars[1], pars[2], pars[3], pars[4], pars[5]);
+    auto f = [](double u, double gamma) -> double {
+        double arg(1. + u / gamma);
+        if (arg < 0) { throw std::runtime_error("neg. arg to pow"); }
+        return 1. - std::pow(arg, 1. - gamma);
+    };
+
     double const ncore = pars[0];
     double const ntail = pars[1];
     double const score = pars[2] * scale_factor;
@@ -191,22 +185,21 @@ psf3_psf_base_integral(double const radius, double const scale_factor, auto cons
 
     if (gcore < 0. || gtail < 0.) { throw std::runtime_error("gamma < 0"); }
 
-    return (ncore * psf2_psf_base_integral(uc, gcore) * 2. * M_PI * score * score
-            + ntail * ncore * psf2_psf_base_integral(ut, gtail) * 2. * M_PI * stail
-                  * stail);
+    return (ncore * f(uc, gcore) * 2. * M_PI * score * score
+            + ntail * ncore * f(ut, gtail) * 2. * M_PI * stail * stail);
 }
 
 auto
-Fermi::normalize_rpsf(Psf::Data& psfdata) -> void
+normalize_rpsf(Fermi::Psf::Data& psfdata) -> void
 {
 
-    IrfData3&       data  = psfdata.rpsf;
-    IrfScale const& scale = psfdata.psf_scaling_params;
+    Fermi::IrfData3&       data  = psfdata.rpsf;
+    Fermi::IrfScale const& scale = psfdata.psf_scaling_params;
     // span the IrfData params (should pass mdarray)
     // auto pv = mdspan(data.params.data(), data.extent0, data.extent1, data.extent2);
     // Next normalize and scale.
 
-    auto scaleFactor      = [sp0 = (scale.scale0 * scale.scale0),
+    auto scaleFactor             = [sp0 = (scale.scale0 * scale.scale0),
                         sp1 = (scale.scale1 * scale.scale1),
                         si  = scale.scale_index](double const energy) {
         double const tt = std::pow(energy / 100., si);
@@ -215,7 +208,7 @@ Fermi::normalize_rpsf(Psf::Data& psfdata) -> void
 
     // An integration is required below, so let's precompute the orthogonal legendre
     // polynomials here for future use.
-    auto const polypars = legendre_poly_rw<64>(1e-15);
+    auto const polypars = Fermi::legendre_poly_rw<64>(1e-15);
 
     auto pv             = mdspan(data.params.data(),
                      data.params.extent(0),
@@ -230,7 +223,7 @@ Fermi::normalize_rpsf(Psf::Data& psfdata) -> void
             double const sf     = scaleFactor(energy);
             double const norm
                 = energy < 120. //
-                      ? gauss_legendre_integral(
+                      ? Fermi::gauss_legendre_integral(
                           0.0,
                           90.,
                           polypars,
@@ -251,26 +244,20 @@ Fermi::normalize_rpsf(Psf::Data& psfdata) -> void
 //************************************************************************************
 //************************************************************************************
 auto
-Fermi::prepare_psf_data(fits::TablePars const& front_rpsf,
-                        fits::TablePars const& front_scaling,
-                        fits::TablePars const& front_fisheye,
-                        fits::TablePars const& back_rpsf,
-                        fits::TablePars const& back_scaling,
-                        fits::TablePars const& back_fisheye) -> Psf::Pass8
+prepare_psf_data(Fermi::fits::TablePars const& front_rpsf,
+                 Fermi::fits::TablePars const& front_scaling,
+                 Fermi::fits::TablePars const& front_fisheye,
+                 Fermi::fits::TablePars const& back_rpsf,
+                 Fermi::fits::TablePars const& back_scaling,
+                 Fermi::fits::TablePars const& back_fisheye) -> Fermi::Psf::Pass8
 {
 
-    auto front = Psf::Data { prepare_grid(front_rpsf),
-                             prepare_scale(front_scaling),
-                             prepare_grid(front_fisheye) };
-    auto back  = Psf::Data { prepare_grid(back_rpsf),
-                            prepare_scale(back_scaling),
-                            prepare_grid(back_fisheye) };
-
-    fmt::print("{}\n", fmt::join(front.rpsf.params.container(), " "));
-    fmt::print("{}\n", front.psf_scaling_params.scale0, 
-        front.psf_scaling_params.scale1,
-        front.psf_scaling_params.scale_index);
-    fmt::print("{}\n", fmt::join(front.fisheye_correction.params.container(), " "));
+    auto front = Fermi::Psf::Data { prepare_grid(front_rpsf),
+                                    prepare_scale(front_scaling),
+                                    prepare_grid(front_fisheye) };
+    auto back  = Fermi::Psf::Data { prepare_grid(back_rpsf),
+                                   prepare_scale(back_scaling),
+                                   prepare_grid(back_fisheye) };
 
     normalize_rpsf(front);
     normalize_rpsf(back);
@@ -278,15 +265,13 @@ Fermi::prepare_psf_data(fits::TablePars const& front_rpsf,
     return { front, back };
 }
 
-//************************************************************************************
-//************************************************************************************
 auto
-Fermi::prepare_aeff_data(fits::TablePars const& front_eff_area,
-                         fits::TablePars const& front_phi_dep,
-                         fits::TablePars const& front_effici,
-                         fits::TablePars const& back_eff_area,
-                         fits::TablePars const& back_phi_dep,
-                         fits::TablePars const& back_effici) -> Aeff::Pass8
+prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
+                  Fermi::fits::TablePars const& front_phi_dep,
+                  Fermi::fits::TablePars const& front_effici,
+                  Fermi::fits::TablePars const& back_eff_area,
+                  Fermi::fits::TablePars const& back_phi_dep,
+                  Fermi::fits::TablePars const& back_effici) -> Fermi::Aeff::Pass8
 {
     return {
         {prepare_grid(front_eff_area),
@@ -307,6 +292,8 @@ read_opt(auto&& F, std::string const& filename, std::string const& tablename)
     return irf_obj_opt;
 }
 
+//************************************************************************************
+//************************************************************************************
 auto
 Fermi::load_aeff(std::string const& filename) -> std::optional<Aeff::Pass8>
 {
@@ -343,8 +330,6 @@ Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
 
     if (o0f && o1f && o2f && o0b && o1b && o2b)
     {
-        fmt::print("{}\n", fmt::join(o0f.value().extents, " "));
-        fmt::print("{}\n", fmt::join(o0f.value().rowdata[0], " "));
         return { prepare_psf_data(o0f.value(),
                                   o1f.value(),
                                   o2f.value(),
@@ -354,104 +339,3 @@ Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
     }
     else { return std::nullopt; }
 }
-
-// auto
-// Fermi::prepare_psf_data(fits::PsfParamData const& pars) -> IrfData
-// {
-//
-//     // Get sizing params
-//     size_t const M_t_base = pars.costhe_lo.size();
-//     size_t const M_t      = M_t_base + 2;
-//
-//     size_t const M_e_base = pars.energy_lo.size();
-//     size_t const M_e      = M_e_base + 2;
-//
-//     // scale and pad the energy data
-//     std::vector<double> cosths(M_t, 0.0);
-//     for (size_t k(0); k < M_t_base; k++)
-//     {
-//         // Arithmetic mean of cosine bins
-//         cosths[1 + k] = 0.5 * (pars.costhe_lo[k] + pars.costhe_hi[k]);
-//     }
-//     // padded cosine bin values.
-//     cosths.front() = -1.0;
-//     cosths.back()  = 1.0;
-//
-//     // scale and pad the energy data
-//     std::vector<double> logEs(M_e, 0.0);
-//     for (size_t k(0); k < M_e_base; k++)
-//     {
-//         // Geometric mean of energy bins
-//         logEs[1 + k] = std::log10(std::sqrt(pars.energy_lo[k] * pars.energy_hi[k]));
-//     }
-//     // padded energy bin values.
-//     logEs.front()   = 0.0;
-//     logEs.back()    = 10.0;
-//
-//     auto params     = vector<double>(M_t * M_e * 6);
-//     auto pv         = mdspan(params.data(), M_t, M_e, 6);
-//     auto ncore_view = mdspan(pars.ncore.data(), M_t_base, M_e_base);
-//     auto ntail_view = mdspan(pars.ntail.data(), M_t_base, M_e_base);
-//     auto score_view = mdspan(pars.score.data(), M_t_base, M_e_base);
-//     auto stail_view = mdspan(pars.stail.data(), M_t_base, M_e_base);
-//     auto gcore_view = mdspan(pars.gcore.data(), M_t_base, M_e_base);
-//     auto gtail_view = mdspan(pars.gtail.data(), M_t_base, M_e_base);
-//
-//     /// First let's assign the data values into the params block structure.
-//     /// Pad with value duplication.
-//     for (size_t t = 0; t < pv.extent(0); ++t) // costheta
-//     {
-//         size_t const t_ = t == 0 ? 0 : t >= M_t_base ? M_t_base - 1 : t - 1;
-//         for (size_t e = 0; e < pv.extent(1); ++e) // energy
-//         {
-//             size_t const e_ = e == 0 ? 0 : e >= M_e_base ? M_e_base - 1 : e - 1;
-//             pv(t, e, 0)     = ncore_view(t_, e_);
-//             pv(t, e, 1)     = ntail_view(t_, e_);
-//             pv(t, e, 2)     = score_view(t_, e_);
-//             pv(t, e, 3)     = stail_view(t_, e_);
-//             pv(t, e, 4)     = gcore_view(t_, e_);
-//             pv(t, e, 5)     = gtail_view(t_, e_);
-//         }
-//     }
-//
-//     // Next normalize and scale.
-//
-//     auto scaleFactor = [sp0 = (pars.scale0 * pars.scale0),
-//                         sp1 = (pars.scale1 * pars.scale1),
-//                         si  = pars.scale_index](double const energy) {
-//         double const tt = std::pow(energy / 100., si);
-//         return std::sqrt(sp0 * tt * tt + sp1);
-//     };
-//
-//     // An integration is required below, so let's precompute the orthogonal legendre
-//     // polynomials here for future use.
-//     auto const polypars = legendre_poly_rw<64>(1e-15);
-//
-//     for (size_t t = 0; t < pv.extent(0); ++t) // costheta
-//     {
-//         for (size_t e = 0; e < pv.extent(1); ++e) // energy
-//         {
-//             double const energy = std::pow(10, logEs[e]);
-//             double const sf     = scaleFactor(energy);
-//             double const norm
-//                 = energy < 120. //
-//                       ? gauss_legendre_integral(
-//                           0.0,
-//                           90.,
-//                           polypars,
-//                           [&](auto const& v) -> double {
-//                               auto x = evaluate_king(
-//                                   v * M_PI / 180, sf, submdspan(pv, t, e, pair(0,
-//                                   6)));
-//                               auto y = sin(v * M_PI / 180.) * 2. * M_PI * M_PI /
-//                               180.; return x * y;
-//                           })
-//                       : psf3_psf_base_integral(
-//                           90.0, sf, submdspan(pv, t, e, pair(0, 6)));
-//
-//             pv(t, e, 0) /= norm;
-//         }
-//     }
-//
-//     return {  cosths,logEs, params };
-// }
