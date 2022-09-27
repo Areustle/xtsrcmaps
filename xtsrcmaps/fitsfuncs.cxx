@@ -10,10 +10,6 @@
 using std::optional;
 using std::string;
 using std::vector;
-// using std::experimental::extents;
-// using std::experimental::full_extent;
-// using std::experimental::mdspan;
-// using std::experimental::submdspan;
 
 auto
 Fermi::fits::ccube_energies(std::string const& filename) noexcept
@@ -42,7 +38,7 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
     fits_read_col(
         ifile, TDOUBLE, 2, 1, 1, rows, nullptr, &energies[0], &anynul, &status);
     fits_read_col(
-        ifile, TDOUBLE, 2, rows, 1, 1, nullptr, &energies[rows], &anynul, &status);
+        ifile, TDOUBLE, 3, rows, 1, 1, nullptr, &energies[rows], &anynul, &status);
 
     fits_close_file(ifile, &status);
 
@@ -53,7 +49,7 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
 
 
 /*
- *
+ * TODO Exposure and Weighted Exposure too
  */
 auto
 Fermi::fits::read_ltcube(std::string const& filename) -> std::optional<LiveTimeCubeData>
@@ -105,17 +101,19 @@ Fermi::fits::read_ltcube(std::string const& filename) -> std::optional<LiveTimeC
     if (status) return std::nullopt;
 
     // Populate the local Exposure Param vectors.
-    auto cosbins = vector<float>(nbrbins * 12 * nside * nside, 0.0f);
-    auto ra      = vector<float>(12 * nside * nside, 0.0f);
-    auto dec     = vector<float>(12 * nside * nside, 0.0f);
+    size_t const npix    = 12 * nside * nside;
+    auto         cosbins = vector<float>(nbrbins * npix, 0.0f);
+    auto         ra      = vector<float>(npix, 0.0f);
+    auto         dec     = vector<float>(npix, 0.0f);
 
-    fits_read_col(ifile, TFLOAT, 1, 1, 1, 40, nullptr, &cosbins[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 1, 1, 1, nbrbins * npix, nullptr, &cosbins[0], nullptr, &status);
     if (status) fmt::print("Failed to access T1. Status {}\n", status);
     if (status) return std::nullopt;
-    fits_read_col(ifile, TFLOAT, 2, 1, 1, 1, nullptr, &ra[0], nullptr, &status);
+    fits_read_col(ifile, TFLOAT, 2, 1, 1, npix, nullptr, &ra[0], nullptr, &status);
     if (status) fmt::print("Failed to access T2. Status {}\n", status);
     if (status) return std::nullopt;
-    fits_read_col(ifile, TFLOAT, 3, 1, 1, 1, nullptr, &dec[0], nullptr, &status);
+    fits_read_col(ifile, TFLOAT, 3, 1, 1, npix, nullptr, &dec[0], nullptr, &status);
     if (status) fmt::print("Failed to access T3. Status {}\n", status);
     if (status) return std::nullopt;
 
