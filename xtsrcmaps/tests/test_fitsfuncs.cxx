@@ -4,278 +4,110 @@
 #include "xtsrcmaps/config.hxx"
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/tests/fits/aeff_expected.hxx"
+#include "xtsrcmaps/tests/fits/ccube_energies_expected.hxx"
 #include "xtsrcmaps/tests/fits/psf_expected.hxx"
 
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB RPSF_FRONT")
+TEST_CASE("Fermi FITS ccube_energies")
 {
     auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "RPSF_FRONT");
+    auto ov  = Fermi::fits::ccube_energies(cfg.cmap);
     REQUIRE(ov);
 
     auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 10);
-    CHECK(v.offsets.size() == 10);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 1166);
-
-    // vector values
-    CHECK(v.extents == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_FRONT::extents);
-    CHECK(v.offsets == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_FRONT::offsets);
-    CHECK(v.rowdata[0] == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_FRONT::rowdata);
+    CHECK(v.size() == FermiTest::CCubeEnergies::expected.size());
+    // CHECK(v == FermiTest::CCubeEnergies::expected);
+    for (size_t i = 0; i < v.size(); ++i)
+    {
+        CHECK(v[i] == doctest::Approx(FermiTest::CCubeEnergies::expected[i]));
+    }
 }
 
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB PSF_SCALING_PARAMS_FRONT")
+TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")
 {
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "PSF_SCALING_PARAMS_FRONT");
-    REQUIRE(ov);
+    auto f = [](std::string tablename, auto expected) -> void {
+        auto cfg = Fermi::XtCfg();
+        auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, tablename);
+        REQUIRE(ov);
 
-    auto v = ov.value();
+        auto v = ov.value();
 
-    // size data
-    CHECK(v.extents.size() == 1);
-    CHECK(v.offsets.size() == 1);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 3);
+        // size data
+        CHECK(v.extents.size() == expected.extents.size());
+        CHECK(v.offsets.size() == expected.offsets.size());
+        CHECK(v.rowdata.size() == 1);
+        CHECK(v.rowdata[0].size() == expected.rowdata.size());
+        // vector values
+        CHECK(v.extents == expected.extents);
+        CHECK(v.offsets == expected.offsets);
+        CHECK(v.rowdata[0] == expected.rowdata);
+    };
 
-    // vector values
-    CHECK(v.extents
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_FRONT::extents);
-    CHECK(v.offsets
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_FRONT::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_FRONT::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB FISHEYE_CORRECTION_FRONT")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "FISHEYE_CORRECTION_FRONT");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 7);
-    CHECK(v.offsets.size() == 7);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 2332);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_FRONT::extents);
-    CHECK(v.offsets
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_FRONT::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_FRONT::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB RPSF_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "RPSF_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 10);
-    CHECK(v.offsets.size() == 10);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 1166);
-
-    // vector values
-    CHECK(v.extents == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_BACK::extents);
-    CHECK(v.offsets == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_BACK::offsets);
-    CHECK(v.rowdata[0] == FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_BACK::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB PSF_SCALING_PARAMS_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "PSF_SCALING_PARAMS_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 1);
-    CHECK(v.offsets.size() == 1);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 3);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_BACK::extents);
-    CHECK(v.offsets
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_BACK::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_BACK::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB FISHEYE_CORRECTION_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, "FISHEYE_CORRECTION_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 7);
-    CHECK(v.offsets.size() == 7);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 2332);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_BACK::extents);
-    CHECK(v.offsets
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_BACK::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_BACK::rowdata);
+    // FRONT
+    f("RPSF_FRONT", FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_FRONT);
+    f("PSF_SCALING_PARAMS_FRONT",
+      FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_FRONT);
+    f("FISHEYE_CORRECTION_FRONT",
+      FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_FRONT);
+    // BACK
+    f("RPSF_BACK", FermiTest::psf_P8R3_SOURCE_V2_FB::RPSF_BACK);
+    f("PSF_SCALING_PARAMS_BACK",
+      FermiTest::psf_P8R3_SOURCE_V2_FB::PSF_SCALING_PARAMS_BACK);
+    f("FISHEYE_CORRECTION_BACK",
+      FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_BACK);
 }
 
 TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT")
 {
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFECTIVE AREA_FRONT");
-    REQUIRE(ov);
+    auto testAEFF1 = [](std::string tablename, auto expected) -> void {
+        auto cfg = Fermi::XtCfg();
+        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, tablename);
+        REQUIRE(ov);
 
-    auto v = ov.value();
+        auto v = ov.value();
 
-    // size data
-    CHECK(v.extents.size() == 5);
-    CHECK(v.offsets.size() == 5);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 2580);
+        // size data
+        CHECK(v.extents.size() == expected.extents.size());
+        CHECK(v.offsets.size() == expected.offsets.size());
+        CHECK(v.rowdata.size() == 1);
+        CHECK(v.rowdata[0].size() == expected.rowdata.size());
+        // vector values
+        CHECK(v.extents == expected.extents);
+        CHECK(v.offsets == expected.offsets);
+        CHECK(v.rowdata[0] == expected.rowdata);
+    };
 
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_FRONT::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_FRONT::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_FRONT::rowdata);
-}
+    auto testAEFF2 = [](std::string tablename, auto expected) -> void {
+        auto cfg = Fermi::XtCfg();
+        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, tablename);
+        REQUIRE(ov);
 
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB PHI_DEPENDENCE_FRONT")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "PHI_DEPENDENCE_FRONT");
-    REQUIRE(ov);
+        auto v = ov.value();
 
-    auto v = ov.value();
+        // size data
+        CHECK(v.extents.size() == expected.extents.size());
+        CHECK(v.offsets.size() == expected.offsets.size());
+        CHECK(v.rowdata.size() == 2);
+        CHECK(v.rowdata[0].size() == expected.rowdata0.size());
+        CHECK(v.rowdata[1].size() == expected.rowdata1.size());
+        // vector values
+        CHECK(v.extents == expected.extents);
+        CHECK(v.offsets == expected.offsets);
+        CHECK(v.rowdata[0] == expected.rowdata0);
+        CHECK(v.rowdata[1] == expected.rowdata1);
+    };
 
-    // size data
-    CHECK(v.extents.size() == 6);
-    CHECK(v.offsets.size() == 6);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 430);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_FRONT::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_FRONT::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_FRONT::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFICIENCY_PARAMS_FRONT")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFICIENCY_PARAMS_FRONT");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 1);
-    CHECK(v.offsets.size() == 1);
-    CHECK(v.rowdata.size() == 2);
-    CHECK(v.rowdata[0].size() == 6);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_FRONT::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_FRONT::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_FRONT::rowdata0);
-    CHECK(v.rowdata[1]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_FRONT::rowdata1);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFECTIVE AREA_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 5);
-    CHECK(v.offsets.size() == 5);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 2580);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_BACK::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_BACK::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_BACK::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB PHI_DEPENDENCE_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "PHI_DEPENDENCE_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 6);
-    CHECK(v.offsets.size() == 6);
-    CHECK(v.rowdata.size() == 1);
-    CHECK(v.rowdata[0].size() == 430);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_BACK::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_BACK::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_BACK::rowdata);
-}
-
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFICIENCY_PARAMS_BACK")
-{
-    auto cfg = Fermi::XtCfg();
-    auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, "EFFICIENCY_PARAMS_BACK");
-    REQUIRE(ov);
-
-    auto v = ov.value();
-
-    // size data
-    CHECK(v.extents.size() == 1);
-    CHECK(v.offsets.size() == 1);
-    CHECK(v.rowdata.size() == 2);
-    CHECK(v.rowdata[0].size() == 6);
-
-    // vector values
-    CHECK(v.extents
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_BACK::extents);
-    CHECK(v.offsets
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_BACK::offsets);
-    CHECK(v.rowdata[0]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_BACK::rowdata0);
-    CHECK(v.rowdata[1]
-            == FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_BACK::rowdata1);
+    // FRONT
+    testAEFF1("EFFECTIVE AREA_FRONT",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_FRONT);
+    testAEFF1("PHI_DEPENDENCE_FRONT",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_FRONT);
+    testAEFF2("EFFICIENCY_PARAMS_FRONT",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_FRONT);
+    // BACK
+    testAEFF1("EFFECTIVE AREA_BACK",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFECTIVE_AREA_BACK);
+    testAEFF1("PHI_DEPENDENCE_BACK",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::PHI_DEPENDENCE_BACK);
+    testAEFF2("EFFICIENCY_PARAMS_BACK",
+              FermiTest::aeff_P8R3_SOURCE_V2_FB::EFFICIENCY_PARAMS_BACK);
 }

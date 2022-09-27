@@ -29,7 +29,7 @@ struct LiveTimeCubeData
 };
 
 auto
-read_ltcube(std::string const&) -> std::optional<LiveTimeCubeData>;
+read_ltcube(std::string const&, std::string const&) -> std::optional<LiveTimeCubeData>;
 
 struct TablePars
 {

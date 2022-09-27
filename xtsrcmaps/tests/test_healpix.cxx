@@ -11,7 +11,7 @@
 TEST_CASE("Fermi HEALPix pix2pix Test")
 {
 
-    for (int64_t i = 0; i < 25; ++i)
+    for (int64_t i = 0; i < 21; ++i)
     {
         int64_t const nside = 1ull << i;
 

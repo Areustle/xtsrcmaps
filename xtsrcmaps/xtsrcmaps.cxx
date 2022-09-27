@@ -54,23 +54,27 @@ main()
     // skipping edisp_bin expansion.
 
     // : load-exposure : Load the fits file exposure maps
-    auto opt_ltcube = Fermi::fits::read_ltcube(cfg.expcube);
-    if (!opt_ltcube)
+    auto opt_lt_exp_map  = Fermi::fits::read_ltcube(cfg.expcube, "EXPOSURE");
+    auto opt_lt_wexp_map = Fermi::fits::read_ltcube(cfg.expcube, "WEIGHTED_EXPOSURE");
+    if (!opt_lt_exp_map || !opt_lt_wexp_map)
     {
-        fmt::print("Cannot read ltcube file!\n");
+        fmt::print("Cannot read ltcube file table!\n");
         return 1;
     }
-    auto ltcube       = opt_ltcube.value();
-    auto exp_costheta = vector<double>(40);
-    for (size_t i = 0; i < exp_costheta.size(); ++i)
-    {
-        exp_costheta[i] = double(i) / double(exp_costheta.size());
-    }
+    auto lt_exp_map    = Fermi::lt_exposure(opt_lt_exp_map.value());
+    auto lt_wexp_map   = Fermi::lt_exposure(opt_lt_wexp_map.value());
+    auto exp_costheta  = Fermi::src_exp_cosbins(dirs, lt_exp_map);
+    auto wexp_costheta = Fermi::src_exp_cosbins(dirs, lt_wexp_map);
+    // auto exp_costheta = vector<double>(40);
+    // for (size_t i = 0; i < exp_costheta.size(); ++i)
+    // {
+    //     exp_costheta[i] = double(i) / double(exp_costheta.size());
+    // }
 
     //********************************************************************************
     // Read IRF Fits Files.
     //********************************************************************************
-    auto opt_aeff = Fermi::load_aeff(cfg.aeff_name);
+    auto opt_aeff      = Fermi::load_aeff(cfg.aeff_name);
     if (!opt_aeff) { return 1; }
 
     auto opt_psf = Fermi::load_psf(cfg.psf_name);
@@ -85,9 +89,9 @@ main()
     // fmt::print("aeff.front.effective_area.params \n{}\n",
     //            aeff.front.effective_area.params);
 
-    auto exp_a_f = Fermi::aeff_value(exp_costheta, logEs, aeff.front.effective_area);
-    auto exp_a_b = Fermi::aeff_value(exp_costheta, logEs, aeff.back.effective_area);
-    //
+    // auto exp_a_f = Fermi::aeff_value(exp_costheta, logEs, aeff.front.effective_area);
+    // auto exp_a_b = Fermi::aeff_value(exp_costheta, logEs, aeff.back.effective_area);
+
     // // // : compute-psf : Compute the actual PSF
     // // Need to figure out how to determine if the phiDepPars or m_usePhiDependence
     // // parameters are set. If so this calculation can be skipped entirely and just
