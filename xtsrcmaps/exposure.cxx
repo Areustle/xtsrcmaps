@@ -22,7 +22,7 @@ using std::experimental::mdspan;
 
 
 auto
-Fermi::lt_exposure(fits::LiveTimeCubeData const& data) -> LiveTimeExposure
+Fermi::exp_map(fits::ExposureCubeData const& data) -> ExposureMap
 {
     size_t const& nside = data.nside;
     size_t const  npix  = 12 * nside * nside;
@@ -35,7 +35,7 @@ Fermi::lt_exposure(fits::LiveTimeCubeData const& data) -> LiveTimeExposure
 
 auto
 Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
-                       LiveTimeExposure const&             expmap) -> mdarray2
+                       ExposureMap const&             expmap) -> mdarray2
 {
     using dir_t  = pair<double, double>;
 
