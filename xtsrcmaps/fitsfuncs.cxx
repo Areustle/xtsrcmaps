@@ -48,8 +48,8 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
 }
 
 auto
-Fermi::fits::read_ltcube(std::string const& filename, std::string const& tblname)
-    -> std::optional<LiveTimeCubeData>
+Fermi::fits::read_expcube(std::string const& filename, std::string const& tblname)
+    -> std::optional<ExposureCubeData>
 {
     // Use CFITSIO to open the ltcube and read the values in the header.
     int       status = 0;

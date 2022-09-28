@@ -9,7 +9,7 @@
 namespace Fermi
 {
 
-struct LiveTimeExposure
+struct ExposureMap
 {
     std::size_t nside;
     std::size_t nbins;
@@ -17,10 +17,10 @@ struct LiveTimeExposure
 };
 
 auto
-lt_exposure(fits::LiveTimeCubeData const&) -> LiveTimeExposure;
+exp_map(fits::ExposureCubeData const&) -> ExposureMap;
 
 auto
-src_exp_cosbins(std::vector<std::pair<double, double>> const&, LiveTimeExposure const&)
+src_exp_cosbins(std::vector<std::pair<double, double>> const&, ExposureMap const&)
     -> mdarray2;
 
 auto

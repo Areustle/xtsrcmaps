@@ -15,7 +15,7 @@ auto
 ccube_energies(std::string const&) noexcept -> std::optional<std::vector<double>>;
 
 
-struct LiveTimeCubeData
+struct ExposureCubeData
 {
     std::vector<float> cosbins;
     std::vector<float> ra;
@@ -29,7 +29,7 @@ struct LiveTimeCubeData
 };
 
 auto
-read_ltcube(std::string const&, std::string const&) -> std::optional<LiveTimeCubeData>;
+read_expcube(std::string const&, std::string const&) -> std::optional<ExposureCubeData>;
 
 struct TablePars
 {
