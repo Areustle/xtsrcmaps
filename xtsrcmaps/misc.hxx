@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 constexpr double pi         = 3.141592653589793238462643383279502884197;
@@ -35,11 +36,15 @@ to(RangeT&& range)
     return ContainerT(begin(range), end(range));
 }
 
+/*
+ * User defined literal for uint64_t
+ */
+constexpr uint64_t operator"" _u64(unsigned long long int const x) { return uint64_t(x); }
 
 /*
  * User defined literal to make converting degrees to radians simpler.
  */
-// constexpr double operator"" _deg(long double deg) { return deg * deg2rad; }
+constexpr double operator"" _deg(long double deg) { return deg * deg2rad; }
 
 constexpr double
 radians(double const x)

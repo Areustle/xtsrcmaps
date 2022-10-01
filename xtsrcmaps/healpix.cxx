@@ -223,7 +223,7 @@ Fermi::Healpix::ang2pix(double const theta, double const phi, int64_t const nsid
         }
         else /* polar region, za > 2/3 */
         {
-            uint64_t ntt = std::min(3ull, uint64_t(tt));
+            uint64_t ntt = std::min(3_u64, uint64_t(tt));
             double   tp  = tt - ntt;
             double   tmp = ((za < 0.99) || (!have_sth))
                                ? nside_ * sqrt(3 * (1 - za))
