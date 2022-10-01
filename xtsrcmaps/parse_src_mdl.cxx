@@ -4,6 +4,7 @@
 
 #include <xtsrcmaps/rapidxml/rapidxml.hxx>
 
+#include <algorithm>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -172,6 +173,15 @@ Fermi::parse_src_xml(std::string const& src_file_name) -> std::vector<Fermi::Sou
     {
         result.push_back(parse_source_node(src_node));
     }
+
+    // Sort sources by name. Default sorting occurs on variant index first, then name.
+    std::sort(
+        std::begin(result), std::end(result), [](auto const& lhs, auto const& rhs) {
+            auto name = [](auto const& x) {
+                return std::visit([](auto const& e) { return e.name; }, x);
+            };
+            return name(lhs) < name(rhs);
+        });
 
     return result;
 }

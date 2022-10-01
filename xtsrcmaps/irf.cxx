@@ -2,6 +2,7 @@
 
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/gauss_legendre.hxx"
+#include "xtsrcmaps/misc.hxx"
 
 #include <cmath>
 #include <fstream>
@@ -57,6 +58,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
     size_t const M_t      = extents[2] + 2;
 
 
+
     vector<double> cosths(M_t, 0.0);
     for (size_t k(0); k < M_t_base; k++)
     {
@@ -64,7 +66,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
         cosths[1 + k] = 0.5 * (row[offsets[2] + k] + row[offsets[3] + k]);
     }
     // padded cosine bin values.
-    cosths.front() = 0.0;
+    cosths.front() = -1.0;
     cosths.back()  = 1.0;
 
     // scale and pad the energy data
@@ -102,7 +104,8 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
 
     return { cosths,
              logEs,
-             mdarray3(params, pv.extent(0), pv.extent(1), pv.extent(2)) };
+             mdarray3(params, pv.extent(0), pv.extent(1), pv.extent(2)),
+             row[offsets[2]] };
 }
 
 auto
@@ -130,7 +133,7 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
     std::copy(pars.rowdata[0].cbegin(), pars.rowdata[0].cend(), p0.begin());
     std::copy(pars.rowdata[1].cbegin(), pars.rowdata[1].cend(), p1.begin());
 
-    return { p1, p1 };
+    return { p0, p1 };
 }
 
 //
@@ -215,7 +218,7 @@ normalize_rpsf(Fermi::Psf::Data& psfdata) -> void
                      data.params.extent(1),
                      data.params.extent(2));
 
-    for (size_t t = 0; t < pv.extent(0); ++t) // costheta
+    for (size_t c = 0; c < pv.extent(0); ++c) // costheta
     {
         for (size_t e = 0; e < pv.extent(1); ++e) // energy
         {
@@ -229,14 +232,14 @@ normalize_rpsf(Fermi::Psf::Data& psfdata) -> void
                           polypars,
                           [&](auto const& v) -> double {
                               auto x = evaluate_king(
-                                  v * M_PI / 180, sf, submdspan(pv, t, e, pair(0, 6)));
+                                  v * M_PI / 180, sf, submdspan(pv, c, e, pair(0, 6)));
                               auto y = sin(v * M_PI / 180.) * 2. * M_PI * M_PI / 180.;
                               return x * y;
                           })
                       : psf3_psf_base_integral(
-                          90.0, sf, submdspan(pv, t, e, pair(0, 6)));
+                          90.0, sf, submdspan(pv, c, e, pair(0, 6)));
 
-            pv(t, e, 0) /= norm;
+            pv(c, e, 0) /= norm;
         }
     }
 };
@@ -273,14 +276,15 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
                   Fermi::fits::TablePars const& back_phi_dep,
                   Fermi::fits::TablePars const& back_effici) -> Fermi::Aeff::Pass8
 {
-    return {
-        {prepare_grid(front_eff_area),
-         prepare_grid(front_phi_dep),
-         prepare_effic(front_effici)},
-        { prepare_grid(back_eff_area),
-         prepare_grid(back_phi_dep),
-         prepare_effic(back_effici) }
-    };
+    auto front = Fermi::Aeff::Data { prepare_grid(front_eff_area),
+                                     prepare_grid(front_phi_dep),
+                                     prepare_effic(front_effici) };
+    auto back  = Fermi::Aeff::Data { prepare_grid(back_eff_area),
+                                    prepare_grid(back_phi_dep),
+                                    prepare_effic(back_effici) };
+
+
+    return { front, back };
 }
 
 auto
@@ -338,4 +342,43 @@ Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
                                   o2b.value()) };
     }
     else { return std::nullopt; }
+}
+
+auto
+Fermi::lt_effic_factors(vector<double> const& logEs, IrfEffic const& effic)
+    -> vector<pair<double, double>>
+{
+    auto single_factor = [](auto const& p) -> auto
+    {
+        auto const& a0     = p.at(0);
+        auto const& b0     = p.at(1);
+        auto const& a1     = p.at(2);
+        auto const& logEb1 = p.at(3);
+        auto const& a2     = p.at(4);
+        auto const& logEb2 = p.at(5);
+        double      b1     = (a0 - a1) * logEb1 + b0;
+        double      b2     = (a1 - a2) * logEb2 + b1;
+
+        return [=](double const logE) -> double {
+            return (logE < logEb1)   ? a0 * logE + b0 //
+                   : (logE < logEb2) ? a1 * logE + b1 //
+                                     : a2 * logE + b2;
+            // if (logE < logEb1) { return a0 * logE + b0; }
+            // if (logE < logEb2) { return a1 * logE + b1; }
+            // return a2 * logE + b2;
+        };
+    };
+
+    auto fp0     = single_factor(effic.p0);
+    auto fp1     = single_factor(effic.p1);
+
+
+    auto factors = vector<pair<double, double>>(logEs.size(), { 0., 0. });
+    std::transform(logEs.cbegin(),
+                   logEs.cend(),
+                   factors.begin(),
+                   [&](double const logE) -> std::pair<double, double> {
+                       return { fp1(logE), fp0(logE) };
+                   });
+    return factors;
 }

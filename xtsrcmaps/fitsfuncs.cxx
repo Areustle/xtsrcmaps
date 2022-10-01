@@ -142,7 +142,7 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
          nside, nbrbins,
          cosmin, { ordering },
          { coordsys },
-         !strcmp(thetabin, "COSTHETA")}
+         (std::string(thetabin) != "COSTHETA")}
     };
 }
 

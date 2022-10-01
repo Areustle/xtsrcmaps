@@ -16,6 +16,7 @@ struct IrfData3
     std::vector<double> cosths;
     std::vector<double> logEs;
     mdarray3            params;
+    double              minCosTheta;
 
     auto
     mdspan() -> mdspan3
@@ -72,5 +73,13 @@ struct Pass8
     Aeff::Data back;
 };
 } // namespace Aeff
+
+struct ExposureMap
+{
+    std::size_t nside;
+    std::size_t nbins;
+    mdarray2    params; // Healpix, CosineBin
+};
+
 
 } // namespace Fermi

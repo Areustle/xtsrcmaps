@@ -1,7 +1,8 @@
 # Make test executable
 #
 add_executable(
-  tests test_fitsfuncs.cxx test_healpix.cxx test_irf.cxx test_main.cxx
+  tests test_exposure.cxx test_fitsfuncs.cxx test_healpix.cxx test_irf.cxx
+        test_main.cxx test_src_utils.cxx
 )
 target_link_libraries(
   tests PRIVATE fmt::fmt std::mdspan PkgConfig::cfitsio doctest::doctest

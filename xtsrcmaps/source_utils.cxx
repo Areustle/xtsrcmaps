@@ -24,6 +24,6 @@ Fermi::directions_from_point_sources(std::vector<Fermi::Source> const& srcs)
             auto dec_it = std::find_if(params.cbegin(), params.cend(), is_dec);
             return { ra_it->value, dec_it->value };
         });
-
+    // std::sort(dirs.begin(), dirs.end());
     return dirs;
 }
