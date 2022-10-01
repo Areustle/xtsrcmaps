@@ -223,7 +223,7 @@ Fermi::Healpix::ang2pix(double const theta, double const phi, int64_t const nsid
         }
         else /* polar region, za > 2/3 */
         {
-            uint64_t ntt = std::min(3ul, uint64_t(tt));
+            uint64_t ntt = std::min(3ull, uint64_t(tt));
             double   tp  = tt - ntt;
             double   tmp = ((za < 0.99) || (!have_sth))
                                ? nside_ * sqrt(3 * (1 - za))
@@ -241,16 +241,16 @@ Fermi::Healpix::ang2pix(double const theta, double const phi, int64_t const nsid
 
 auto
 Fermi::Healpix::ang2pix(std::pair<double, double> const ang, int64_t const nside_)
-    -> std::size_t
+    -> uint64_t
 {
     return ang2pix(ang.first, ang.second, nside_);
 }
 
 auto
 Fermi::Healpix::ang2pix(std::vector<std::pair<double, double>> const& angs,
-                        int64_t const nside_) -> std::vector<std::size_t>
+                        int64_t const nside_) -> std::vector<uint64_t>
 {
-    auto pixs = std::vector<std::size_t>(angs.size(), 0);
+    auto pixs = std::vector<uint64_t>(angs.size(), 0);
     std::transform(angs.begin(), angs.end(), pixs.begin(), [&nside_](auto p) {
         return ang2pix(p, nside_);
     });

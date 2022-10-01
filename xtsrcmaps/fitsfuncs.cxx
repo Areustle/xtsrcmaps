@@ -4,8 +4,10 @@
 #include "fmt/format.h"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <numeric>
+#include <optional>
 
 using std::optional;
 using std::string;

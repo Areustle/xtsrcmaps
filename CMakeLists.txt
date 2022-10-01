@@ -25,9 +25,14 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/kokkos/mdspan
   GIT_TAG stable
 )
-FetchContent_MakeAvailable(mdspan)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt
+  GIT_TAG 9.0.0
+)
+FetchContent_MakeAvailable(mdspan fmt)
 
-find_package(fmt REQUIRED)
+# find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 # Pkg-Config Externals ##
