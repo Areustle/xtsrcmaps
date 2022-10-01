@@ -9,15 +9,11 @@
 namespace Fermi
 {
 
-struct ExposureMap
-{
-    std::size_t nside;
-    std::size_t nbins;
-    mdarray2    params; // Healpix, CosineBin
-};
-
 auto
 exp_map(fits::ExposureCubeData const&) -> ExposureMap;
+
+auto
+exp_costhetas(fits::ExposureCubeData const&) -> std::vector<double>;
 
 auto
 src_exp_cosbins(std::vector<std::pair<double, double>> const&, ExposureMap const&)
@@ -25,10 +21,6 @@ src_exp_cosbins(std::vector<std::pair<double, double>> const&, ExposureMap const
 
 auto
 aeff_value(std::vector<double> const&, std::vector<double> const&, IrfData3 const&)
-    -> mdarray2;
-
-auto
-phi_mod(std::vector<double> const&, std::vector<double> const&, IrfData3 const&, bool)
     -> mdarray2;
 
 auto

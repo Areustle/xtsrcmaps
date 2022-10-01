@@ -7,7 +7,7 @@
 #include "xtsrcmaps/tests/fits/ccube_energies_expected.hxx"
 #include "xtsrcmaps/tests/fits/psf_expected.hxx"
 
-TEST_CASE("Fermi FITS ccube_energies")
+TEST_CASE("Fermi FITS ccube_energies.")
 {
     auto cfg = Fermi::XtCfg();
     auto ov  = Fermi::fits::ccube_energies(cfg.cmap);
@@ -20,6 +20,22 @@ TEST_CASE("Fermi FITS ccube_energies")
     {
         CHECK(v[i] == doctest::Approx(FermiTest::CCubeEnergies::expected[i]));
     }
+}
+
+TEST_CASE("Fermi FITS read_expcube.")
+{
+    auto cfg  = Fermi::XtCfg();
+    auto oecd = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
+    REQUIRE(oecd);
+
+    auto ecd = oecd.value();
+    CHECK(ecd.cosbins.size() == 12 * 64 * 64 * 40);
+    CHECK(ecd.nside == 64u);
+    CHECK(ecd.nbrbins == 40u);
+    CHECK(ecd.cosmin == 0.0);
+    CHECK(ecd.ordering == "NESTED");
+    CHECK(ecd.coordsys == "EQU");
+    CHECK(ecd.thetabin == true);
 }
 
 TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")

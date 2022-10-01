@@ -19,32 +19,50 @@ using std::span;
 using std::vector;
 using std::experimental::mdspan;
 
-
-
 auto
 Fermi::exp_map(fits::ExposureCubeData const& data) -> ExposureMap
 {
     size_t const& nside = data.nside;
     size_t const  npix  = 12 * nside * nside;
     size_t const  nbins = data.nbrbins;
-    auto          v     = std::vector<double>(data.cosbins.size());
+    auto          v     = vector<double>(data.cosbins.size());
     std::copy(data.cosbins.begin(), data.cosbins.end(), v.begin());
 
     return { nside, nbins, mdarray2(v, npix, nbins) };
 }
 
 auto
-Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
-                       ExposureMap const&             expmap) -> mdarray2
+Fermi::exp_costhetas(fits::ExposureCubeData const& data) -> vector<double>
 {
-    using dir_t  = pair<double, double>;
+    // int bin = (i-begin()) % nbins();
+    // double f = (bin+0.5)/s_nbins;
+    // if( s_sqrt_weight) f=f*f;
+    // return 1. - f*(1-s_cosmin);
 
+    auto v = std::vector<double>(data.nbrbins);
+    std::iota(v.begin(), v.end(), 0.0);
+    std::transform(v.begin(), v.end(), v.begin(), [&](auto x) {
+        double const f = (x + 0.5) / data.nbrbins;
+        return data.thetabin ? f * f : f;
+    });
+    std::transform(v.begin(), v.end(), v.begin(), [&](auto f) {
+        return 1. - f * (1. - data.cosmin);
+    });
+    return v;
+}
+
+auto
+Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
+                       ExposureMap const&                  expmap) -> mdarray2
+{
+
+    using pd_t   = std::pair<double, double>;
     // get theta, phi (radians) in appropriate coordinate system
-    auto convert = [](dir_t const p) -> dir_t {
+    auto convert = [](pd_t const p) -> pd_t {
         return { halfpi - radians(p.second), pi_180 * p.first };
     };
 
-    auto theta_phi_dirs = vector<dir_t>(dirs.size(), { 0., 0. });
+    auto theta_phi_dirs = vector<pd_t>(dirs.size(), { 0., 0. });
     std::transform(dirs.cbegin(), dirs.cend(), theta_phi_dirs.begin(), convert);
 
     auto const nbins = expmap.nbins;
@@ -61,7 +79,6 @@ Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
     return A;
 }
 
-
 // B                   [Nc, Ne]
 // C  (costheta)       [Nc]
 // E  (Energies)       [Ne]
@@ -69,32 +86,20 @@ Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
 // IE (IRF energies)   [Mc]
 // IP (IRF Params)     [Mc, Me]
 inline void
-co_aeff_value_base(auto        R,
-                   auto const& C,
-                   auto const& E,
-                   auto const& IC,
-                   auto const& IE,
-                   auto const& IP) noexcept
+co_aeff_value_base(auto         R,
+                   auto const&  C,
+                   auto const&  E,
+                   auto const&  IC,
+                   auto const&  IE,
+                   auto const&  IP,
+                   double const minCosTheta) noexcept
 {
-
-    auto clerps = vector<pair<double, size_t>>(C.extent(0));
-    for (size_t c = 0; c < C.extent(0); ++c) { clerps[c] = Fermi::lerp(IC, C(c)); }
-
-    auto elerps = vector<pair<double, size_t>>(E.extent(0));
-    for (size_t e = 0; e < E.extent(0); ++e) { elerps[e] = Fermi::lerp(IE, E(e)); }
+    auto clerps = Fermi::lerp_pars(IC, C, minCosTheta);
+    auto elerps = Fermi::lerp_pars(IE, E);
 
     for (size_t c = 0; c < R.extent(0); ++c)
-    {
         for (size_t e = 0; e < R.extent(1); ++e)
-        {
-            auto const& uu   = std::get<0>(clerps[c]);
-            auto const& cidx = std::get<1>(clerps[c]);
-            auto const& tt   = std::get<0>(elerps[e]);
-            auto const& eidx = std::get<1>(elerps[e]);
-
-            R(c, e)          = 1e4 * Fermi::bilerp(tt, uu, cidx, eidx, IP);
-        }
-    }
+            R(c, e) = 1e4 * Fermi::bilerp(clerps[c], elerps[e], IP);
 }
 
 auto
@@ -102,92 +107,22 @@ Fermi::aeff_value(vector<double> const& costhet,
                   vector<double> const& logEs,
                   IrfData3 const&       pars) -> mdarray2
 {
+    auto        aeff = vector<double>(costhet.size() * logEs.size(), 0.0);
+    auto        R    = mdspan(aeff.data(), costhet.size(), logEs.size());
+    auto const& C    = costhet;
+    auto const& E    = logEs;
+    auto const& IC   = pars.cosths;
+    auto const& IE   = pars.logEs;
 
-    auto aeff = vector<double>(costhet.size() * logEs.size(), 0.0);
-    auto R    = mdspan(aeff.data(), costhet.size(), logEs.size());
-    auto C    = mdspan(costhet.data(), costhet.size());
-    auto E    = mdspan(logEs.data(), logEs.size());
-    auto IC   = span(pars.cosths);
-    auto IE   = span(pars.logEs);
     assert(pars.params.extent(2) == 1);
     auto IP = mdspan(pars.params.data(),
                      pars.params.extent(0),
                      pars.params.extent(1)); //, pars.params.extent(2));
 
-    co_aeff_value_base(R, C, E, IC, IE, IP);
+    co_aeff_value_base(R, C, E, IC, IE, IP, pars.minCosTheta);
 
-    return mdarray2(std::move(aeff), R.extent(0), R.extent(1));
-}
-
-inline auto
-phi_modulation(double const& par0, double const& par1 /*double phi = 0*/) -> double
-{
-    // if (phi < 0) { phi += 360.; }
-    double norm(1. / (1. + par0 / (1. + par1)));
-    // double phi_pv(std::fmod(phi * M_PI / 180., M_PI) - M_PI / 2.); // == -pi/2
-    // double phi_pv(-M_PI / 2.); == -pi/2
-    // double xx(2. * std::fabs(2. / M_PI * std::fabs(phi_pv) - 0.5));
-    // // 2 * |((2/pi)*(pi/2))-0.5| = 2/2 = 1
-    // return norm * (1. + par0 * std::pow(xx, par1));
-    return norm * (1. + par0 /* * 1.0^par1 */);
-}
-
-inline void
-co_phi_mod_base(auto        R,
-                auto const& C,
-                auto const& E,
-                auto const& IC,
-                auto const& IE,
-                auto const& IP) noexcept
-{
-
-    //
-    auto cgl = vector<size_t>(C.extent(0));
-    for (size_t c = 0; c < C.extent(0); ++c)
-    {
-        cgl[c] = Fermi::greatest_lower(IC, C(c));
-    }
-
-    auto egl = vector<size_t>(E.extent(0));
-    for (size_t e = 0; e < E.extent(0); ++e)
-    {
-        egl[e] = Fermi::greatest_lower(IE, E(e));
-    }
-
-    for (size_t c = 0; c < R.extent(0); ++c)
-    {
-        for (size_t e = 0; e < R.extent(1); ++e)
-        {
-            R(c, e) = phi_modulation(IP(cgl[c], egl[e], 0), IP(cgl[c], egl[e], 1));
-        }
-    }
-}
-
-auto
-Fermi::phi_mod(vector<double> const& cosBins,
-               vector<double> const& logEs,
-               IrfData3 const&       pars,
-               bool                  phi_dep = false) -> mdarray2
-{
-
-    auto phi = vector<double>(cosBins.size() * logEs.size(), 1.0);
-    auto R   = mdspan(phi.data(), cosBins.size(), logEs.size());
-
-    if (phi_dep)
-    {
-        auto C  = mdspan(cosBins.data(), cosBins.size());
-        auto E  = mdspan(logEs.data(), logEs.size());
-        auto IC = span(pars.cosths);
-        auto IE = span(pars.logEs);
-        auto IP = mdspan(pars.params.data(),
-                         pars.params.extent(0),
-                         pars.params.extent(1),
-                         pars.params.extent(2));
-
-        co_phi_mod_base(R, C, E, IC, IE, IP);
-    }
-
-    return mdarray2(phi, R.extent(0), R.extent(1));
+    // [C,E]
+    return mdarray2(aeff, R.extent(0), R.extent(1));
 }
 
 auto inline expcontract(mdspan2 const Ap, mdspan1 const costhe) -> mdarray1
@@ -225,3 +160,75 @@ Fermi::exposure(mdarray2 const& aeff, mdarray2 const& phi, std::vector<double> c
     auto Expo = expcontract(Ap, Ct);
     return Expo;
 };
+//
+//
+// inline auto
+// phi_modulation(double const& par0, double const& par1 /*double phi = 0*/) -> double
+// {
+//     // if (phi < 0) { phi += 360.; }
+//     double norm(1. / (1. + par0 / (1. + par1)));
+//     // double phi_pv(std::fmod(phi * M_PI / 180., M_PI) - M_PI / 2.); // == -pi/2
+//     // double phi_pv(-M_PI / 2.); == -pi/2
+//     // double xx(2. * std::fabs(2. / M_PI * std::fabs(phi_pv) - 0.5));
+//     // // 2 * |((2/pi)*(pi/2))-0.5| = 2/2 = 1
+//     // return norm * (1. + par0 * std::pow(xx, par1));
+//     return norm * (1. + par0 /* * 1.0^par1 */);
+// }
+//
+// inline void
+// co_phi_mod_base(auto        R,
+//                 auto const& C,
+//                 auto const& E,
+//                 auto const& IC,
+//                 auto const& IE,
+//                 auto const& IP) noexcept
+// {
+//
+//     //
+//     auto cgl = vector<size_t>(C.extent(0));
+//     for (size_t c = 0; c < C.extent(0); ++c)
+//     {
+//         cgl[c] = Fermi::greatest_lower(IC, C(c));
+//     }
+//
+//     auto egl = vector<size_t>(E.extent(0));
+//     for (size_t e = 0; e < E.extent(0); ++e)
+//     {
+//         egl[e] = Fermi::greatest_lower(IE, E(e));
+//     }
+//
+//     for (size_t c = 0; c < R.extent(0); ++c)
+//     {
+//         for (size_t e = 0; e < R.extent(1); ++e)
+//         {
+//             R(c, e) = phi_modulation(IP(cgl[c], egl[e], 0), IP(cgl[c], egl[e], 1));
+//         }
+//     }
+// }
+//
+// auto
+// Fermi::phi_mod(vector<double> const& cosBins,
+//                vector<double> const& logEs,
+//                IrfData3 const&       pars,
+//                bool                  phi_dep = false) -> mdarray2
+// {
+//
+//     auto phi = vector<double>(cosBins.size() * logEs.size(), 1.0);
+//     auto R   = mdspan(phi.data(), cosBins.size(), logEs.size());
+//
+//     if (phi_dep)
+//     {
+//         auto C  = mdspan(cosBins.data(), cosBins.size());
+//         auto E  = mdspan(logEs.data(), logEs.size());
+//         auto IC = span(pars.cosths);
+//         auto IE = span(pars.logEs);
+//         auto IP = mdspan(pars.params.data(),
+//                          pars.params.extent(0),
+//                          pars.params.extent(1),
+//                          pars.params.extent(2));
+//
+//         co_phi_mod_base(R, C, E, IC, IE, IP);
+//     }
+//
+//     return mdarray2(phi, R.extent(0), R.extent(1));
+// }
