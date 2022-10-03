@@ -34,14 +34,14 @@ const int64_t jrll[] = { 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4 },
 #ifndef __BMI2__
 
 inline auto
-spread_bits(int const v) -> int64_t
+spread_bits(int64_t const v) -> int64_t
 {
     return int64_t(utab[v & 0xff]) | (int64_t(utab[(v >> 8) & 0xff]) << 16)
            | (int64_t(utab[(v >> 16) & 0xff]) << 32)
            | (int64_t(utab[(v >> 24) & 0xff]) << 48);
 }
 
-inline int
+inline int64_t
 compress_bits(int64_t const v)
 {
     int64_t raw = v & 0x5555555555555555ull;
@@ -55,12 +55,12 @@ compress_bits(int64_t const v)
 #include <x86intrin.h>
 
 inline int64_t
-spread_bits(int v)
+spread_bits(int64_t v)
 {
     return _pdep_u64(v, 0x5555555555555555ull);
 }
 
-inline int
+inline int64_t
 compress_bits(int64_t v)
 {
     return _pext_u64(v, 0x5555555555555555ull);
@@ -69,21 +69,21 @@ compress_bits(int64_t v)
 #endif
 
 inline auto
-nest2xyf(int64_t const pix, int const order_, int const npface_)
-    -> std::tuple<int, int, int>
+nest2xyf(int64_t const pix, int64_t const order_, int64_t const npface_)
+    -> std::tuple<int64_t, int64_t, int64_t>
 {
-    int face_num = pix >> (2 * order_);
-    int tmp      = pix & (npface_ - 1);
-    int ix       = compress_bits(tmp);
-    int iy       = compress_bits(tmp >> 1);
+    int64_t face_num = pix >> (2 * order_);
+    int64_t tmp      = pix & (npface_ - 1);
+    int64_t ix       = compress_bits(tmp);
+    int64_t iy       = compress_bits(tmp >> 1);
     return { ix, iy, face_num };
 }
 
 
 inline auto
-xyf2nest(int const ix, int const iy, int const face_num, int const order_) -> int
+xyf2nest(uint64_t const ix, uint64_t const iy, uint64_t const face_num, uint64_t const order_) -> uint64_t
 {
-    return (int64_t(face_num) << (2 * order_)) + spread_bits(ix)
+    return (uint64_t(face_num) << (2 * order_)) + spread_bits(ix)
            + (spread_bits(iy) << 1);
 }
 
@@ -102,13 +102,13 @@ fmodulo(double const v1, double const v2) -> double
 
 /* Returns the largest integer n that fulfills 2^n<=arg. */
 inline auto
-ilog2(int64_t arg) -> int
+ilog2(int64_t arg) -> int64_t
 {
 #ifdef __GNUC__
     if (arg == 0) return 0;
     return 8 * sizeof(uint64_t) - 1 - __builtin_clzll(arg);
 #endif
-    int res = 0;
+    int64_t res = 0;
     while (arg > 0xFFFF)
     {
         res += 16;
@@ -134,7 +134,7 @@ ilog2(int64_t arg) -> int
 }
 
 inline auto
-nside2order(int64_t const nside) -> int
+nside2order(int64_t const nside) -> int64_t
 {
     assert(nside > int64_t(0));
     return ((nside) & (nside - 1)) ? -1 : ilog2(nside);
@@ -149,7 +149,7 @@ Fermi::Healpix::pix2ang(uint64_t const pix, int64_t const nside_)
     int64_t const npix_     = 12 * npface_;
     double const  fact2_    = 4. / npix_;
     double const  fact1_    = (nside_ << 1) * fact2_;
-    int const     order_    = nside2order(nside_);
+    int64_t const     order_    = nside2order(nside_);
     auto [ix, iy, face_num] = nest2xyf(pix, order_, npface_);
 
     int64_t jjr             = (jrll[face_num] << order_) - ix - iy - 1;
