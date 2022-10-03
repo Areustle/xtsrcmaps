@@ -5,15 +5,16 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 add_library(
   xtsrcmaps_lib OBJECT
+  tensor_ops.cxx
   bilerp.cxx
   exposure.cxx
   fitsfuncs.cxx
   healpix.cxx
   irf.cxx
-  source_utils.cxx
   parse_src_mdl.cxx
   psf_v2.cxx
   psf_bilerp.cxx
+  source_utils.cxx
 )
 
 add_library(Fermi::xtsrcmaps_lib ALIAS xtsrcmaps_lib)

@@ -41,13 +41,14 @@ pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
 # ##############################################################################
 
 add_compile_options(
-  -Wall -Wextra -pedantic -Werror # -mbmi2 -march=native
-  # -fsanitize=address -fsanitize=leak -fsanitize=undefined
-  # -fno-omit-frame-pointer -fno-common
+  -Wall -Wextra -pedantic -Werror # -mbmi2 
+  -march=native
+  -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  -fno-omit-frame-pointer -fno-common
 )
 add_link_options(
-  # -fsanitize=address -fsanitize=leak -fsanitize=undefined
-  # -fno-omit-frame-pointer -fno-common
+  -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  -fno-omit-frame-pointer -fno-common
 )
 
 add_subdirectory(xtsrcmaps)

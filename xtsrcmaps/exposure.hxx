@@ -24,8 +24,13 @@ aeff_value(std::vector<double> const&, std::vector<double> const&, IrfData3 cons
     -> mdarray2;
 
 auto
-exposure(mdarray2 const& aeff, mdarray2 const& phi, std::vector<double> costhe)
-    -> mdarray1;
+exposure(mdarray2 const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
+         mdarray2 const& src_weighted_exposure_cosbins, /*[Nsrc, Nc]*/
+         mdarray2 const& front_aeff,                    /*[Nc, Ne]*/
+         mdarray2 const& back_aeff,                     /*[Nc, Ne]*/
+         std::pair<std::vector<double>, std::vector<double>> const& front_ltfs /*[Ne]*/
+         // std::pair<std::vector<double>, std::vector<double>> const& back_ltfs   /*[Ne]*/
+         ) -> mdarray2;
 
 
 } // namespace Fermi
