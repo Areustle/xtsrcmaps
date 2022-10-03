@@ -1,7 +1,7 @@
 #pragma once
 
-#include "xtsrcmaps/irf_types.hxx"
 #include "xtsrcmaps/fitsfuncs.hxx"
+#include "xtsrcmaps/irf_types.hxx"
 
 #include "experimental/mdspan"
 
@@ -14,7 +14,7 @@ namespace Fermi
 
 auto
 lt_effic_factors(std::vector<double> const& logEs, IrfEffic const& effic)
-    -> std::vector<std::pair<double, double>>;
+    -> std::pair<std::vector<double>, std::vector<double>>;
 
 auto
 load_aeff(std::string const&) -> std::optional<Aeff::Pass8>;

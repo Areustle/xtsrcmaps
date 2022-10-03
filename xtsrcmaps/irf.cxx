@@ -288,12 +288,11 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
 }
 
 auto
-read_opt(auto&& F, std::string const& filename, std::string const& tablename)
-    -> decltype(auto)
+read_opt(auto&& F, std::string const& filename, std::string const& tablename) -> auto
 {
-    auto irf_obj_opt = F(filename, tablename);
-    if (!irf_obj_opt) fmt::print("Cannot read {} table {}!\n", filename, tablename);
-    return irf_obj_opt;
+    auto opt_irf = F(filename, tablename);
+    if (!opt_irf) fmt::print("Cannot read {} table {}!\n", filename, tablename);
+    return opt_irf;
 }
 
 //************************************************************************************
@@ -346,39 +345,31 @@ Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
 
 auto
 Fermi::lt_effic_factors(vector<double> const& logEs, IrfEffic const& effic)
-    -> vector<pair<double, double>>
+    -> pair<vector<double>, vector<double>>
 {
     auto single_factor = [](auto const& p) -> auto
     {
-        auto const& a0     = p.at(0);
-        auto const& b0     = p.at(1);
-        auto const& a1     = p.at(2);
-        auto const& logEb1 = p.at(3);
-        auto const& a2     = p.at(4);
-        auto const& logEb2 = p.at(5);
-        double      b1     = (a0 - a1) * logEb1 + b0;
-        double      b2     = (a1 - a2) * logEb2 + b1;
+        auto const&  a0     = p.at(0);
+        auto const&  b0     = p.at(1);
+        auto const&  a1     = p.at(2);
+        auto const&  logEb1 = p.at(3);
+        auto const&  a2     = p.at(4);
+        auto const&  logEb2 = p.at(5);
+        double const b1     = (a0 - a1) * logEb1 + b0;
+        double const b2     = (a1 - a2) * logEb2 + b1;
 
         return [=](double const logE) -> double {
-            return (logE < logEb1)   ? a0 * logE + b0 //
-                   : (logE < logEb2) ? a1 * logE + b1 //
-                                     : a2 * logE + b2;
-            // if (logE < logEb1) { return a0 * logE + b0; }
-            // if (logE < logEb2) { return a1 * logE + b1; }
-            // return a2 * logE + b2;
+            return logE < logEb1   ? a0 * logE + b0
+                   : logE < logEb2 ? a1 * logE + b1
+                                   : a2 * logE + b2;
         };
     };
 
-    auto fp0     = single_factor(effic.p0);
-    auto fp1     = single_factor(effic.p1);
+    auto lf1 = vector<double>(logEs.size(), 0.);
+    auto lf0 = vector<double>(logEs.size(), 0.);
+    std::transform(logEs.cbegin(), logEs.cend(), lf0.begin(), single_factor(effic.p0));
+    std::transform(logEs.cbegin(), logEs.cend(), lf1.begin(), single_factor(effic.p1));
 
-
-    auto factors = vector<pair<double, double>>(logEs.size(), { 0., 0. });
-    std::transform(logEs.cbegin(),
-                   logEs.cend(),
-                   factors.begin(),
-                   [&](double const logE) -> std::pair<double, double> {
-                       return { fp1(logE), fp0(logE) };
-                   });
-    return factors;
+    // Intentionally ordered that way. ¯\_(ツ)_/¯
+    return { lf1, lf0 };
 }
