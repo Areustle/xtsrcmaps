@@ -140,7 +140,7 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
 inline constexpr auto
 evaluate_king(double const sep, double const scale_factor, auto const pars) -> double
 {
-    auto f = [](double u, double gamma) -> double {
+    auto f = [](double const u, double gamma) -> double {
         // ugly kluge because of sloppy programming in handoff_response
         // when setting boundaries of fit parameters for the PSF.
         if (gamma == 1) { gamma = 1.001; }
@@ -240,6 +240,10 @@ normalize_rpsf(Fermi::Psf::Data& psfdata) -> void
                           90.0, sf, submdspan(pv, c, e, pair(0, 6)));
 
             pv(c, e, 0) /= norm;
+            pv(c, e, 2) *= sf;
+            pv(c, e, 3) *= sf;
+            pv(c, e, 4) = pv(c, e, 4) == 1.0 ? 1.001 : pv(c, e, 4);
+            pv(c, e, 5) = pv(c, e, 5) == 1.0 ? 1.001 : pv(c, e, 5);
         }
     }
 };
