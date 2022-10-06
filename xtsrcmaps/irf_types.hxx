@@ -39,7 +39,7 @@ struct IrfEffic
     std::array<float, 6> p1;
 };
 
-namespace Psf
+namespace irf::psf
 {
 
 struct Data
@@ -49,15 +49,15 @@ struct Data
     IrfData3 fisheye_correction;
 };
 
-struct Pass8
+struct Pass8FB
 {
-    Psf::Data front;
-    Psf::Data back;
+    irf::psf::Data front;
+    irf::psf::Data back;
 };
 
-} // namespace Psf
+} // namespace irf::psf
 
-namespace Aeff
+namespace irf::aeff
 {
 
 struct Data
@@ -67,12 +67,12 @@ struct Data
     IrfEffic efficiency_params;
 };
 
-struct Pass8
+struct Pass8FB
 {
-    Aeff::Data front;
-    Aeff::Data back;
+    irf::aeff::Data front;
+    irf::aeff::Data back;
 };
-} // namespace Aeff
+} // namespace irf::aeff
 
 struct ExposureMap
 {

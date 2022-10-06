@@ -193,7 +193,7 @@ psf3_psf_base_integral(double const radius, double const scale_factor, auto cons
 }
 
 auto
-normalize_rpsf(Fermi::Psf::Data& psfdata) -> void
+normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void
 {
 
     Fermi::IrfData3&       data  = psfdata.rpsf;
@@ -256,15 +256,15 @@ prepare_psf_data(Fermi::fits::TablePars const& front_rpsf,
                  Fermi::fits::TablePars const& front_fisheye,
                  Fermi::fits::TablePars const& back_rpsf,
                  Fermi::fits::TablePars const& back_scaling,
-                 Fermi::fits::TablePars const& back_fisheye) -> Fermi::Psf::Pass8
+                 Fermi::fits::TablePars const& back_fisheye) -> Fermi::irf::psf::Pass8FB
 {
 
-    auto front = Fermi::Psf::Data { prepare_grid(front_rpsf),
-                                    prepare_scale(front_scaling),
-                                    prepare_grid(front_fisheye) };
-    auto back  = Fermi::Psf::Data { prepare_grid(back_rpsf),
-                                   prepare_scale(back_scaling),
-                                   prepare_grid(back_fisheye) };
+    auto front = Fermi::irf::psf::Data { prepare_grid(front_rpsf),
+                                         prepare_scale(front_scaling),
+                                         prepare_grid(front_fisheye) };
+    auto back  = Fermi::irf::psf::Data { prepare_grid(back_rpsf),
+                                        prepare_scale(back_scaling),
+                                        prepare_grid(back_fisheye) };
 
     normalize_rpsf(front);
     normalize_rpsf(back);
@@ -278,14 +278,15 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
                   Fermi::fits::TablePars const& front_effici,
                   Fermi::fits::TablePars const& back_eff_area,
                   Fermi::fits::TablePars const& back_phi_dep,
-                  Fermi::fits::TablePars const& back_effici) -> Fermi::Aeff::Pass8
+                  Fermi::fits::TablePars const& back_effici)
+    -> Fermi::irf::aeff::Pass8FB
 {
-    auto front = Fermi::Aeff::Data { prepare_grid(front_eff_area),
-                                     prepare_grid(front_phi_dep),
-                                     prepare_effic(front_effici) };
-    auto back  = Fermi::Aeff::Data { prepare_grid(back_eff_area),
-                                    prepare_grid(back_phi_dep),
-                                    prepare_effic(back_effici) };
+    auto front = Fermi::irf::aeff::Data { prepare_grid(front_eff_area),
+                                          prepare_grid(front_phi_dep),
+                                          prepare_effic(front_effici) };
+    auto back  = Fermi::irf::aeff::Data { prepare_grid(back_eff_area),
+                                         prepare_grid(back_phi_dep),
+                                         prepare_effic(back_effici) };
 
 
     return { front, back };
@@ -302,7 +303,7 @@ read_opt(auto&& F, std::string const& filename, std::string const& tablename) ->
 //************************************************************************************
 //************************************************************************************
 auto
-Fermi::load_aeff(std::string const& filename) -> std::optional<Aeff::Pass8>
+Fermi::load_aeff(std::string const& filename) -> std::optional<irf::aeff::Pass8FB>
 {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "EFFECTIVE AREA_FRONT");
@@ -325,7 +326,7 @@ Fermi::load_aeff(std::string const& filename) -> std::optional<Aeff::Pass8>
 }
 
 auto
-Fermi::load_psf(std::string const& filename) -> std::optional<Psf::Pass8>
+Fermi::load_psf(std::string const& filename) -> std::optional<irf::psf::Pass8FB>
 {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "RPSF_FRONT");

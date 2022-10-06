@@ -8,7 +8,7 @@ add_executable(
   test_irf.cxx
   test_king.cxx
   test_main.cxx #
-  test_psf_bilerp.cxx
+  test_psf.cxx
   test_src_utils.cxx
 )
 target_link_libraries(

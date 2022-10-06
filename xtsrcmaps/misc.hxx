@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iostream>
+#include <string>
 #include <vector>
+
 
 constexpr double pi         = 3.141592653589793238462643383279502884197;
 constexpr double twopi      = 6.283185307179586476925286766559005768394;
@@ -13,6 +16,17 @@ constexpr double pi_180     = 0.017453292519943295769236907684886127134;
 constexpr double deg2rad    = 0.017453292519943295769236907684886127134;
 constexpr double rad2deg    = 57.295779513082320876798154814105170332405;
 constexpr double twothird   = 2.0 / 3.0;
+
+auto
+good(auto opt, std::string const& msg) -> auto
+{
+    if (!opt)
+    {
+        std::cout << msg << std::endl;
+        abort();
+    }
+    return opt.value();
+}
 
 /*
  * Provide missing stl conversion function from a range to a container.
@@ -39,7 +53,10 @@ to(RangeT&& range)
 /*
  * User defined literal for uint64_t
  */
-constexpr uint64_t operator"" _u64(unsigned long long int const x) { return uint64_t(x); }
+constexpr uint64_t operator"" _u64(unsigned long long int const x)
+{
+    return uint64_t(x);
+}
 
 /*
  * User defined literal to make converting degrees to radians simpler.

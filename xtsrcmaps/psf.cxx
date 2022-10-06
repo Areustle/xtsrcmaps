@@ -1,219 +1,214 @@
 #include "xtsrcmaps/psf.hxx"
 
+#include "xtsrcmaps/bilerp.hxx"
+#include "xtsrcmaps/misc.hxx"
+#include "xtsrcmaps/tensor_ops.hxx"
+
 #include "experimental/mdspan"
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <cmath>
-#include <span>
-#include <tuple>
 #include <vector>
 
-using std::pair;
-// using std::tuple;
+// using std::pair;
 using std::vector;
 using std::experimental::full_extent;
 using std::experimental::mdspan;
 using std::experimental::submdspan;
 
-using dir_t = pair<double, double>;
-
-auto
-separations(double xmin, double xmax, size_t N) -> std::vector<double>
+inline auto
+king_single(double const sep, auto const& pars) noexcept -> double
 {
-    auto   sep   = std::vector<double>(N + 1, 0.0);
-    double xstep = std::log(xmax / xmin) / double(N - 1);
-    for (size_t i = 0; i < N; ++i) sep[i + 1] = xmin * std::exp(i * xstep);
-    return sep;
+    assert(pars.extent(0) == 6);
+    double const& ncore = pars[0];
+    double const& ntail = pars[1];
+    double const& score = pars[2];
+    double const& stail = pars[3];
+    double const& gcore = pars[4]; // assured not to be 1.0
+    double const& gtail = pars[5]; // assured not to be 1.0
+
+    double rc           = sep / score;
+    double uc           = rc * rc / 2.;
+
+    double rt           = sep / stail;
+    double ut           = rt * rt / 2.;
+
+    // scaled king function
+    return (ncore * (1. - 1. / gcore) * std::pow(1. + uc / gcore, -gcore)
+            + ntail * ncore * (1. - 1. / gtail) * std::pow(1. + ut / gtail, -gtail));
+    // should be able to compute x ^ -g as exp(-g * ln(x)) with SIMD log and exp.
+    // return (ncore * psf_base_function(uc, gcore)
+    //         + ntail * ncore * psf_base_function(ut, gtail));
 }
 
-inline bool
-is_co_psf_base(size_t const dz, size_t const ez, size_t const sz) noexcept
-{
-    // SIMD Base case
-    if (dz <= 4 && ez <= 4 && sz <= 4) { return true; }
-    return false;
-}
-
+// A               [Nd, Mc, Me]
+// D (Separations) [Nd]
+// P (IRF Params)  [Mc, Me, 6]
 inline void
-co_psf_base_loop(auto A, auto D, auto E, auto S) noexcept
+co_king_base(auto A, auto D, auto P) noexcept
 {
-    for (size_t di = 0; di < A.extent(0); ++di)
+    assert(P.extent(2) == 6);
+
+    for (size_t d = 0; d < A.extent(0); ++d)
     {
-        for (size_t ei = 0; ei < A.extent(1); ++ei)
+        for (size_t c = 0; c < A.extent(1); ++c)
         {
-            for (size_t si = 0; si < A.extent(2); ++si)
+            for (size_t e = 0; e < A.extent(2); ++e)
             {
-                A(di, ei, si)
-                    += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[si];
+                A(d, c, e) = king_single(D[d], submdspan(P, c, e, full_extent));
             }
         }
     }
 }
 
-void
-co_psf_base_i1(auto A, auto D, auto E, auto S) noexcept
+//[Nd, Mc, Me]
+auto
+Fermi::PSF::king(vector<double> const& deltas, irf::psf::Data const& psfdata)
+    -> mdarray3
 {
-    for (size_t di = 0; di < A.extent(0); ++di)
+
+    Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
+    // Fermi::IrfScale const& scale    = psfdata.psf_scaling_params;
+    assert(psf_grid.params.extent(0) == psf_grid.cosths.size());
+    assert(psf_grid.params.extent(1) == psf_grid.logEs.size());
+
+    auto seps = vector<double>(deltas.size());
+    std::transform(deltas.cbegin(), deltas.cend(), seps.begin(), radians);
+
+
+    auto kings = vector<double>(
+        deltas.size() * psf_grid.params.extent(0) * psf_grid.params.extent(1), 0.0);
+
+    auto       A = mdspan(kings.data(),
+                    deltas.size(),
+                    psf_grid.params.extent(0),
+                    psf_grid.params.extent(1));
+    auto const D = mdspan(seps.data(), seps.size());
+    auto const P = mdspan(psf_grid.params.data(),
+                          psf_grid.params.extent(0),
+                          psf_grid.params.extent(1),
+                          psf_grid.params.extent(2));
+
+    co_king_base(A, D, P);
+
+    return mdarray3(kings, A.extent(0), A.extent(1), A.extent(2));
+}
+
+//////
+auto
+Fermi::PSF::separations(double const xmin, double const xmax, size_t const N)
+    -> std::vector<double>
+{
+    auto   sep   = std::vector<double>(N + 1, 0.0);
+    double xstep = std::log(xmax / xmin) / (N - 1.);
+    for (size_t i = 0; i < N; ++i) sep[i + 1] = xmin * std::exp(i * xstep);
+    return sep;
+}
+
+// R  (psf_bilerp result)      [Nc, Ne, Nd]
+// C  (costhetas)         [Nc]
+// E  (Energies)        [Ne]
+// IP (IRF Params)      [Nd, Me, Mc]
+// IC (IRF costheta)    [Mc]
+// IE (IRF energies)    [Me]
+inline void
+co_psf_bilerp(auto        R,
+              auto const& C,
+              auto const& E,
+              auto const& IP,
+              auto const& IC,
+              auto const& IE) noexcept
+{
+    auto const clerps = Fermi::lerp_pars(IC, C);
+    auto const elerps = Fermi::lerp_pars(IE, E);
+
+    // for (size_t d = 0; d < R.extent(0); ++d)
+    // {
+    //     auto const sIP = submdspan(IP, d, full_extent, full_extent);
+    //     for (size_t c = 0; c < R.extent(1); ++c)
+    //         for (size_t e = 0; e < R.extent(2); ++e)
+    //             R(d, c, e) = Fermi::bilerp(clerps[c], elerps[e], sIP);
+    // }
+
+    // C, E, D
+    for (size_t c = 0; c < R.extent(0); ++c)
     {
-        for (size_t ei = 0; ei < A.extent(1); ++ei)
+        auto const cps = clerps[c];
+        for (size_t e = 0; e < R.extent(1); ++e)
         {
-            A(di, ei, 0) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[0];
+            auto const eps = elerps[e];
+            for (size_t d = 0; d < R.extent(2); ++d)
+            {
+                auto const sIP = submdspan(IP, d, full_extent, full_extent);
+                R(c, e, d)     = Fermi::bilerp(cps, eps, sIP);
+            }
         }
     }
 }
 
-void
-co_psf_base_i2(auto A, auto D, auto E, auto S) noexcept
+
+auto
+Fermi::PSF::bilerp(std::vector<double> const& costhetas,
+                   std::vector<double> const& logEs,
+                   std::vector<double> const& par_cosths,
+                   std::vector<double> const& par_logEs,
+                   mdarray3 const&            kings) -> mdarray3
 {
-    for (size_t di = 0; di < A.extent(0); ++di)
-    {
-        for (size_t ei = 0; ei < A.extent(1); ++ei)
-        {
-            A(di, ei, 0) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[0];
-            A(di, ei, 1) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[1];
-        }
-    }
+
+    // Nd, Ne, Nc, Mc, Me
+    size_t const Nd = kings.extent(0);
+    size_t const Mc = kings.extent(1);
+    size_t const Me = kings.extent(2);
+    size_t const Nc = costhetas.size();
+    size_t const Ne = logEs.size();
+    assert(par_cosths.size() == Mc);
+    assert(par_logEs.size() == Me);
+
+    auto        bilerps = vector<double>(Nc * Ne * Nd, 0.0);
+    auto        R       = mdspan(bilerps.data(), Nc, Ne, Nd);
+    auto const& E       = logEs;
+    auto const& C       = costhetas;
+    auto const  IP      = mdspan(kings.data(), Nd, Mc, Me);
+    auto const& IC      = par_cosths;
+    auto const& IE      = par_logEs;
+
+    co_psf_bilerp(R, C, E, IP, IC, IE);
+
+    return mdarray3(bilerps, Nc, Ne, Nd);
 }
 
-void
-co_psf_base_i3(auto A, auto D, auto E, auto S) noexcept
+
+auto
+Fermi::PSF::corrected_exposure_psf(
+    mdarray3 const& obs_psf,                                             /*[C, E, D]*/
+    mdarray2 const& obs_aeff,                                            /*[C, E]*/
+    mdarray2 const& src_exposure_cosbins,                                /*[S, C]*/
+    mdarray2 const& src_weighted_exposure_cosbins,                       /*[S, C]*/
+    std::pair<std::vector<double>, std::vector<double>> const& front_LTF /*[E]*/
+    ) -> mdarray3
 {
-    for (size_t di = 0; di < A.extent(0); ++di)
-    {
-        for (size_t ei = 0; ei < A.extent(1); ++ei)
-        {
-            A(di, ei, 0) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[0];
-            A(di, ei, 1) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[1];
-            A(di, ei, 2) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[2];
-        }
-    }
-}
 
-void
-co_psf_base_i4(auto A, auto D, auto E, auto S) noexcept
-{
-    for (size_t di = 0; di < A.extent(0); ++di)
-    {
-        for (size_t ei = 0; ei < A.extent(1); ++ei)
-        {
-            A(di, ei, 0) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[0];
-            A(di, ei, 1) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[1];
-            A(di, ei, 2) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[2];
-            A(di, ei, 3) += std::get<0>(D[di]) + std::get<1>(D[di]) + E[ei] + S[3];
-        }
-    }
-}
+    auto psf_aeff     = Fermi::mul322(obs_psf, obs_aeff); // [C, E, D]
 
-inline char
-largest_dim(size_t const dz, size_t const ez, size_t const sz) noexcept
-{
-    if (dz >= ez)
-    {
-        if (dz >= sz) { return 0; } // dz > {ez, sz}
-        return 2;                   // sz > dz > ez
-    }
-    // ez > dz
-    if (ez >= sz) { return 1; } // ez > {dz, sz}
-    return 2;                   // sz > ez > dz
-}
+    // [S, E, D] = SUM_c ([S, C] * [C, E, D])
+    auto exposure_psf = Fermi::contract3210(psf_aeff, src_exposure_cosbins);
+    auto wexp_psf     = Fermi::contract3210(psf_aeff, src_weighted_exposure_cosbins);
 
-template <typename T>
-inline auto
-split_in(std::span<T> const& in) -> std::pair<std::span<T> const, std::span<T> const>
-{
-    size_t const z1 = in.size() / 2;
-    size_t const z2 = in.size() - z1;
-    return { in.subspan(0, z1), in.subspan(z1, z2) };
-}
+    // [S, E, D]
+    auto corrected_exp_psf          = Fermi::mul310(exposure_psf, front_LTF.first);
+    auto corrected_weighted_exp_psf = Fermi::mul310(wexp_psf, front_LTF.second);
 
-inline auto
-split_out_0(auto const& A) -> auto
-{
-    auto const z = (A.extent(0) / 2);
-    return pair { submdspan(A, pair(0, z), full_extent, full_extent),
-                  submdspan(A, pair(z, A.extent(0)), full_extent, full_extent) };
-}
-
-inline auto
-split_out_1(auto const& A) -> auto
-{
-    auto const z = (A.extent(1) / 2);
-    return pair { submdspan(A, full_extent, pair(0, z), full_extent),
-                  submdspan(A, full_extent, pair(z, A.extent(1)), full_extent) };
-}
-
-inline auto
-split_out_2(auto const& A) -> auto
-{
-    auto const z = (A.extent(2) / 2);
-    return pair { submdspan(A, full_extent, full_extent, pair(0, z)),
-                  submdspan(A, full_extent, full_extent, pair(z, A.extent(2))) };
-}
-
-void
-co_psf(auto A, auto D, auto E, auto S) noexcept
-{
-    // check for base case
-    if (is_co_psf_base(D.size(), E.size(), S.size()))
-    {
-        // Do base case computation
-        // co_psf_base_loop(A, D, E, S);
-        if (S.size() == 4) { return co_psf_base_i4(A, D, E, S); }
-        if (S.size() == 3) { return co_psf_base_i3(A, D, E, S); }
-        if (S.size() == 2) { return co_psf_base_i2(A, D, E, S); }
-        if (S.size() == 1) { return co_psf_base_i1(A, D, E, S); }
-        return;
-    }
-
-    char const ld = largest_dim(D.size(), E.size(), S.size());
-
-    if (ld == 0)
-    {
-        auto const [D1, D2] = split_in(D);
-        auto const [A1, A2] = split_out_0(A);
-        co_psf(A1, D1, E, S);
-        co_psf(A2, D2, E, S);
-    }
-    else if (ld == 1)
-    {
-        auto const [E1, E2] = split_in(E);
-        auto const [A1, A2] = split_out_1(A);
-        co_psf(A1, D, E1, S);
-        co_psf(A2, D, E2, S);
-    }
-    else /* (ld == 2) */
-    {
-        auto const [S1, S2] = split_in(S);
-        auto const [A1, A2] = split_out_2(A);
-        co_psf(A1, D, E, S1);
-        co_psf(A2, D, E, S2);
-    }
+    return Fermi::sum3_3(corrected_exp_psf, corrected_weighted_exp_psf);
 }
 
 auto
-Fermi::psf_fixed_grid(vector<pair<double, double>> const& dirs,
-                      vector<double> const&               energies) -> vector<double>
+Fermi::PSF::mean_psf(                    //
+    mdarray3 const& front_corrected_psf, /*[Nsrc, Ne, Nd]*/
+    mdarray3 const& back_corrected_psf,  /*[Nsrc, Ne, Nd]*/
+    mdarray2 const& exposure) -> mdarray3
 {
-
-    auto sep   = separations(1e-4, 70.0, 400);
-    auto logEs = vector<double>(energies.size());
-    for (size_t i = 0; i < logEs.size(); ++i) { logEs[i] = std::log(energies[i]); }
-
-    auto out = vector<double>(dirs.size() * logEs.size() * sep.size(), 0.0);
-
-    auto A   = mdspan(out.data(), dirs.size(), logEs.size(), sep.size());
-    auto D   = std::span(dirs.cbegin(), dirs.cend());
-    auto E   = std::span(logEs.cbegin(), logEs.cend());
-    auto S   = std::span(sep.cbegin(), sep.cend());
-
-    fmt::print("D: {}\t", D.size());
-    fmt::print("E: {}\t", E.size());
-    fmt::print("S: {}\n\n", S.size());
-
-    co_psf(A, D, E, S);
-
-    // fmt::print("{}\n", fmt::join(out, ", "));
-    fmt::print("{}\n", out.back());
-
-    return out;
+    auto psf          = Fermi::sum3_3(front_corrected_psf, back_corrected_psf);
+    auto inv_exposure = Fermi::safe_reciprocal(exposure);
+    return Fermi::mul32_1(psf, inv_exposure);
 }

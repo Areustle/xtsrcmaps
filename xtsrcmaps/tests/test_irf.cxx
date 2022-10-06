@@ -15,7 +15,7 @@ TEST_CASE("Load AEFF IRF")
     auto cfg   = Fermi::XtCfg();
     auto oaeff = Fermi::load_aeff(cfg.aeff_name);
     REQUIRE(oaeff);
-    auto aeff             = oaeff.value();
+    auto aeff = oaeff.value();
 
     CHECK(aeff.front.effective_area.cosths.size() == 34);
     CHECK(aeff.front.effective_area.cosths == FermiTest::Aeff::Front::effarea_cosths);
@@ -55,9 +55,7 @@ TEST_CASE("Test Irf Efficiency factor Generation.")
 
     for (size_t i = 0; i < LTFs.first.size(); ++i)
     {
-        CHECK(LTFs.first[i]
-              == doctest::Approx(FermiTest::Aeff::livetime_factor1[i]));
-        CHECK(LTFs.second[i]
-              == doctest::Approx(FermiTest::Aeff::livetime_factor2[i]));
+        CHECK(LTFs.first[i] == doctest::Approx(FermiTest::Aeff::livetime_factor1[i]));
+        CHECK(LTFs.second[i] == doctest::Approx(FermiTest::Aeff::livetime_factor2[i]));
     }
 }
