@@ -8,6 +8,7 @@ project(
   DESCRIPTION "Fermi LAT experimental source map generator."
 )
 
+cmake_policy(SET CMP0072 NEW)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -26,11 +27,16 @@ FetchContent_Declare(
   GIT_TAG stable
 )
 FetchContent_Declare(
+  Eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen
+  GIT_TAG 3.4
+)
+FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt
   GIT_TAG 9.0.0
 )
-FetchContent_MakeAvailable(mdspan fmt)
+FetchContent_MakeAvailable(mdspan Eigen fmt)
 
 # find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -41,17 +47,20 @@ pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
 # ##############################################################################
 
 add_compile_options(
-  -Wall -Wextra -pedantic -Werror # -mbmi2 -march=native
+  -Wall
+  -Wextra
+  -pedantic
+  -Werror # -mbmi2 -march=native
   -fsanitize=address
   # -fsanitize=leak
   -fsanitize=undefined
-  -fno-omit-frame-pointer -fno-common
+  -fno-omit-frame-pointer
+  -fno-common
 )
 add_link_options(
   -fsanitize=address
   # -fsanitize=leak
-  -fsanitize=undefined
-  -fno-omit-frame-pointer -fno-common
+  -fsanitize=undefined -fno-omit-frame-pointer -fno-common
 )
 
 add_subdirectory(xtsrcmaps)

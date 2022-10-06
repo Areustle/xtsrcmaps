@@ -14,3 +14,4 @@ _prefix/
 .cache/
 .gdb_history
 analysis/perf*
+perf.data

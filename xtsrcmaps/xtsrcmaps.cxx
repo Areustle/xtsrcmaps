@@ -15,7 +15,7 @@
 #include <numeric>
 #include <vector>
 
-using std::vector;
+// using std::vector;
 
 int
 main()
@@ -25,84 +25,88 @@ main()
     // rewrite hoops ape locally?
     // No. Goal is to prototype a faster srcmaps, not rewrite stapp+hoops+ape.
     // Just use command line parameters and a pre-defined struct.
-    auto cfg          = Fermi::XtCfg();
+    auto cfg                = Fermi::XtCfg();
 
-    // : parse-xml : Parse the XML source model file.
-    auto srcs         = Fermi::parse_src_xml(cfg.srcmdl);
-    // fmt::print("{}\n", fmt::join(srcs, "\n"));
-    auto dirs         = Fermi::directions_from_point_sources(srcs);
-    // fmt::print("{}\n", fmt::join(dirs, "\n"));
+    auto const opt_energies = Fermi::fits::ccube_energies(cfg.cmap);
+    auto const energies     = good(opt_energies, "Cannot read ccube_energies file!");
+    auto const logEs        = Fermi::log10_v(energies);
 
-    // : load-counts : Load the fits file count maps
-    auto opt_energies = Fermi::fits::ccube_energies(cfg.cmap);
-    if (!opt_energies)
-    {
-        fmt::print("Cannot read ccube_energies file!\n");
-        return 1;
-    }
-    auto energies = opt_energies.value();
-    auto logEs    = vector<double>(energies.size(), 0.0);
-    std::transform(energies.cbegin(),
-                   energies.cend(),
-                   logEs.begin(),
-                   [](auto const& v) { return std::log10(v); });
-
-    // fmt::print("CMap Energies: {}\n", fmt::join(energies, ", "));
-    // fmt::print("CMap Log Enrg: {}\n", fmt::join(logEs, ", "));
+    auto const srcs         = Fermi::parse_src_xml(cfg.srcmdl);
+    auto const dirs         = Fermi::directions_from_point_sources(srcs);
 
     // skipping ROI cuts.
     // skipping edisp_bin expansion.
 
-    // : load-exposure : Load the fits file exposure maps
-    auto opt_exp_map  = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
-    auto opt_wexp_map = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
-    if (!opt_exp_map || !opt_wexp_map)
-    {
-        fmt::print("Cannot read exposure cube map file table!\n");
-        return 1;
-    }
-    auto exp_map      = Fermi::exp_map(opt_exp_map.value());
-    auto wexp_map     = Fermi::exp_map(opt_wexp_map.value());
-    auto exp_cosbins  = Fermi::src_exp_cosbins(dirs, exp_map);
-    auto wexp_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
-
     //********************************************************************************
     // Read IRF Fits Files.
     //********************************************************************************
-    auto opt_aeff     = Fermi::load_aeff(cfg.aeff_name);
-    auto opt_psf      = Fermi::load_psf(cfg.psf_name);
-    if (!opt_aeff || !opt_psf) { return 1; }
+    auto const opt_aeff     = Fermi::load_aeff(cfg.aeff_name);
+    auto const opt_psf      = Fermi::load_psf(cfg.psf_name);
+    auto const aeff_irf     = good(opt_aeff, "Cannot read AEFF Irf FITS file!");
+    auto const psf_irf      = good(opt_psf, "Cannot read PSF Irf FITS file!");
 
-    auto aeff = opt_aeff.value();
-    auto psf  = opt_psf.value();
-    // fmt::print("aeff.front.effective_area.cosths \n{:.25}\n",
-    //            fmt::join(aeff.front.effective_area.cosths, ", "));
-    // fmt::print("aeff.front.effective_area.logEs \n{:.25}\n",
-    //            fmt::join(aeff.front.effective_area.logEs, ", "));
-    // fmt::print("aeff.front.effective_area.params \n{}\n",
-    //            aeff.front.effective_area.params);
+    auto const front_LTF
+        = Fermi::lt_effic_factors(logEs, aeff_irf.front.efficiency_params);
 
-    // auto exp_a_f = Fermi::aeff_value(exp_costheta, logEs, aeff.front.effective_area);
-    // auto exp_a_b = Fermi::aeff_value(exp_costheta, logEs, aeff.back.effective_area);
+    //********************************************************************************
+    // Read Exposure Cube Fits File.
+    //********************************************************************************
+    auto opt_exp_map     = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
+    auto opt_wexp_map    = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
+    auto const exp_cube  = good(opt_exp_map, "Cannot read exposure cube map file!");
+    auto const wexp_cube = good(opt_wexp_map, "Cannot read exposure cube map file!");
+    auto const exp_costhetas                 = Fermi::exp_costhetas(exp_cube);
+    auto const exp_map                       = Fermi::exp_map(exp_cube);
+    auto const wexp_map                      = Fermi::exp_map(wexp_cube);
+    auto const src_exposure_cosbins          = Fermi::src_exp_cosbins(dirs, exp_map);
+    auto const src_weighted_exposure_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
 
-    // // // : compute-psf : Compute the actual PSF
-    // // Need to figure out how to determine if the phiDepPars or m_usePhiDependence
-    // // parameters are set. If so this calculation can be skipped entirely and just
-    // // the unmodulated Aeff value used.
-    // auto exp_phid = Fermi::phi_mod(exp_costheta, logEs, aeff_phidep, false);
-    // auto expo     = Fermi::exposure(exp_area, exp_phid, exp_costheta);
-    // fmt::print("expo: {:+4.2g}\n",
-    //            fmt::join(expo.container().begin(), expo.container().end(), " "));
-    //
-    // auto seps  = Fermi::separations(1e-4, 70.0, 400);
-    // auto kings = Fermi::psf_fixed_grid(seps, psf_rpsf);
-    // fmt::print("kings: {}\n", std::reduce(kings.begin(), kings.end(), 0.0));
-    //
-    // // auto bilerps = Fermi::bilerp(kings, logEs, exp_costheta, psf_rpsf);
-    // // fmt::print("bilerps: {}\n", std::reduce(bilerps.begin(), bilerps.end(), 0.0));
-    //
-    // // : convolve-psf :
-    //
-    // // : write-results : write the results back out to file
-    // return 0;
+    //********************************************************************************
+    // Effective Area Computations.
+    //********************************************************************************
+    auto const front_aeff
+        = Fermi::aeff_value(exp_costhetas, logEs, aeff_irf.front.effective_area);
+    auto const back_aeff
+        = Fermi::aeff_value(exp_costhetas, logEs, aeff_irf.back.effective_area);
+
+
+    //********************************************************************************
+    // Exposure
+    //********************************************************************************
+    auto const exposure      = Fermi::exposure(src_exposure_cosbins,
+                                          src_weighted_exposure_cosbins,
+                                          front_aeff,
+                                          back_aeff,
+                                          front_LTF);
+
+    //********************************************************************************
+    // Mean PSF Computations
+    //********************************************************************************
+    auto const separations   = Fermi::PSF::separations(1e-4, 70., 400);
+    auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
+    auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
+    auto const front_psf_val = Fermi::PSF::bilerp(exp_costhetas,
+                                                  logEs,
+                                                  psf_irf.front.rpsf.cosths,
+                                                  psf_irf.front.rpsf.logEs,
+                                                  front_kings);
+    auto const back_psf_val  = Fermi::PSF::bilerp(exp_costhetas,
+                                                 logEs,
+                                                 psf_irf.back.rpsf.cosths,
+                                                 psf_irf.back.rpsf.logEs,
+                                                 back_kings);
+    auto const front_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(front_psf_val,
+                                             front_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             front_LTF);
+    auto const back_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(back_psf_val,
+                                             back_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             /*Stays front for now.*/ front_LTF);
+
+    auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
 }

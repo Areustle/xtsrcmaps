@@ -6,7 +6,6 @@
 #include "xtsrcmaps/config.hxx"
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/irf.hxx"
-#include "xtsrcmaps/king.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
 #include "xtsrcmaps/psf.hxx"
 #include "xtsrcmaps/source_utils.hxx"
@@ -383,6 +382,6 @@ TEST_CASE("Test King")
     // };
     // SUBCASE("front rpsf") { veq(psf.front.rpsf.params.container(), expected_rpsf); }
 
-    auto kings = Fermi::king(separations, psf.front);
+    auto kings = Fermi::PSF::king(separations, psf.front);
     SUBCASE("Kings") { filecompDCE(kings, "king_front"); }
 }
