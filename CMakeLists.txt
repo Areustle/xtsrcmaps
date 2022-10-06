@@ -49,18 +49,23 @@ pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
 add_compile_options(
   -Wall
   -Wextra
-  -pedantic
   -Werror # -mbmi2 -march=native
-  -fsanitize=address
+  $<$<CONFIG:DEBUG>:-pedantic>
+  $<$<CONFIG:DEBUG>:-g3>
+  $<$<CONFIG:DEBUG>:-Og>
+  $<$<CONFIG:RELEASE>:-O3>
+  $<$<CONFIG:DEBUG>:-fsanitize=address>
   # -fsanitize=leak
-  -fsanitize=undefined
-  -fno-omit-frame-pointer
-  -fno-common
+  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
+  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
+  $<$<CONFIG:DEBUG>:-fno-common>
 )
 add_link_options(
-  -fsanitize=address
+  $<$<CONFIG:DEBUG>:-fsanitize=address>
   # -fsanitize=leak
-  -fsanitize=undefined -fno-omit-frame-pointer -fno-common
+  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
+  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
+  $<$<CONFIG:DEBUG>:-fno-common>
 )
 
 add_subdirectory(xtsrcmaps)

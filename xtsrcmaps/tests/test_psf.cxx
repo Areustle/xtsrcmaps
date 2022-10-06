@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "xtsrcmaps/tests/fermi_tests.hxx"
+#include "xtsrcmaps/tests/fits/exposure_cosbins_expected.hxx"
 
 #include "xtsrcmaps/config.hxx"
 #include "xtsrcmaps/exposure.hxx"
@@ -75,24 +76,30 @@ TEST_CASE("Test uPsf")
     // Mean PSF Computations
     //********************************************************************************
     auto const separations   = Fermi::PSF::separations(1e-4, 70., 400);
+    // D,Mc,Me
     auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
     auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
+    // C,E,D
     auto const front_obs_psf = Fermi::PSF::bilerp(exp_costhetas,
                                                   logEs,
                                                   psf_irf.front.rpsf.cosths,
                                                   psf_irf.front.rpsf.logEs,
                                                   front_kings);
+
     auto const back_obs_psf  = Fermi::PSF::bilerp(exp_costhetas,
                                                  logEs,
                                                  psf_irf.back.rpsf.cosths,
                                                  psf_irf.back.rpsf.logEs,
                                                  back_kings);
+
+
     auto const front_corr_exp_psf
         = Fermi::PSF::corrected_exposure_psf(front_obs_psf,
                                              front_aeff,
                                              src_exposure_cosbins,
                                              src_weighted_exposure_cosbins,
                                              front_LTF);
+
     auto const back_corr_exp_psf
         = Fermi::PSF::corrected_exposure_psf(back_obs_psf,
                                              back_aeff,
@@ -100,7 +107,8 @@ TEST_CASE("Test uPsf")
                                              src_weighted_exposure_cosbins,
                                              /*Stays front for now.*/ front_LTF);
 
-    auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
+    auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf,
+    exposure);
 
     SUBCASE("u PSF") { filecomp3(uPsf, "mean_psf"); }
 }
