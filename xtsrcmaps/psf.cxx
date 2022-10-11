@@ -106,6 +106,12 @@ Fermi::PSF::separations(double const xmin, double const xmax, size_t const N)
     return sep;
 }
 
+auto
+Fermi::PSF::inverse_separations(double const s) -> double
+{
+    return std::clamp(1 + std::log(s * 1e4) / sep_step, 0.0, 399.);
+}
+
 // R  (psf_bilerp result)      [Nc, Ne, Nd]
 // C  (costhetas)         [Nc]
 // E  (Energies)        [Ne]
@@ -212,3 +218,102 @@ Fermi::PSF::mean_psf(                    //
     auto inv_exposure = Fermi::safe_reciprocal(exposure);
     return Fermi::mul32_1(psf, inv_exposure);
 }
+
+auto
+Fermi::PSF::partial_total_integral(std::vector<double> const& deltas,
+                                   mdarray3 const&            mean_psf)
+    -> std::pair<mdarray3, mdarray2>
+{
+    auto Ns = mean_psf.extent(0);
+    auto Ne = mean_psf.extent(1);
+    auto Nd = mean_psf.extent(2);
+    assert(Ns == 263);
+    assert(Ne == 38);
+    assert(Nd == deltas.size());
+    auto v1  = vector<double>(Ns * Ne * Nd, 0.0);
+    auto v2  = vector<double>(Ns * Ne, 1.0);
+    auto sp1 = mdspan(v1.data(), Ns, Ne, Nd);
+    auto sp2 = mdspan(v2.data(), Ns, Ne);
+    for (size_t s(0); s < Ns; ++s)
+    {
+        for (size_t e(0); e < Ne; ++e)
+        {
+            sp1(s, e, 0) = 0.;
+            for (size_t d(1); d < Nd; ++d)
+            {
+                double theta1(deltas.at(d - 1) * M_PI / 180.);
+                double theta2(deltas.at(d) * M_PI / 180.);
+                double y1(2. * M_PI * mean_psf(s, e, d - 1) * std::sin(theta1));
+                double y2(2. * M_PI * mean_psf(s, e, d) * std::sin(theta2));
+                double slope((y2 - y1) / (theta2 - theta1));
+                double intercept(y1 - theta1 * slope);
+                double value(slope * (theta2 * theta2 - theta1 * theta1) / 2.
+                             + intercept * (theta2 - theta1));
+                sp1(s, e, d) = sp1(s, e, d - 1) + value;
+            }
+            // Ensure normalizations of differential and integral arrays.
+            // We only need to do the normilization if the sum in non-zero
+            if (sp1(s, e, Nd - 1) != 0.0)
+            {
+                for (size_t d(1); d < Nd - 1; ++d)
+                {
+                    // m_psfValues.at(index) /= partialIntegral.back();
+                    sp1(s, e, d) /= sp1(s, e, Nd - 1);
+                }
+                sp2(s, e)         = sp1(s, e, Nd - 1);
+                sp1(s, e, Nd - 1) = 1.0;
+            }
+        }
+    }
+    return {
+        mdarray3(v1, Ns, Ne, Nd),
+        mdarray2(v2, Ns, Ne),
+    };
+}
+
+auto
+Fermi::PSF::integral(std::vector<double> deltas,
+                     mdarray3 const&     partial_integrals,
+                     mdarray3 const&     mean_psf) -> mdarray3;
+
+auto
+Fermi::PSF::normalize(mdarray3& mean_psf, mdarray2 const& total_integrals) -> void
+{
+    for (size_t s = 0; s < mean_psf.extent(0); ++s)
+    {
+        for (size_t e = 0; e < mean_psf.extent(1); ++e)
+        {
+            for (size_t d = 0; d < mean_psf.extent(2); ++d)
+            {
+                mean_psf(s, e, d) /= total_integrals(s, e);
+            }
+        }
+    }
+}
+
+auto
+Fermi::PSF::peak_psf(mdarray3 const& mean_psf) -> mdarray2
+{
+    auto Ns = mean_psf.extent(0);
+    auto Ne = mean_psf.extent(1);
+    auto Nd = mean_psf.extent(2);
+    auto v  = vector<double>(Ns * Ne);
+    for (size_t i = 0; i < Ns * Ne; ++i) { v[i] = mean_psf.container()[i * Nd]; }
+
+    return mdarray2(v, Ns, Ne);
+}
+
+// auto
+// Fermi::PSF::makePointSourceMap_wcs( // const PointSource&          pointSrc,
+//                                     //  const CountsMap&            dataMap,
+//     const std::vector<double>& energies,
+//     // const PsfIntegConfig&       config,
+//     const mdarray3& meanpsf,
+//     // const BinnedExposureBase*   bexpmap,
+//     // st_stream::StreamFormatter& formatter,
+//     std::vector<float>& modelmap,
+//     // FileUtils::SrcMapType&      mapType,
+//     int kmin,
+//     int kmax) -> std::vector<double>
+// {
+// }

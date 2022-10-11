@@ -43,6 +43,7 @@ find_package(PkgConfig REQUIRED)
 
 # Pkg-Config Externals ##
 pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
+pkg_check_modules(wcslib REQUIRED IMPORTED_TARGET GLOBAL wcslib)
 
 # ##############################################################################
 
