@@ -294,10 +294,10 @@ Fermi::PSF::normalize(mdarray3& mean_psf, mdarray2 const& total_integrals) -> vo
 auto
 Fermi::PSF::peak_psf(mdarray3 const& mean_psf) -> mdarray2
 {
-    auto Ns = mean_psf.extent(0);
-    auto Ne = mean_psf.extent(1);
-    auto Nd = mean_psf.extent(2);
-    auto v  = vector<double>(Ns * Ne);
+    auto const& Ns = mean_psf.extent(0);
+    auto const& Ne = mean_psf.extent(1);
+    auto const& Nd = mean_psf.extent(2);
+    auto        v  = vector<double>(Ns * Ne);
     for (size_t i = 0; i < Ns * Ne; ++i) { v[i] = mean_psf.container()[i * Nd]; }
 
     return mdarray2(v, Ns, Ne);

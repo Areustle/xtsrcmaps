@@ -11,6 +11,7 @@ add_library(
   fitsfuncs.cxx
   healpix.cxx
   irf.cxx
+  model_map.cxx
   parse_src_mdl.cxx
   psf.cxx
   source_utils.cxx
