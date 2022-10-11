@@ -16,6 +16,8 @@ constexpr double pi_180     = 0.017453292519943295769236907684886127134;
 constexpr double deg2rad    = 0.017453292519943295769236907684886127134;
 constexpr double rad2deg    = 57.295779513082320876798154814105170332405;
 constexpr double twothird   = 2.0 / 3.0;
+constexpr double sep_step
+    = 0.033731417579011382769913057686378448039204491; // ln(7e5)/399
 
 auto
 good(auto opt, std::string const& msg) -> auto

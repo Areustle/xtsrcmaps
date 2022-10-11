@@ -39,6 +39,7 @@ filecomp2(mdarray2 const& computed, std::string const& filebase) -> void
     std::ifstream ifs("./xtsrcmaps/tests/expected/" + filebase + ".bin",
                       std::ios::in | std::ios::binary);
     ifs.read((char*)(&expected[0]), sizeof(T) * sz_exp);
+    REQUIRE(ifs.good());
     ifs.close();
 
     // md2comp(computed, expected);

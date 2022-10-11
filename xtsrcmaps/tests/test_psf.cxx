@@ -107,10 +107,19 @@ TEST_CASE("Test uPsf")
                                              src_weighted_exposure_cosbins,
                                              /*Stays front for now.*/ front_LTF);
 
-    auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf,
-    exposure);
 
+    auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
     SUBCASE("u PSF") { filecomp3(uPsf, "mean_psf"); }
+
+    auto [partinteg, totinteg] = Fermi::PSF::partial_total_integral(separations, uPsf);
+    SUBCASE("uPsf_part_int_SED") { filecomp3(partinteg, "uPsf_part_int_SED"); }
+
+    Fermi::PSF::normalize(uPsf, totinteg);
+    SUBCASE("uPsf_normalized") { filecomp3(uPsf, "uPsf_normalized_SED"); }
+
+    auto peak = Fermi::PSF::peak_psf(uPsf);
+    SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE");}
+
 }
 
 // TEST_CASE("Test PSF")
