@@ -14,6 +14,31 @@
 
 #include <algorithm>
 
+template <typename T>
+void
+req_displacement(long const                               ph,
+                 long const                               pw,
+                 std::tuple<double, double, double> const src_dir,
+                 Fermi::SkyGeom const&                    skygeom,
+                 T                                        SD)
+{
+    long constexpr N  = SD.rows();
+    auto constexpr ds = Fermi::ModelMap::integ_delta_steps<N>();
+    for (long w = 0; w < N; ++w)
+    {
+        for (long h = 0; h < N; ++h)
+        {
+
+            REQUIRE_MESSAGE(
+                SD(w, h)
+                    == doctest::Approx(skygeom.srcpixoff(
+                        src_dir, skygeom.pix2dir({ ph + ds[h], pw + ds[w] }))),
+                N << " " << w << " " << h);
+        }
+    }
+}
+
+
 TEST_CASE("Test Model Map Pixel Displacements")
 {
 
@@ -50,45 +75,62 @@ TEST_CASE("Test Model Map Pixel Displacements")
         }
     }
 
+    // // // Eigen::MatrixXd SepOffsets(NpW_, NpH_);
+    // // // SepOffsets.setZero();
+    // // // for (long pw = 0; pw < NpW_; ++pw)
+    // // // {
+    // // //     for (long ph = 0; ph < NpH_; ++ph)
+    // // //     {
+    // // //         auto   pdir    = skygeom.pix2dir({ ph, pw });
+    // // //         double ang_sep = skygeom.srcpixoff(
+    // // //             src_dir, { std::get<0>(pdir), std::get<1>(pdir),
+    // std::get<2>(pdir) });
+    // // //         SepOffsets(pw, ph) = ang_sep;
+    // // //     }
+    // // // }
 
-    std::ifstream ifs("./xtsrcmaps/tests/expected/src_pix_offset.bin",
-                      std::ios::in | std::ios::binary);
 
-    std::array<long, 7> npts       = { 1, 4, 16, 64, 256, 1024, 4096 };
-    size_t const        bufsz      = 100 * 100 * 5461;
-    size_t const        bufszbytes = bufsz * sizeof(double);
+    // std::ifstream ifs("./xtsrcmaps/tests/expected/src_pix_offset.bin",
+    //                   std::ios::in | std::ios::binary);
+
+    // std::array<long, 7> npts       = { 1, 4, 16, 64, 256, 1024, 4096 };
+    // size_t const        bufsz      = 100 * 100 * 5461;
+    // size_t const        bufszbytes = bufsz * sizeof(double);
 
     // for (int s = 0; s < Ns; ++s)
     // {
-    std::vector<double> rmbuf(bufsz);
-    ifs.read((char*)(&rmbuf[0]), bufszbytes);
-    Tensor3d const A
-        = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), 100, 100, 5461);
+    // std::vector<double> rmbuf(bufsz);
+    // ifs.read((char*)(&rmbuf[0]), bufszbytes);
+    // Tensor3d const A
+    //     = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), 100, 100, 5461);
 
-    auto constexpr ds2  = Fermi::ModelMap::integ_delta_steps<2>();
-    auto constexpr ds4  = Fermi::ModelMap::integ_delta_steps<4>();
-    auto constexpr ds8  = Fermi::ModelMap::integ_delta_steps<8>();
-    auto constexpr ds16 = Fermi::ModelMap::integ_delta_steps<16>();
-    auto constexpr ds32 = Fermi::ModelMap::integ_delta_steps<32>();
-    auto constexpr ds64 = Fermi::ModelMap::integ_delta_steps<64>();
-    for (long pw = 1; pw < NpW; ++pw)
+    auto constexpr ds2 = Fermi::ModelMap::integ_delta_steps<2>();
+    // auto constexpr ds4  = Fermi::ModelMap::integ_delta_steps<4>();
+    // auto constexpr ds8  = Fermi::ModelMap::integ_delta_steps<8>();
+    // auto constexpr ds16 = Fermi::ModelMap::integ_delta_steps<16>();
+    // auto constexpr ds32 = Fermi::ModelMap::integ_delta_steps<32>();
+    // auto constexpr ds64 = Fermi::ModelMap::integ_delta_steps<64>();
+    for (long pw = 1; pw <= NpW; ++pw)
     {
-        for (long ph = 1; ph < NpH; ++ph)
+        for (long ph = 1; ph <= NpH; ++ph)
         {
 
 
-            REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir, skygeom.pix2dir({ ph, pw }))
-                                == doctest::Approx(A(pw - 1, ph - 1, 0)),
-                            ph << " " << pw);
-            /// 2
-            for (long i = 0; i < npts[1]; ++i)
-            {
-                double z = skygeom.srcpixoff(
-                    src_dir, skygeom.pix2dir({ ph + ds2[i / 2], pw + ds2[i % 2] }));
-                REQUIRE_MESSAGE(z == doctest::Approx(A(pw - 1, ph - 1, 1 + i)),
-                                ph << " " << pw);
-            }
+            // REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir, skygeom.pix2dir({ ph, pw }))
+            //                     == doctest::Approx(A(pw - 1, ph - 1, 0)),
+            //                 ph << " " << pw);
+            // /// 2
+            // for (long i = 0; i < npts[1]; ++i)
+            // {
+            //     double z = skygeom.srcpixoff(
+            //         src_dir, skygeom.pix2dir({ ph + ds2[i / 2], pw + ds2[i % 2] }));
+            //     REQUIRE_MESSAGE(z == doctest::Approx(A(pw - 1, ph - 1, 1 + i)),
+            //                     ph << " " << pw);
+            // }
             // Eigen::TensorMap<Tensor2d const> const D(delta_arr2.data(), 3, 2);
+
+
+            /// Split Lerp Sep copmutation.
             auto constexpr delta_lo2 = Fermi::ModelMap::integ_delta_lo1<2>();
             auto constexpr delta_hi2 = Fermi::ModelMap::integ_delta_hi1<2>();
             Eigen::Map<Eigen::Matrix<double, 2, 1> const> const Dlo(delta_lo2.data());
@@ -136,6 +178,7 @@ TEST_CASE("Test Model Map Pixel Displacements")
 
 
 
+            /// Combined Lerp Sep copmutation.
             auto constexpr delta_1 = Fermi::ModelMap::integ_delta_1<2>();
             Eigen::Map<Eigen::Matrix<double, 3, 2> const> const D(delta_1.data());
             REQUIRE(D.rows() == 3);
@@ -170,6 +213,84 @@ TEST_CASE("Test Model Map Pixel Displacements")
                     == doctest::Approx(skygeom.srcpixoff(
                         src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
 
+
+            /// Mat Delta computation.
+            Eigen::Vector2d spv(src_pix.first - ph, src_pix.second - pw);
+            auto constexpr dsmatv = Fermi::ModelMap::integ_delta_lin<2>();
+            Eigen::Map<Eigen::Matrix<double, 2, 2 * 2> const> const dsm(
+                dsmatv.data(), 2, 4);
+
+            Eigen::Matrix<double, 2, 2> subpixel_offset_size
+                = (dsm.colwise() - spv).colwise().norm().reshaped(2, 2);
+
+            SD = ref_size * subpixel_offset_size.array() * (1. + SD.array());
+
+            REQUIRE(SD(0, 0)
+                    == doctest::Approx(skygeom.srcpixoff(
+                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
+            REQUIRE(SD(1, 0)
+                    == doctest::Approx(skygeom.srcpixoff(
+                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
+            REQUIRE(SD(0, 1)
+                    == doctest::Approx(skygeom.srcpixoff(
+                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
+            REQUIRE(SD(1, 1)
+                    == doctest::Approx(skygeom.srcpixoff(
+                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
+            SD.setZero();
+
+
+            // // // SepOffset based computation.
+            // // SD.setZero();
+            // // SD.noalias() = D.transpose() * SepOffsets.block<3, 3>(pw - 1, ph - 1)
+            // // * D;
+            // // REQUIRE(SD(0, 0)
+            // //         == doctest::Approx(skygeom.srcpixoff(
+            // //             src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
+            // // REQUIRE(SD(1, 0)
+            // //         == doctest::Approx(skygeom.srcpixoff(
+            // //             src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
+            // // REQUIRE(SD(0, 1)
+            // //         == doctest::Approx(skygeom.srcpixoff(
+            // //             src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
+            // // REQUIRE(SD(1, 1)
+            // //         == doctest::Approx(skygeom.srcpixoff(
+            // //             src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
+
+            // Using Comb Separations Function.
+            SD = Fermi::ModelMap::rectangular_comb_separations<2>(
+                pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD);
+
+
+            Eigen::Matrix<double, 4, 4> SD4
+                = Fermi::ModelMap::rectangular_comb_separations<4>(
+                    pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD4);
+
+
+            Eigen::Matrix<double, 8, 8> SD8
+                = Fermi::ModelMap::rectangular_comb_separations<8>(
+                    pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD8);
+
+
+            Eigen::Matrix<double, 16, 16> SD16
+                = Fermi::ModelMap::rectangular_comb_separations<16>(
+                    pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD16);
+
+
+            Eigen::Matrix<double, 32, 32> SD32
+                = Fermi::ModelMap::rectangular_comb_separations<32>(
+                    pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD32);
+
+
+            Eigen::Matrix<double, 64, 64> SD64
+                = Fermi::ModelMap::rectangular_comb_separations<64>(
+                    pw, ph, ref_size, src_pix, Offsets);
+            req_displacement(ph, pw, src_dir, skygeom, SD64);
 
 
             // Eigen::Matrix3d P = Offsets.block<3, 3>(pw - 1, ph - 1);
@@ -260,55 +381,57 @@ TEST_CASE("Test Model Map Pixel Displacements")
             // }
 
 
-
-            /// 4
-            for (long i = 0; i < npts[2]; ++i)
-            {
-                REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
-                                                  skygeom.pix2dir({ ph + ds4[i / 4],
-                                                                    pw + ds4[i % 4] }))
-                                    == doctest::Approx(A(pw - 1, ph - 1, 5 + i)),
-                                ph << " " << pw);
-            }
-            /// 8
-            for (long i = 0; i < npts[3]; ++i)
-            {
-                REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
-                                                  skygeom.pix2dir({ ph + ds8[i / 8],
-                                                                    pw + ds8[i % 8] }))
-                                    == doctest::Approx(A(pw - 1, ph - 1, 21 + i)),
-                                ph << " " << pw);
-            }
-            /// 16
-            for (long i = 0; i < npts[4]; ++i)
-            {
-                REQUIRE_MESSAGE(
-                    skygeom.srcpixoff(
-                        src_dir,
-                        skygeom.pix2dir({ ph + ds16[i / 16], pw + ds16[i % 16] }))
-                        == doctest::Approx(A(pw - 1, ph - 1, 85 + i)),
-                    ph << " " << pw);
-            }
-            /// 32
-            for (long i = 0; i < npts[5]; ++i)
-            {
-                REQUIRE_MESSAGE(
-                    skygeom.srcpixoff(
-                        src_dir,
-                        skygeom.pix2dir({ ph + ds32[i / 32], pw + ds32[i % 32] }))
-                        == doctest::Approx(A(pw - 1, ph - 1, 341 + i)),
-                    ph << " " << pw);
-            }
-            /// 64
-            for (long i = 0; i < npts[6]; ++i)
-            {
-                REQUIRE_MESSAGE(
-                    skygeom.srcpixoff(
-                        src_dir,
-                        skygeom.pix2dir({ ph + ds64[i / 64], pw + ds64[i % 64] }))
-                        == doctest::Approx(A(pw - 1, ph - 1, 1365 + i)),
-                    ph << " " << pw);
-            }
+            //
+            // /// 4
+            // for (long i = 0; i < npts[2]; ++i)
+            // {
+            //     REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
+            //                                       skygeom.pix2dir({ ph + ds4[i / 4],
+            //                                                         pw + ds4[i % 4]
+            //                                                         }))
+            //                         == doctest::Approx(A(pw - 1, ph - 1, 5 + i)),
+            //                     ph << " " << pw);
+            // }
+            // /// 8
+            // for (long i = 0; i < npts[3]; ++i)
+            // {
+            //     REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
+            //                                       skygeom.pix2dir({ ph + ds8[i / 8],
+            //                                                         pw + ds8[i % 8]
+            //                                                         }))
+            //                         == doctest::Approx(A(pw - 1, ph - 1, 21 + i)),
+            //                     ph << " " << pw);
+            // }
+            // /// 16
+            // for (long i = 0; i < npts[4]; ++i)
+            // {
+            //     REQUIRE_MESSAGE(
+            //         skygeom.srcpixoff(
+            //             src_dir,
+            //             skygeom.pix2dir({ ph + ds16[i / 16], pw + ds16[i % 16] }))
+            //             == doctest::Approx(A(pw - 1, ph - 1, 85 + i)),
+            //         ph << " " << pw);
+            // }
+            // /// 32
+            // for (long i = 0; i < npts[5]; ++i)
+            // {
+            //     REQUIRE_MESSAGE(
+            //         skygeom.srcpixoff(
+            //             src_dir,
+            //             skygeom.pix2dir({ ph + ds32[i / 32], pw + ds32[i % 32] }))
+            //             == doctest::Approx(A(pw - 1, ph - 1, 341 + i)),
+            //         ph << " " << pw);
+            // }
+            // /// 64
+            // for (long i = 0; i < npts[6]; ++i)
+            // {
+            //     REQUIRE_MESSAGE(
+            //         skygeom.srcpixoff(
+            //             src_dir,
+            //             skygeom.pix2dir({ ph + ds64[i / 64], pw + ds64[i % 64] }))
+            //             == doctest::Approx(A(pw - 1, ph - 1, 1365 + i)),
+            //         ph << " " << pw);
+            // }
         }
     }
 }
@@ -509,112 +632,4 @@ TEST_CASE("integ_delta")
                 0.5703125, 0.4296875, 0.5546875, 0.4453125, 0.5390625, 0.4609375,
                 0.5234375, 0.4765625, 0.5078125, 0.4921875 }
             == Fermi::ModelMap::integ_delta_hi<64>());
-}
-
-
-TEST_CASE("Model Map ")
-{
-
-    // size_t const& Ne = 38;
-    // Tensor2d Offsets(NpH, NpW);
-    // Offsets.setZero();
-    // for (long ph = 0; ph < NpH; ++ph)
-    // {
-    //     for (long pw = 0; pw < NpW; ++pw)
-    //     {
-    //         Offsets(ph, pw) = skygeom.srcpixoff(
-    //             src_dir,
-    //             { PixDirs(0, ph, pw), PixDirs(1, ph, pw), PixDirs(2, ph, pw) });
-    //     }
-    // }
-
-    // auto constexpr delta_arr2 = Fermi::ModelMap::integ_delta_0<2>();
-    // auto constexpr delta_arr4 = Fermi::ModelMap::integ_delta_0<4>();
-    // auto constexpr delta_arr8 = Fermi::ModelMap::integ_delta_0<8>();
-    // auto constexpr delta_arr16 = Fermi::ModelMap::integ_delta_0<16>();
-    // auto constexpr delta_arr32 = Fermi::ModelMap::integ_delta_0<32>();
-    // auto constexpr delta_arr64 = Fermi::ModelMap::integ_delta_0<64>();
-
-    // Eigen::TensorMap<Tensor2d const> const D(delta_arr2.data(), 3, 2);
-    //
-    // // Tensor2d                 SD(2, 2);
-    // // Tensor2d                 ID(3, 2);
-    // Eigen::Tensor<double, 2> P
-    //     = Offsets.slice(Idx2 { ph - 1, pw - 1 }, Idx2 { 3, 3 });
-    // Tensor2d ID = P.contract(D,IdxPair1{{{1,0}}});
-    // REQUIRE(ID.dimension(0) == 3);
-    // REQUIRE(ID.dimension(1) == 2);
-    // Tensor2d SD = D.contract(ID,IdxPair1{{{0,0}}});
-    // REQUIRE(SD.dimension(0) == 2);
-    // REQUIRE(SD.dimension(1) == 2);
-    // REQUIRE_MESSAGE(SD(0,0) == doctest::Approx(A(pw,ph,1)), ph << " " << pw);
-    // REQUIRE_MESSAGE(SD(0,1) == doctest::Approx(A(pw,ph,2)), ph << " " << pw);
-    // REQUIRE_MESSAGE(SD(1,0) == doctest::Approx(A(pw,ph,3)), ph << " " << pw);
-    // REQUIRE_MESSAGE(SD(1,1) == doctest::Approx(A(pw,ph,4)), ph << " " << pw);
-
-
-    // size_t constexpr Nhalf      = 1;
-    // Idx2 constexpr e32          = { 2, 3 };
-    // Idx2 constexpr e22          = { 2, Nhalf };
-    // Idx2 constexpr o2l          = { 0, 0 };
-    // // Idx2 constexpr o2h          = { 1, 0 };
-    // Idx2 off                    = { ph, pw };
-    // IdxPair1 constexpr cdim     = { Eigen::IndexPair<long>(0, 0) };
-    // auto constexpr delta_lo_arr = Fermi::ModelMap::integ_delta_lo<2>();
-    // auto constexpr delta_hi_arr = Fermi::ModelMap::integ_delta_hi<2>();
-    // Eigen::TensorMap<Tensor2d const> const Dlo(delta_lo_arr.data(), 2,
-    // Nhalf); Eigen::TensorMap<Tensor2d const> const Dhi(delta_hi_arr.data(),
-    // 2, Nhalf);
-
-    // Tensor1d                 v1(Ne);
-    // Tensor2d                 SD(Nhalf, Nhalf);
-    // Tensor2d                 ID(3, Nhalf);
-    // Eigen::Tensor<double, 2> P = Offsets.slice(off, e32);
-    // REQUIRE(P.dimension(0) == 2);
-    // REQUIRE(P.dimension(1) == 3);
-    // REQUIRE_MESSAGE(P(0, 0) == Offsets(ph, pw), ph << " " << pw);
-    // REQUIRE_MESSAGE(P(0, 1) == Offsets(ph, pw + 1), ph << " " << pw);
-    // REQUIRE_MESSAGE(P(0, 2) == Offsets(ph, pw + 2), ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 0) == Offsets(ph + 1, pw), ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 1) == Offsets(ph + 1, pw + 1), ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 2) == Offsets(ph + 1, pw + 2), ph << " " << pw);
-    //
-    // REQUIRE_MESSAGE(P(0, 0) == doctest::Approx(A(pw, ph, 0)), ph << " " <<
-    // pw); REQUIRE_MESSAGE(P(0, 1) == doctest::Approx(A(pw + 1, ph, 0)),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(P(0, 2) == doctest::Approx(A(pw + 2, ph, 0)),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 0) == doctest::Approx(A(pw, ph + 1, 0)),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 1) == doctest::Approx(A(pw + 1, ph + 1, 0)),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(P(1, 2) == doctest::Approx(A(pw + 2, ph + 1, 0)),
-    //                 ph << " " << pw);
-    //
-    // ID = P.contract(Dlo, cdim);
-    // REQUIRE(ID.dimension(0) == 3);
-    // REQUIRE(ID.dimension(1) == Nhalf);
-    // REQUIRE_MESSAGE(ID(0, 0)
-    //                     == Offsets(ph, pw) * Dlo(0, 0)
-    //                            + Offsets(ph + 1, pw) * Dlo(1, 0),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(ID(1, 0)
-    //                     == Offsets(ph, pw + 1) * Dlo(0, 0)
-    //                            + Offsets(ph + 1, pw + 1) * Dlo(1, 0),
-    //                 ph << " " << pw);
-    // REQUIRE_MESSAGE(ID(2, 0)
-    //                     == Offsets(ph, pw + 2) * Dlo(0, 0)
-    //                            + Offsets(ph + 1, pw + 2) * Dlo(1, 0),
-    //                 ph << " " << pw);
-    // SD = Dlo.contract(ID.slice(o2l, e22), cdim);
-    // // REQUIRE_MESSAGE(SD(0, 0) == doctest::Approx(A(pw, ph, 1)), "ll");
-    // // Dhi.contract(ID.slice(o2h, e22), cdimB, SD.setZero());
-    // // REQUIRE_MESSAGE(SD(0, 0) == doctest::Approx(A(py, px, 2)), "lh");
-    // // off = { px, py + 1 };
-    // // P   = Offsets.slice(off, e32);
-    // // P.contract(Dhi, cdimA, ID);
-    // // Dlo.contract(ID.slice(o2l, e22), cdimB, SD.setZero());
-    // // REQUIRE_MESSAGE(SD(0, 0) == doctest::Approx(A(py, px, 3)), "hl");
-    // // Dhi.contract(ID.slice(o2h, e22), cdimB, SD.setZero());
-    // // REQUIRE_MESSAGE(SD(0, 0) == doctest::Approx(A(py, px, 4)), "hh");
 }

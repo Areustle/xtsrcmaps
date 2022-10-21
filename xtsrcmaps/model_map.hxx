@@ -120,16 +120,46 @@ auto constexpr integ_delta_1() -> std::array<double, 3 * N>
     auto delta           = std::array<double, 3 * N>();
     for (size_t i = 0; i < N / 2; ++i)
     {
-        delta[i * 3 + 0]             = -steps[i];
-        delta[i * 3 + 1]             = 1.0 + steps[i];
-        delta[i * 3 + 2]             = 0.0;
-        delta[(i + (N / 2)) * 3 + 0] = 0.0;
-        delta[(i + (N / 2)) * 3 + 1] = 1.0 - steps[i + (N / 2)];
-        delta[(i + (N / 2)) * 3 + 2] = steps[i + (N / 2)];
+        delta[0 + i * 3]             = -steps[i];
+        delta[1 + i * 3]             = 1.0 + steps[i];
+        delta[2 + i * 3]             = 0.0;
+        delta[0 + (i + (N / 2)) * 3] = 0.0;
+        delta[1 + (i + (N / 2)) * 3] = 1.0 - steps[i + (N / 2)];
+        delta[2 + (i + (N / 2)) * 3] = steps[i + (N / 2)];
     }
 
     return delta;
 }
+
+// 00 01 02 03  |
+// 10 11 12 13  |
+// 20 21 22 23  |
+// 30 31 32 33  V
+//
+// 00x 10x 20x 30x 01x 11x 21x 31x 02x 12x 22x 32x 03x 13x 23x 33x  |
+// 00y 10y 20y 30y 01y 11y 21y 31y 02y 12y 22y 32y 03y 13y 23y 33y  V
+//
+// 0 1 2 3 0 1 2 3 0 1 2 3 0 1 2 3  |
+// 0 0 0 0 1 1 1 1 2 2 2 2 3 3 3 3  V
+
+template <size_t N>
+auto constexpr integ_delta_lin() -> std::array<double, 2 * N * N>
+{
+
+    auto constexpr steps = integ_delta_steps<N>();
+    auto delta           = std::array<double, 2 * N * N>();
+    for (size_t i = 0; i < N; ++i)
+    {
+        for (size_t j = 0; j < N; ++j)
+        {
+            delta[0 + i * 2 + j * 2 * N] = steps[j];
+            delta[1 + i * 2 + j * 2 * N] = steps[i];
+        }
+    }
+
+    return delta;
+}
+
 
 auto
 mean_psf(double const d, Tensor2d const& uPsf) -> Tensor1d;
@@ -143,6 +173,32 @@ mean_psf(Tensor<double, Rank> const& Sep, Tensor2d const& uPsf) -> Tensor1d
     Tensor1d    result(Ne);
     for (long d = 0; d < ND; ++d) { result += mean_psf(Sep(d), uPsf); }
     return result / (4.0 * ND);
+}
+
+template <short N>
+auto
+rectangular_comb_separations(long const                      pw,
+                             long const                      ph,
+                             double const                    ref_size,
+                             std::pair<double, double> const src_pix,
+                             Eigen::MatrixXd const&          Offsets)
+    -> Eigen::Matrix<double, N, N>
+{
+    auto constexpr _dvec = Fermi::ModelMap::integ_delta_1<N>();
+    Eigen::Map<Eigen::Matrix<double, 3, N> const> const D(_dvec.data());
+
+    Eigen::Matrix<double, N, N> SD
+        = D.transpose() * Offsets.block<3, 3>(pw - 1, ph - 1) * D;
+
+    auto constexpr dsmatv = Fermi::ModelMap::integ_delta_lin<N>();
+    Eigen::Map<Eigen::Matrix<double, 2, N * N> const> const dsm(
+        dsmatv.data(), 2, N * N);
+
+    Eigen::Vector2d spv(src_pix.first - ph, src_pix.second - pw);
+
+    SD = ref_size * (dsm.colwise() - spv).colwise().norm().reshaped(N, N).array()
+         * (1. + SD.array());
+    return SD;
 }
 
 template <short Ndelta, short NMAX = 64>
