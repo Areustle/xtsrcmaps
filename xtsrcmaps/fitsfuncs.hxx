@@ -1,5 +1,7 @@
 #pragma once
 
+// #include "xtsrcmaps/tensor_types.hxx"
+
 #include <array>
 #include <optional>
 #include <string>
@@ -11,8 +13,23 @@ namespace Fermi
 namespace fits
 {
 
+
 auto
 ccube_energies(std::string const&) noexcept -> std::optional<std::vector<double>>;
+
+struct CCubePixels
+{
+    std::array<size_t, 3> naxes;
+    std::array<double, 3> crpix;
+    std::array<double, 3> crval;
+    std::array<double, 3> cdelt;
+    double                axis_rot;
+    std::string           proj_name;
+    bool                  is_galactic;
+};
+
+auto
+ccube_pixels(std::string const&) noexcept -> std::optional<CCubePixels>;
 
 
 struct ExposureCubeData

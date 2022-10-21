@@ -22,6 +22,31 @@ TEST_CASE("Fermi FITS ccube_energies.")
     }
 }
 
+TEST_CASE("Fermi FITS ccube_pixels.")
+{
+    auto cfg = Fermi::XtCfg();
+    // auto ov  = //Fermi::fits::ccube_energies(cfg.cmap);
+    auto ov  = Fermi::fits::ccube_pixels(cfg.cmap);
+    REQUIRE(ov);
+
+    auto v = ov.value();
+    REQUIRE(v.naxes[0] == 100);
+    REQUIRE(v.naxes[1] == 100);
+    REQUIRE(v.naxes[2] == 37);
+    REQUIRE(v.crpix[0] == 50.5);
+    REQUIRE(v.crpix[1] == 50.5);
+    REQUIRE(v.crpix[2] == 1.0);
+    REQUIRE(v.crval[0] == 193.98);
+    REQUIRE(v.crval[1] == -5.82);
+    REQUIRE(v.crval[2] == 100.);
+    REQUIRE(v.cdelt[0] == -0.2);
+    REQUIRE(v.cdelt[1] == 0.2);
+    REQUIRE(v.cdelt[2] == 25.8844718872141);
+    REQUIRE(v.axis_rot == 0.0);
+    REQUIRE(v.proj_name == "AIT");
+    REQUIRE(v.is_galactic == false);
+}
+
 TEST_CASE("Fermi FITS read_expcube.")
 {
     auto cfg  = Fermi::XtCfg();

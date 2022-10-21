@@ -11,8 +11,10 @@
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/irf.hxx"
 #include "xtsrcmaps/misc.hxx"
+#include "xtsrcmaps/model_map.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
 #include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/sky_geom.hxx"
 #include "xtsrcmaps/source_utils.hxx"
 #include "xtsrcmaps/tensor_ops.hxx"
 
@@ -46,8 +48,10 @@ TEST_CASE("Test uPsf")
     //********************************************************************************
     auto opt_exp_map     = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
     auto opt_wexp_map    = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
+    auto opt_ccube       = Fermi::fits::ccube_pixels(cfg.cmap);
     auto const exp_cube  = good(opt_exp_map, "Cannot read exposure cube map file!");
     auto const wexp_cube = good(opt_wexp_map, "Cannot read exposure cube map file!");
+    auto const ccube     = good(opt_ccube, "Cannot read counts cube map file!");
     auto const exp_costhetas                 = Fermi::exp_costhetas(exp_cube);
     auto const exp_map                       = Fermi::exp_map(exp_cube);
     auto const wexp_map                      = Fermi::exp_map(wexp_cube);
@@ -109,10 +113,10 @@ TEST_CASE("Test uPsf")
 
 
     auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
-    SUBCASE("u PSF") { filecomp3(uPsf, "mean_psf"); }
+    // SUBCASE("u PSF") { filecomp3(uPsf, "mean_psf"); }
 
     auto [partinteg, totinteg] = Fermi::PSF::partial_total_integral(separations, uPsf);
-    SUBCASE("uPsf_part_int_SED") { filecomp3(partinteg, "uPsf_part_int_SED"); }
+    // SUBCASE("uPsf_part_int_SED") { filecomp3(partinteg, "uPsf_part_int_SED"); }
 
     Fermi::PSF::normalize(uPsf, totinteg);
     SUBCASE("uPsf_normalized") { filecomp3(uPsf, "uPsf_normalized_SED"); }
@@ -120,6 +124,7 @@ TEST_CASE("Test uPsf")
     auto peak = Fermi::PSF::peak_psf(uPsf);
     SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE");}
 
+    // auto model_map = Fermi::point_src_model_map_wcs(100., 100., dirs, uPsf, { ccube });
 }
 
 // TEST_CASE("Test PSF")

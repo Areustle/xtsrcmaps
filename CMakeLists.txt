@@ -51,22 +51,23 @@ add_compile_options(
   -Wall
   -Wextra
   -Werror # -mbmi2 -march=native
-  $<$<CONFIG:DEBUG>:-pedantic>
+  -pedantic
+  -Wno-unused-parameter
   $<$<CONFIG:DEBUG>:-g3>
   $<$<CONFIG:DEBUG>:-Og>
   $<$<CONFIG:RELEASE>:-O3>
-  $<$<CONFIG:DEBUG>:-fsanitize=address>
+  # $<$<CONFIG:DEBUG>:-fsanitize=address>
   # -fsanitize=leak
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
-  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
-  $<$<CONFIG:DEBUG>:-fno-common>
+  # $<$<CONFIG:DEBUG>:-fsanitize=undefined>
+  # $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
+  # $<$<CONFIG:DEBUG>:-fno-common>
 )
 add_link_options(
-  $<$<CONFIG:DEBUG>:-fsanitize=address>
+  # $<$<CONFIG:DEBUG>:-fsanitize=address>
   # -fsanitize=leak
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
-  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
-  $<$<CONFIG:DEBUG>:-fno-common>
+  # $<$<CONFIG:DEBUG>:-fsanitize=undefined>
+  # $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
+  # $<$<CONFIG:DEBUG>:-fno-common>
 )
 
 add_subdirectory(xtsrcmaps)
