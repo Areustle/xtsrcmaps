@@ -1,6 +1,8 @@
 #include "xtsrcmaps/tensor_ops.hxx"
 
 #include "Eigen/Dense"
+#include "Eigen/Sparse"
+
 #include <utility>
 
 using std::vector;
@@ -29,143 +31,17 @@ Fermi::contract210(mdarray2 const& A, mdarray2 const& B) -> mdarray2
     return R;
 }
 
-inline void
-co_contract_base(auto R, auto const A, auto const B)
-{
-
-    size_t const& Ns = B.extent(0); // N
-    size_t const& Nd = A.extent(0); // D
-    size_t const& Nc = A.extent(1); // C
-    size_t const& Ne = A.extent(2); // E
-
-    for (size_t n = 0; n < Ns; ++n)
-    {
-        for (size_t d = 0; d < Nd; ++d)
-        {
-            for (size_t c = 0; c < Nc; ++c)
-            {
-                for (size_t e = 0; e < Ne; ++e)
-                {
-                    //
-                    R(n, d, e) += A(d, c, e) * B(n, c);
-                }
-            }
-        }
-    }
-}
-
-inline bool
-is_co_contract_base(size_t const Ns,
-                    size_t const Nd,
-                    size_t const Nc,
-                    size_t const Ne) noexcept
-{
-    return (Ns <= 4 && Nd <= 4 && Nc <= 4 && Ne <= 4);
-}
-
-// // R  [Ns, Nd, Ne]
-// // A  [Nd, Nc, Ne]
-// // B  [Ns, Nc]
-// void
-// co_contract3210(auto R, auto const A, auto const B)
-// {
-// using std::pair;
-// using std::experimental::full_extent;
-// using std::experimental::submdspan;
-//     auto largest_dim = [](size_t const Ns,
-//                           size_t const Nd,
-//                           size_t const Nc,
-//                           size_t const Ne) noexcept -> char {
-//         char          midx   = 0;
-//         size_t const* valptr = &Ns;
-//         /* clang-format off */
-//         if (*valptr < Nd) { midx = 1; valptr = &Nd; }
-//         if (*valptr < Nc) { midx = 2; valptr = &Nc; }
-//         if (*valptr < Ne) { midx = 3; valptr = &Ne; }
-//         /* clang-format on */
-//         return midx;
-//     };
-//
-//     size_t const& Ns = B.extent(0); // S
-//     size_t const& Nd = A.extent(0); // D
-//     size_t const& Nc = A.extent(1); // C
-//     size_t const& Ne = A.extent(2); // E
-//
-//     // check for base case
-//     if (is_co_contract_base(Ns, Nd, Nc, Ne))
-//     {
-//         // Do base case computation
-//         return co_contract_base(R, A, B);
-//     }
-//
-//     char const ld = largest_dim(Ns, Nd, Nc, Ne);
-//
-//     if (ld == 0) // Ns is the largest. Cut R[0] and B[0]
-//     {
-//         auto p1 = pair(0, Ns / 2);
-//         auto p2 = pair(Ns / 2, Ns);
-//         auto R1 = submdspan(R, p1, full_extent, full_extent);
-//         auto R2 = submdspan(R, p2, full_extent, full_extent);
-//         auto B1 = submdspan(B, p1, full_extent);
-//         auto B2 = submdspan(B, p2, full_extent);
-//         co_contract3210(R1, A, B1);
-//         co_contract3210(R2, A, B2);
-//     }
-//     else if (ld == 1) // Nd is largest. Split R[1], A[0]
-//     {
-//         auto p1 = pair(0, Nd / 2);
-//         auto p2 = pair(Nd / 2, Nd);
-//         auto R1 = submdspan(R, full_extent, p1, full_extent);
-//         auto R2 = submdspan(R, full_extent, p2, full_extent);
-//         auto A1 = submdspan(A, p1, full_extent, full_extent);
-//         auto A2 = submdspan(A, p2, full_extent, full_extent);
-//         co_contract3210(R1, A1, B);
-//         co_contract3210(R2, A2, B);
-//     }
-//     else if (ld == 2) // -- Nc is largest. Split A[1] and B[1]
-//     {
-//         auto p1 = pair(0, Nc / 2);
-//         auto p2 = pair(Nc / 2, Nc);
-//         auto A1 = submdspan(A, full_extent, p1, full_extent);
-//         auto A2 = submdspan(A, full_extent, p2, full_extent);
-//         auto B1 = submdspan(B, full_extent, p1);
-//         auto B2 = submdspan(B, full_extent, p2);
-//         co_contract3210(R, A1, B1);
-//         co_contract3210(R, A2, B2);
-//     }
-//     else // if (ld == 3) // -- Ne is largest. Split R[2] and A[2]
-//     {
-//         auto p1 = pair(0, Ne / 2);
-//         auto p2 = pair(Ne / 2, Ne);
-//         auto R1 = submdspan(R, full_extent, full_extent, p1);
-//         auto R2 = submdspan(R, full_extent, full_extent, p2);
-//         auto A1 = submdspan(A, full_extent, full_extent, p1);
-//         auto A2 = submdspan(A, full_extent, full_extent, p2);
-//         co_contract3210(R1, A1, B);
-//         co_contract3210(R2, A2, B);
-//     }
-// }
-
-// auto
-// eig_contract3210(mdarray3 const& A, mdarray2 const& B) -> mdarray3
-// {
-// }
 
 // TODO Use Eigen or BLAS GEMM
 auto
 Fermi::contract3210(mdarray3 const& A, mdarray2 const& B) -> mdarray3
 {
-    using Eigen::Dynamic;
+    using MatrixXdR
+        = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
     using Eigen::Map;
-    using Eigen::Matrix;
-    using Eigen::RowMajor;
-    using MatrixXdR = Matrix<double, Dynamic, Dynamic, RowMajor>;
     // A[c,e,d]
     // B[s,c]
     assert(A.extent(0) == B.extent(1)); // C
-    assert(A.extent(0) == 40);
-    assert(A.extent(1) == 38);
-    assert(A.extent(2) == 401);
 
     size_t const& Ns = B.extent(0); // S
     size_t const& Nc = B.extent(1); // C
@@ -334,3 +210,126 @@ Fermi::safe_reciprocal(mdarray2 const& A) -> mdarray2
                    [](auto const x) { return x <= 0. ? 0. : 1. / x; });
     return mdarray2(rv, A.extent(0), A.extent(1));
 };
+
+
+// inline void
+// co_contract_base(auto R, auto const A, auto const B)
+// {
+//
+//     size_t const& Ns = B.extent(0); // N
+//     size_t const& Nd = A.extent(0); // D
+//     size_t const& Nc = A.extent(1); // C
+//     size_t const& Ne = A.extent(2); // E
+//
+//     for (size_t n = 0; n < Ns; ++n)
+//     {
+//         for (size_t d = 0; d < Nd; ++d)
+//         {
+//             for (size_t c = 0; c < Nc; ++c)
+//             {
+//                 for (size_t e = 0; e < Ne; ++e)
+//                 {
+//                     //
+//                     R(n, d, e) += A(d, c, e) * B(n, c);
+//                 }
+//             }
+//         }
+//     }
+// }
+//
+// inline bool
+// is_co_contract_base(size_t const Ns,
+//                     size_t const Nd,
+//                     size_t const Nc,
+//                     size_t const Ne) noexcept
+// {
+//     return (Ns <= 4 && Nd <= 4 && Nc <= 4 && Ne <= 4);
+// }
+
+// // R  [Ns, Nd, Ne]
+// // A  [Nd, Nc, Ne]
+// // B  [Ns, Nc]
+// void
+// co_contract3210(auto R, auto const A, auto const B)
+// {
+// using std::pair;
+// using std::experimental::full_extent;
+// using std::experimental::submdspan;
+//     auto largest_dim = [](size_t const Ns,
+//                           size_t const Nd,
+//                           size_t const Nc,
+//                           size_t const Ne) noexcept -> char {
+//         char          midx   = 0;
+//         size_t const* valptr = &Ns;
+//         /* clang-format off */
+//         if (*valptr < Nd) { midx = 1; valptr = &Nd; }
+//         if (*valptr < Nc) { midx = 2; valptr = &Nc; }
+//         if (*valptr < Ne) { midx = 3; valptr = &Ne; }
+//         /* clang-format on */
+//         return midx;
+//     };
+//
+//     size_t const& Ns = B.extent(0); // S
+//     size_t const& Nd = A.extent(0); // D
+//     size_t const& Nc = A.extent(1); // C
+//     size_t const& Ne = A.extent(2); // E
+//
+//     // check for base case
+//     if (is_co_contract_base(Ns, Nd, Nc, Ne))
+//     {
+//         // Do base case computation
+//         return co_contract_base(R, A, B);
+//     }
+//
+//     char const ld = largest_dim(Ns, Nd, Nc, Ne);
+//
+//     if (ld == 0) // Ns is the largest. Cut R[0] and B[0]
+//     {
+//         auto p1 = pair(0, Ns / 2);
+//         auto p2 = pair(Ns / 2, Ns);
+//         auto R1 = submdspan(R, p1, full_extent, full_extent);
+//         auto R2 = submdspan(R, p2, full_extent, full_extent);
+//         auto B1 = submdspan(B, p1, full_extent);
+//         auto B2 = submdspan(B, p2, full_extent);
+//         co_contract3210(R1, A, B1);
+//         co_contract3210(R2, A, B2);
+//     }
+//     else if (ld == 1) // Nd is largest. Split R[1], A[0]
+//     {
+//         auto p1 = pair(0, Nd / 2);
+//         auto p2 = pair(Nd / 2, Nd);
+//         auto R1 = submdspan(R, full_extent, p1, full_extent);
+//         auto R2 = submdspan(R, full_extent, p2, full_extent);
+//         auto A1 = submdspan(A, p1, full_extent, full_extent);
+//         auto A2 = submdspan(A, p2, full_extent, full_extent);
+//         co_contract3210(R1, A1, B);
+//         co_contract3210(R2, A2, B);
+//     }
+//     else if (ld == 2) // -- Nc is largest. Split A[1] and B[1]
+//     {
+//         auto p1 = pair(0, Nc / 2);
+//         auto p2 = pair(Nc / 2, Nc);
+//         auto A1 = submdspan(A, full_extent, p1, full_extent);
+//         auto A2 = submdspan(A, full_extent, p2, full_extent);
+//         auto B1 = submdspan(B, full_extent, p1);
+//         auto B2 = submdspan(B, full_extent, p2);
+//         co_contract3210(R, A1, B1);
+//         co_contract3210(R, A2, B2);
+//     }
+//     else // if (ld == 3) // -- Ne is largest. Split R[2] and A[2]
+//     {
+//         auto p1 = pair(0, Ne / 2);
+//         auto p2 = pair(Ne / 2, Ne);
+//         auto R1 = submdspan(R, full_extent, full_extent, p1);
+//         auto R2 = submdspan(R, full_extent, full_extent, p2);
+//         auto A1 = submdspan(A, full_extent, full_extent, p1);
+//         auto A2 = submdspan(A, full_extent, full_extent, p2);
+//         co_contract3210(R1, A1, B);
+//         co_contract3210(R2, A2, B);
+//     }
+// }
+
+// auto
+// eig_contract3210(mdarray3 const& A, mdarray2 const& B) -> mdarray3
+// {
+// }

@@ -302,18 +302,3 @@ Fermi::PSF::peak_psf(mdarray3 const& mean_psf) -> mdarray2
 
     return mdarray2(v, Ns, Ne);
 }
-
-// auto
-// Fermi::PSF::makePointSourceMap_wcs( // const PointSource&          pointSrc,
-//                                     //  const CountsMap&            dataMap,
-//     const std::vector<double>& energies,
-//     // const PsfIntegConfig&       config,
-//     const mdarray3& meanpsf,
-//     // const BinnedExposureBase*   bexpmap,
-//     // st_stream::StreamFormatter& formatter,
-//     std::vector<float>& modelmap,
-//     // FileUtils::SrcMapType&      mapType,
-//     int kmin,
-//     int kmax) -> std::vector<double>
-// {
-// }

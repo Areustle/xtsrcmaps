@@ -25,6 +25,9 @@ lerp_pars(std::vector<double> const&,
           std::optional<double> const = std::nullopt)
     -> std::vector<std::tuple<double, double, size_t>>;
 
+auto
+separations_lerp_pars(double const ds, std::vector<double> const& sep)
+    -> std::tuple<double, double, size_t>;
 
 inline auto
 bilerp(std::tuple<double, double, size_t> const& ct,
