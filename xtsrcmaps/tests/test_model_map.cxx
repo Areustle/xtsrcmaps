@@ -20,7 +20,7 @@ req_displacement(long const                               ph,
                  long const                               pw,
                  std::tuple<double, double, double> const src_dir,
                  Fermi::SkyGeom const&                    skygeom,
-                 T                                        SD)
+                 T const                                  SD)
 {
     long constexpr N  = SD.rows();
     auto constexpr ds = Fermi::ModelMap::integ_delta_steps<N>();
@@ -28,470 +28,214 @@ req_displacement(long const                               ph,
     {
         for (long h = 0; h < N; ++h)
         {
-
-            REQUIRE_MESSAGE(
-                SD(w, h)
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds[h], pw + ds[w] }))),
-                N << " " << w << " " << h);
+            double const true_off = skygeom.srcpixoff(
+                src_dir, skygeom.pix2dir({ ph + ds[h], pw + ds[w] }));
+            REQUIRE_MESSAGE(SD(w, h) == doctest::Approx(true_off).epsilon(1e-3),
+                            N << ": (" << pw << " " << ph << ") -> " << w << " " << h
+                              << " | " << ds[w] << " " << ds[h] << " | " << pw + ds[w]
+                              << " " << ph + ds[h] << " | "
+                              << "");
         }
     }
 }
-
-
-TEST_CASE("Test Model Map Pixel Displacements")
-{
-
-    long const NpW       = 100;
-    long const NpH       = 100;
-    long const NpW_      = NpW + 2;
-    long const NpH_      = NpH + 2;
-    auto       cfg       = Fermi::XtCfg();
-    auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
-    auto const dirs      = Fermi::directions_from_point_sources(srcs);
-    // long const Ns        = srcs.size();
-
-    auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
-    REQUIRE(opt_ccube);
-    auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
-    Fermi::SkyGeom skygeom(ccube);
-    auto           src_dir  = skygeom.sph2dir(dirs[0]); // CLHEP Style 3
-    auto           src_pix  = skygeom.sph2pix(dirs[0]); // Grid Style 2
-    double const   ref_size = 0.2;
-
-    Eigen::MatrixXd Offsets(NpW_, NpH_);
-    Offsets.setZero();
-    for (long pw = 0; pw < NpW_; ++pw)
-    {
-        for (long ph = 0; ph < NpH_; ++ph)
-        {
-            auto   pdir    = skygeom.pix2dir({ ph, pw });
-            double pix_sep = ref_size
-                             * std::sqrt(std::pow(src_pix.first - (ph), 2)
-                                         + std::pow(src_pix.second - (pw), 2));
-            double ang_sep = skygeom.srcpixoff(
-                src_dir, { std::get<0>(pdir), std::get<1>(pdir), std::get<2>(pdir) });
-            Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
-        }
-    }
-
-    // // // Eigen::MatrixXd SepOffsets(NpW_, NpH_);
-    // // // SepOffsets.setZero();
-    // // // for (long pw = 0; pw < NpW_; ++pw)
-    // // // {
-    // // //     for (long ph = 0; ph < NpH_; ++ph)
-    // // //     {
-    // // //         auto   pdir    = skygeom.pix2dir({ ph, pw });
-    // // //         double ang_sep = skygeom.srcpixoff(
-    // // //             src_dir, { std::get<0>(pdir), std::get<1>(pdir),
-    // std::get<2>(pdir) });
-    // // //         SepOffsets(pw, ph) = ang_sep;
-    // // //     }
-    // // // }
-
-
-    // std::ifstream ifs("./xtsrcmaps/tests/expected/src_pix_offset.bin",
-    //                   std::ios::in | std::ios::binary);
-
-    // std::array<long, 7> npts       = { 1, 4, 16, 64, 256, 1024, 4096 };
-    // size_t const        bufsz      = 100 * 100 * 5461;
-    // size_t const        bufszbytes = bufsz * sizeof(double);
-
-    // for (int s = 0; s < Ns; ++s)
-    // {
-    // std::vector<double> rmbuf(bufsz);
-    // ifs.read((char*)(&rmbuf[0]), bufszbytes);
-    // Tensor3d const A
-    //     = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), 100, 100, 5461);
-
-    auto constexpr ds2 = Fermi::ModelMap::integ_delta_steps<2>();
-    // auto constexpr ds4  = Fermi::ModelMap::integ_delta_steps<4>();
-    // auto constexpr ds8  = Fermi::ModelMap::integ_delta_steps<8>();
-    // auto constexpr ds16 = Fermi::ModelMap::integ_delta_steps<16>();
-    // auto constexpr ds32 = Fermi::ModelMap::integ_delta_steps<32>();
-    // auto constexpr ds64 = Fermi::ModelMap::integ_delta_steps<64>();
-    for (long pw = 1; pw <= NpW; ++pw)
-    {
-        for (long ph = 1; ph <= NpH; ++ph)
-        {
-
-
-            // REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir, skygeom.pix2dir({ ph, pw }))
-            //                     == doctest::Approx(A(pw - 1, ph - 1, 0)),
-            //                 ph << " " << pw);
-            // /// 2
-            // for (long i = 0; i < npts[1]; ++i)
-            // {
-            //     double z = skygeom.srcpixoff(
-            //         src_dir, skygeom.pix2dir({ ph + ds2[i / 2], pw + ds2[i % 2] }));
-            //     REQUIRE_MESSAGE(z == doctest::Approx(A(pw - 1, ph - 1, 1 + i)),
-            //                     ph << " " << pw);
-            // }
-            // Eigen::TensorMap<Tensor2d const> const D(delta_arr2.data(), 3, 2);
-
-
-            /// Split Lerp Sep copmutation.
-            auto constexpr delta_lo2 = Fermi::ModelMap::integ_delta_lo1<2>();
-            auto constexpr delta_hi2 = Fermi::ModelMap::integ_delta_hi1<2>();
-            Eigen::Map<Eigen::Matrix<double, 2, 1> const> const Dlo(delta_lo2.data());
-            Eigen::Map<Eigen::Matrix<double, 2, 1> const> const Dhi(delta_hi2.data());
-            REQUIRE(Dlo.rows() == 2);
-            REQUIRE(Dlo.cols() == 1);
-            REQUIRE(Dhi.rows() == 2);
-            REQUIRE(Dhi.cols() == 1);
-
-
-            Eigen::Matrix<double, 2, 2> SD;
-            Eigen::Matrix<double, 3, 1> ID = Offsets.block<3, 2>(pw - 1, ph - 1) * Dlo;
-            SD.block<1, 1>(0, 0).noalias() = Dlo.transpose() * ID.block<2, 1>(0, 0);
-            SD.block<1, 1>(1, 0).noalias() = Dhi.transpose() * ID.block<2, 1>(1, 0);
-            ID.noalias()                   = Offsets.block<3, 2>(pw - 1, ph) * Dhi;
-            SD.block<1, 1>(0, 1).noalias() = Dlo.transpose() * ID.block<2, 1>(0, 0);
-            SD.block<1, 1>(1, 1).noalias() = Dhi.transpose() * ID.block<2, 1>(1, 0);
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.first - ph - ds2[0], 2)
-                                    + std::pow(src_pix.second - pw - ds2[0], 2))
-                        * (1. + SD(0, 0))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.second - pw - ds2[1], 2)
-                                    + std::pow(src_pix.first - ph - ds2[0], 2))
-                        * (1. + SD(1, 0))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.second - pw - ds2[0], 2)
-                                    + std::pow(src_pix.first - ph - ds2[1], 2))
-                        * (1. + SD(0, 1))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.first - ph - ds2[1], 2)
-                                    + std::pow(src_pix.second - pw - ds2[1], 2))
-                        * (1. + SD(1, 1))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
-
-
-
-            /// Combined Lerp Sep copmutation.
-            auto constexpr delta_1 = Fermi::ModelMap::integ_delta_1<2>();
-            Eigen::Map<Eigen::Matrix<double, 3, 2> const> const D(delta_1.data());
-            REQUIRE(D.rows() == 3);
-            REQUIRE(D.cols() == 2);
-
-            SD.noalias() = D.transpose() * Offsets.block<3, 3>(pw - 1, ph - 1) * D;
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.first - ph - ds2[0], 2)
-                                    + std::pow(src_pix.second - pw - ds2[0], 2))
-                        * (1. + SD(0, 0))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.second - pw - ds2[1], 2)
-                                    + std::pow(src_pix.first - ph - ds2[0], 2))
-                        * (1. + SD(1, 0))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.second - pw - ds2[0], 2)
-                                    + std::pow(src_pix.first - ph - ds2[1], 2))
-                        * (1. + SD(0, 1))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
-
-            REQUIRE(ref_size
-                        * std::sqrt(std::pow(src_pix.first - ph - ds2[1], 2)
-                                    + std::pow(src_pix.second - pw - ds2[1], 2))
-                        * (1. + SD(1, 1))
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
-
-
-            /// Mat Delta computation.
-            Eigen::Vector2d spv(src_pix.first - ph, src_pix.second - pw);
-            auto constexpr dsmatv = Fermi::ModelMap::integ_delta_lin<2>();
-            Eigen::Map<Eigen::Matrix<double, 2, 2 * 2> const> const dsm(
-                dsmatv.data(), 2, 4);
-
-            Eigen::Matrix<double, 2, 2> subpixel_offset_size
-                = (dsm.colwise() - spv).colwise().norm().reshaped(2, 2);
-
-            SD = ref_size * subpixel_offset_size.array() * (1. + SD.array());
-
-            REQUIRE(SD(0, 0)
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
-            REQUIRE(SD(1, 0)
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
-            REQUIRE(SD(0, 1)
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
-            REQUIRE(SD(1, 1)
-                    == doctest::Approx(skygeom.srcpixoff(
-                        src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
-            SD.setZero();
-
-
-            // // // SepOffset based computation.
-            // // SD.setZero();
-            // // SD.noalias() = D.transpose() * SepOffsets.block<3, 3>(pw - 1, ph - 1)
-            // // * D;
-            // // REQUIRE(SD(0, 0)
-            // //         == doctest::Approx(skygeom.srcpixoff(
-            // //             src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[0] }))));
-            // // REQUIRE(SD(1, 0)
-            // //         == doctest::Approx(skygeom.srcpixoff(
-            // //             src_dir, skygeom.pix2dir({ ph + ds2[0], pw + ds2[1] }))));
-            // // REQUIRE(SD(0, 1)
-            // //         == doctest::Approx(skygeom.srcpixoff(
-            // //             src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[0] }))));
-            // // REQUIRE(SD(1, 1)
-            // //         == doctest::Approx(skygeom.srcpixoff(
-            // //             src_dir, skygeom.pix2dir({ ph + ds2[1], pw + ds2[1] }))));
-
-            // Using Comb Separations Function.
-            SD = Fermi::ModelMap::rectangular_comb_separations<2>(
-                pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD);
-
-
-            Eigen::Matrix<double, 4, 4> SD4
-                = Fermi::ModelMap::rectangular_comb_separations<4>(
-                    pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD4);
-
-
-            Eigen::Matrix<double, 8, 8> SD8
-                = Fermi::ModelMap::rectangular_comb_separations<8>(
-                    pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD8);
-
-
-            Eigen::Matrix<double, 16, 16> SD16
-                = Fermi::ModelMap::rectangular_comb_separations<16>(
-                    pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD16);
-
-
-            Eigen::Matrix<double, 32, 32> SD32
-                = Fermi::ModelMap::rectangular_comb_separations<32>(
-                    pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD32);
-
-
-            Eigen::Matrix<double, 64, 64> SD64
-                = Fermi::ModelMap::rectangular_comb_separations<64>(
-                    pw, ph, ref_size, src_pix, Offsets);
-            req_displacement(ph, pw, src_dir, skygeom, SD64);
-
-
-            // Eigen::Matrix3d P = Offsets.block<3, 3>(pw - 1, ph - 1);
-            // // double dstep(0.5);
-            // long k            = 0;
-            // for (long h(0); h < 2; h++)
-            // {
-            //     // double dh = i * dstep - 0.5 + (0.5 * dstep);
-            //     double dh = ds2[h];
-            //     double nh(ph + dh);
-            //     for (long w(0); w < 2; w++)
-            //     {
-            //         // double dw = j * dstep - 0.5 + (0.5 * dstep);
-            //         double dw = ds2[w];
-            //         double nw(pw + dw);
-            //         double pix_offset
-            //             = ref_size
-            //               * std::sqrt(std::pow(src_pix.first - ph - dh, 2)
-            //                           + std::pow(src_pix.second - pw - dw, 2));
-            //         long iw      = dw < 0 ? pw - 1 : pw; // long(std::floor(nw));
-            //         long ih      = dh < 0 ? ph - 1 : ph; // long(std::floor(nh));
-            //         // double rw = nw - iw; // = (pw + dw) - (pw + (-1))
-            //         // double rh = nh - ih; // = (ph + dh) - (ph + (-1))
-            //         double rw    = dw < 0 ? dw + 1 : dw;
-            //         double rh    = dh < 0 ? dh + 1 : dh;
-            //         double sw    = (1. - rw);
-            //         double sh    = (1. - rh);
-            //         // CHECK_MESSAGE(D(0, h) == (dh < 0 ? sh : 0.0), dh << " " <<
-            //         dw);
-            //         // CHECK_MESSAGE(D(1, h) == (dh < 0 ? rh : sh), dh << " " << dw);
-            //         // CHECK_MESSAGE(D(2, h) == (dh < 0 ? 0.0 : rh), dh << " " <<
-            //         dw);
-            //         // REQUIRE_MESSAGE(D(0, h) == (dh < 0 ? sh : 0.0), dh << " " <<
-            //         dw);
-            //         // double z1 = Offsets(iw, ih);
-            //         // double z2 = Offsets(iw, ih + 1);
-            //         // double z3 = Offsets(iw + 1, ih);
-            //         // double z4 = Offsets(iw + 1, ih + 1);
-            //         double z1    = P(w, h);
-            //         double z2    = P(w, h + 1);
-            //         double z3    = P(w + 1, h);
-            //         double z4    = P(w + 1, h + 1);
-            //         double scale = (z1 * sw * sh   //
-            //                         + z2 * sw * rh //
-            //                         + z3 * rw * sh //
-            //                         + z4 * rw * rh);
-            //         // REQUIRE_MESSAGE(scale == doctest::Approx(SD(w,h)) , w << " "
-            //         <<
-            //         // h);
-            //         pix_offset *= 1. + scale;
-            //         double true_off = skygeom.srcpixoff(
-            //             src_dir, skygeom.pix2dir({ ph + ds2[k / 2], pw + ds2[k % 2]
-            //             }));
-            //         double pix_off
-            //             = skygeom.srcpixoff(src_dir, skygeom.pix2dir({ nh, nw }));
-            //         double st_off = A(pw - 1, ph - 1, 1 + h * 2 + w);
-            //
-            //         REQUIRE_MESSAGE(pix_off == doctest::Approx(true_off),
-            //                         pw << " " << ph << ": " << w << " "
-            //                            << h
-            //                            // << " [" << x << " " << y << "]"
-            //                            << " [" << dh << " " << dw << "]"
-            //                            << " [" << ds2[k / 2] << " " << ds2[k % 2] <<
-            //                            "]"
-            //                            << " [" << ph + ds2[k / 2] << " "
-            //                            << ph + ds2[k % 2] << "]");
-            //         REQUIRE_MESSAGE(pix_off == doctest::Approx(st_off),
-            //                         pw << " " << ph << ": " //
-            //                            << w << " " << h     //
-            //                            << " [" << dw << " " << dh << "]"
-            //
-            //         );
-            //         REQUIRE_MESSAGE(pix_offset == doctest::Approx(true_off),
-            //                         "pw ph = " << pw << " " << ph << ": "
-            //                                    << " " << h << " " << w << " "
-            //                                    << "<" << k << ">"
-            //                                    << " (" << dw << " " << dh << ")"
-            //                                    << " (" << nh << " " << nw << ")"
-            //                                    << " [" << iw << " " << ih << " : " <<
-            //                                    rw
-            //                                    << " " << rh << "]"
-            //                                    << "  ==> " << z1 << " " << z2 << " "
-            //                                    << z3 << " " << z4
-            //
-            //         );
-            //         ++k;
-            //     }
-            // }
-
-
-            //
-            // /// 4
-            // for (long i = 0; i < npts[2]; ++i)
-            // {
-            //     REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
-            //                                       skygeom.pix2dir({ ph + ds4[i / 4],
-            //                                                         pw + ds4[i % 4]
-            //                                                         }))
-            //                         == doctest::Approx(A(pw - 1, ph - 1, 5 + i)),
-            //                     ph << " " << pw);
-            // }
-            // /// 8
-            // for (long i = 0; i < npts[3]; ++i)
-            // {
-            //     REQUIRE_MESSAGE(skygeom.srcpixoff(src_dir,
-            //                                       skygeom.pix2dir({ ph + ds8[i / 8],
-            //                                                         pw + ds8[i % 8]
-            //                                                         }))
-            //                         == doctest::Approx(A(pw - 1, ph - 1, 21 + i)),
-            //                     ph << " " << pw);
-            // }
-            // /// 16
-            // for (long i = 0; i < npts[4]; ++i)
-            // {
-            //     REQUIRE_MESSAGE(
-            //         skygeom.srcpixoff(
-            //             src_dir,
-            //             skygeom.pix2dir({ ph + ds16[i / 16], pw + ds16[i % 16] }))
-            //             == doctest::Approx(A(pw - 1, ph - 1, 85 + i)),
-            //         ph << " " << pw);
-            // }
-            // /// 32
-            // for (long i = 0; i < npts[5]; ++i)
-            // {
-            //     REQUIRE_MESSAGE(
-            //         skygeom.srcpixoff(
-            //             src_dir,
-            //             skygeom.pix2dir({ ph + ds32[i / 32], pw + ds32[i % 32] }))
-            //             == doctest::Approx(A(pw - 1, ph - 1, 341 + i)),
-            //         ph << " " << pw);
-            // }
-            // /// 64
-            // for (long i = 0; i < npts[6]; ++i)
-            // {
-            //     REQUIRE_MESSAGE(
-            //         skygeom.srcpixoff(
-            //             src_dir,
-            //             skygeom.pix2dir({ ph + ds64[i / 64], pw + ds64[i % 64] }))
-            //             == doctest::Approx(A(pw - 1, ph - 1, 1365 + i)),
-            //         ph << " " << pw);
-            // }
-        }
-    }
-}
-
-TEST_CASE("Test Model Map Pixel Offsets")
-{
-
-    long const NpW       = 100;
-    long const NpH       = 100;
-    // long const NpW_      = NpW + 2;
-    // long const NpH_      = NpH + 2;
-    auto       cfg       = Fermi::XtCfg();
-    auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
-    auto const dirs      = Fermi::directions_from_point_sources(srcs);
-    // long const Ns        = srcs.size();
-
-    auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
-    REQUIRE(opt_ccube);
-    auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
-    Fermi::SkyGeom skygeom(ccube);
-    auto           src_dir  = skygeom.sph2dir(dirs[0]); // CLHEP Style 3
-    auto           src_pix  = skygeom.sph2pix(dirs[0]); // Grid Style 2
-    double const   ref_size = 0.2;
-
-    Tensor2d Offsets(NpW, NpH);
-    Offsets.setZero();
-    for (long pw = 0; pw < NpW; ++pw)
-    {
-        for (long ph = 0; ph < NpH; ++ph)
-        {
-            auto   pdir    = skygeom.pix2dir({ ph + 1, pw + 1 });
-            double pix_sep = ref_size
-                             * std::sqrt(std::pow(src_pix.first - (ph + 1), 2)
-                                         + std::pow(src_pix.second - (pw + 1), 2));
-            double ang_sep = skygeom.srcpixoff(
-                src_dir, { std::get<0>(pdir), std::get<1>(pdir), std::get<2>(pdir) });
-            Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
-        }
-    }
-
-    std::ifstream ifs("./xtsrcmaps/tests/expected/src_pixelOffset.bin",
-                      std::ios::in | std::ios::binary);
-
-    size_t const bufsz      = 100 * 100;
-    size_t const bufszbytes = bufsz * sizeof(double);
-
-    std::vector<double> rmbuf(bufsz);
-    ifs.read((char*)(&rmbuf[0]), bufszbytes);
-    Tensor2d const stpixOff
-        = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), NpW, NpH);
-    for (long pw = 0; pw < NpW; ++pw)
-    {
-        for (long ph = 0; ph < NpH; ++ph)
-        {
-            REQUIRE_MESSAGE(Offsets(pw, ph) == doctest::Approx(stpixOff(pw, ph)),
-                            pw << " " << ph);
-        }
-    }
-}
-
+//
+// // template <typename T>
+// // void
+// // req_idx_scale(long const                               ph,
+// //               long const                               pw,
+// //               std::tuple<double, double, double> const src_dir,
+// //               Fermi::SkyGeom const&                    skygeom,
+// //               T const                                  SD)
+// // {
+// //     long constexpr N   = SD.rows();
+// //     // auto constexpr ds  = Fermi::ModelMap::integ_delta_steps<N>();
+// //
+// //     auto s_separations = Fermi::PSF::separations();
+// //
+// //     for (long w = 0; w < N; ++w)
+// //     {
+// //         for (long h = 0; h < N; ++h)
+// //         {
+// //
+// //             double iv = Fermi::PSF::inverse_separations(SD(w, h));
+// //             int    i  = int(iv);
+// //             double u  = (SD(w, h) - s_separations.at(i))
+// //                        / (s_separations.at(i + 1) - s_separations.at(i));
+// //
+// //             double uu
+// //                 = (SD(w, h) - s_separations[i + 1]) / (s_separations[i] - SD(w,
+// h));
+// //
+// //             double uuu = (iv - 8 * Fermi::PSF::inverse_separations(10) - sep_step
+// *
+// //             i)
+// //                          / sep_step;
+// //
+// //             CHECK_MESSAGE(u == doctest::Approx(uu),
+// //                           w << " " << h << " from: " << SD(w, h)
+// //                             << "\n"
+// //
+// //                                " got:"
+// //                             << iv << " (" << s_separations[i] << ","
+// //                             << s_separations[i + 1] << ") ");
+// //
+// //             CHECK_MESSAGE(u == doctest::Approx(uuu),
+// //                           w << " " << h << " from: " << SD(w, h)
+// //                             << "\n"
+// //
+// //                                " got:"
+// //                             << iv << " (" << s_separations[i] << ","
+// //                             << s_separations[i + 1] << ") ");
+// //         }
+// //     }
+// // }
+//
+// TEST_CASE("Test Model Map Pixel Displacements")
+// {
+//
+//     long const NpW       = 100;
+//     long const NpH       = 100;
+//     long const NpW_      = NpW + 2;
+//     long const NpH_      = NpH + 2;
+//     auto       cfg       = Fermi::XtCfg();
+//     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
+//     auto const dirs      = Fermi::directions_from_point_sources(srcs);
+//
+//     auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
+//     REQUIRE(opt_ccube);
+//     auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
+//     Fermi::SkyGeom skygeom(ccube);
+//     auto           dir    = dirs[0];
+//     // for (auto dir : dirs)
+//     // {
+//     auto         src_dir  = skygeom.sph2dir(dir); // CLHEP Style 3
+//     auto         src_pix  = skygeom.sph2pix(dir); // Grid Style 2
+//     double const ref_size = 0.2;
+//
+//     Eigen::MatrixXd Offsets(NpW_, NpH_);
+//     Offsets.setZero();
+//     for (long pw = 0; pw < NpW_; ++pw)
+//     {
+//         for (long ph = 0; ph < NpH_; ++ph)
+//         {
+//             auto   pdir    = skygeom.pix2dir({ ph, pw });
+//             double pix_sep = ref_size
+//                              * std::sqrt(std::pow(src_pix.first - (ph), 2)
+//                                          + std::pow(src_pix.second - (pw), 2));
+//             double ang_sep = skygeom.srcpixoff(
+//                 src_dir, { std::get<0>(pdir), std::get<1>(pdir), std::get<2>(pdir)
+//                 });
+//             Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
+//         }
+//     }
+//
+//
+//     for (long pw = 1; pw <= NpW; ++pw)
+//     {
+//         for (long ph = 1; ph <= NpH; ++ph)
+//         {
+//
+//
+//             Eigen::Matrix<double, 2, 2> SD;
+//             SD.setZero();
+//
+//             // Using Comb Separations Function.
+//             SD = Fermi::ModelMap::rectangular_comb_separations<2>(
+//                 pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD);
+//
+//
+//             Eigen::Matrix<double, 4, 4> SD4
+//                 = Fermi::ModelMap::rectangular_comb_separations<4>(
+//                     pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD4);
+//
+//
+//             Eigen::Matrix<double, 8, 8> SD8
+//                 = Fermi::ModelMap::rectangular_comb_separations<8>(
+//                     pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD8);
+//
+//
+//             Eigen::Matrix<double, 16, 16> SD16
+//                 = Fermi::ModelMap::rectangular_comb_separations<16>(
+//                     pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD16);
+//
+//
+//             Eigen::Matrix<double, 32, 32> SD32
+//                 = Fermi::ModelMap::rectangular_comb_separations<32>(
+//                     pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD32);
+//
+//
+//             Eigen::Matrix<double, 64, 64> SD64
+//                 = Fermi::ModelMap::rectangular_comb_separations<64>(
+//                     pw, ph, ref_size, src_pix, Offsets);
+//             req_displacement(ph, pw, src_dir, skygeom, SD64);
+//         }
+//     }
+//     //     break;
+//     // }
+// }
+//
+// TEST_CASE("Test Model Map Pixel Offsets")
+// {
+//
+//     long const NpW       = 100;
+//     long const NpH       = 100;
+//     // long const NpW_      = NpW + 2;
+//     // long const NpH_      = NpH + 2;
+//     auto       cfg       = Fermi::XtCfg();
+//     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
+//     auto const dirs      = Fermi::directions_from_point_sources(srcs);
+//     // long const Ns        = srcs.size();
+//
+//     auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
+//     REQUIRE(opt_ccube);
+//     auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
+//     Fermi::SkyGeom skygeom(ccube);
+//     auto           src_dir  = skygeom.sph2dir(dirs[0]); // CLHEP Style 3
+//     auto           src_pix  = skygeom.sph2pix(dirs[0]); // Grid Style 2
+//     double const   ref_size = 0.2;
+//
+//     Tensor2d Offsets(NpW, NpH);
+//     Offsets.setZero();
+//     for (long pw = 0; pw < NpW; ++pw)
+//     {
+//         for (long ph = 0; ph < NpH; ++ph)
+//         {
+//             auto   pdir    = skygeom.pix2dir({ ph + 1, pw + 1 });
+//             double pix_sep = ref_size
+//                              * std::sqrt(std::pow(src_pix.first - (ph + 1), 2)
+//                                          + std::pow(src_pix.second - (pw + 1), 2));
+//             double ang_sep = skygeom.srcpixoff(
+//                 src_dir, { std::get<0>(pdir), std::get<1>(pdir), std::get<2>(pdir)
+//                 });
+//             Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
+//         }
+//     }
+//
+//     std::ifstream ifs("./xtsrcmaps/tests/expected/src_pixelOffset.bin",
+//                       std::ios::in | std::ios::binary);
+//
+//     size_t const bufsz      = 100 * 100;
+//     size_t const bufszbytes = bufsz * sizeof(double);
+//
+//     std::vector<double> rmbuf(bufsz);
+//     ifs.read((char*)(&rmbuf[0]), bufszbytes);
+//     Tensor2d const stpixOff
+//         = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), NpW, NpH);
+//     for (long pw = 0; pw < NpW; ++pw)
+//     {
+//         for (long ph = 0; ph < NpH; ++ph)
+//         {
+//             REQUIRE_MESSAGE(Offsets(pw, ph) == doctest::Approx(stpixOff(pw, ph)),
+//                             pw << " " << ph);
+//         }
+//     }
+// }
+//
 TEST_CASE("integ_delta")
 {
     std::array<double, 2> ids2 = { -0.25, 0.25 };
@@ -632,4 +376,480 @@ TEST_CASE("integ_delta")
                 0.5703125, 0.4296875, 0.5546875, 0.4453125, 0.5390625, 0.4609375,
                 0.5234375, 0.4765625, 0.5078125, 0.4921875 }
             == Fermi::ModelMap::integ_delta_hi<64>());
+}
+
+// TEST_CASE("Test Model Map PsfEstimate")
+// {
+//
+//     long const Nw        = 100;
+//     long const Nh        = 100;
+//     long const Ns        = 263;
+//     long const Ne        = 38;
+//     long const Nd        = 401;
+//     auto       cfg       = Fermi::XtCfg();
+//     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
+//     auto const dirs      = Fermi::directions_from_point_sources(srcs);
+//
+//     auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
+//     REQUIRE(opt_ccube);
+//     auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
+//     Fermi::SkyGeom skygeom(ccube);
+//
+//     Tensor3d const uPsf = Fermi::row_major_file_to_col_major_tensor(
+//         "./xtsrcmaps/tests/expected/uPsf_normalized_SED.bin", Ns, Ne, Nd);
+//     REQUIRE(uPsf.dimension(0) == Nd);
+//     REQUIRE(uPsf.dimension(1) == Ne);
+//     REQUIRE(uPsf.dimension(2) == Ns);
+//
+//     Tensor2d const uPeak = Fermi::row_major_file_to_col_major_tensor(
+//         "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", Ns, Ne);
+//     REQUIRE(uPeak.dimension(0) == Ne);
+//     REQUIRE(uPeak.dimension(1) == Ns);
+//
+//     std::ifstream ifs("./xtsrcmaps/tests/expected/src_psfEstimate.bin",
+//                       std::ios::in | std::ios::binary);
+//
+//     Tensor4d xtpsfEst(Nw, Nh, Ne, Ns);
+//
+//     // long const   s        = 0;
+//     for (long s = 0; s < Ns; ++s)
+//     {
+//         auto         src_dir  = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+//         auto         src_pix  = skygeom.sph2pix(dirs[s]); // Grid Style 2
+//         double const ref_size = 0.2;
+//
+//         // size_t const bufsz      = Ne * Nw * Nh;
+//         // size_t const bufszbytes = bufsz * sizeof(double);
+//
+//         // std::vector<double> rmbuf(bufsz);
+//         // ifs.read((char*)(&rmbuf[0]), bufszbytes);
+//         // Tensor3d const STpsfEstimate
+//         //     = Fermi::row_major_buffer_to_col_major_tensor(rmbuf.data(), Nw, Nh,
+//         Ne);
+//         // REQUIRE(STpsfEstimate.dimension(0) == Ne);
+//         // REQUIRE(STpsfEstimate.dimension(1) == Nh);
+//         // REQUIRE(STpsfEstimate.dimension(2) == Nw);
+//
+//         /////
+//         Tensor2d const tuPsf
+//             = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 }).reshape(Idx2 { Nd, Ne
+//             });
+//         // REQUIRE(tuPsf.dimension(0) == Nd);
+//         // REQUIRE(tuPsf.dimension(1) == Ne);
+//         Tensor1d const tuPeak
+//             = uPeak.slice(Idx2 { 0, s }, Idx2 { Ne, 1 }).reshape(Idx1 { Ne });
+//         // REQUIRE(tuPeak.dimension(0) == Ne);
+//
+//         Eigen::Map<Eigen::MatrixXd const> const suPsf(tuPsf.data(), Nd, Ne);
+//         Eigen::Map<Eigen::VectorXd const> const suPeak(tuPeak.data(), Ne);
+//         // REQUIRE(suPsf.rows() == Nd);
+//         // REQUIRE(suPsf.cols() == Ne);
+//         // REQUIRE(suPeak.rows() == Ne);
+//         // REQUIRE(suPeak.cols() == 1);
+//
+//         Eigen::MatrixXd Offsets
+//             = Fermi::ModelMap::pixel_angular_offset_from_source_with_padding(
+//                 src_dir, src_pix, ref_size, skygeom);
+//
+//         for (long pw = 1; pw <= Nw; ++pw)
+//         {
+//             for (long ph = 1; ph <= Nh; ++ph)
+//             {
+//                 double pix_off
+//                     = skygeom.srcpixoff(src_dir, skygeom.pix2dir({ ph, pw }));
+//
+//                 pix_off                = Fermi::PSF::inverse_separations(pix_off);
+//
+//                 // Eigen::VectorXd psfEst = Fermi::ModelMap::integrate_psf_adaptive(
+//                 //     pw, ph, ref_size, src_pix, pix_off, Offsets, suPsf, suPeak);
+//                 //
+//                 // xtpsfEst.slice(Idx4 { 0, pw - 1, ph - 1, s }, Idx4 { Ne, 1, 1, 1
+//                 })
+//                 //     = Eigen::TensorMap<Tensor4d>(psfEst.data(), Ne, 1, 1, 1);
+//
+//                 // for (long ie = 0; ie < Ne; ++ie)
+//                 // {
+//                 //     CHECK_MESSAGE(
+//                 //         STpsfEstimate(ie, ph - 1, pw - 1)
+//                 //             == doctest::Approx(xtpsfEst(ie, pw - 1, ph - 1, s))
+//                 //                    .epsilon(1e-2),
+//                 //         ie << " " << pw << " " << ph << " " << s);
+//                 // }
+//             }
+//         }
+//         // break;
+//     }
+//     ifs.close();
+// }
+//
+//
+
+TEST_CASE("Test Model Map Execution")
+{
+
+    auto       cfg       = Fermi::XtCfg();
+    auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
+    auto const dirs      = Fermi::directions_from_point_sources(srcs);
+
+    auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
+    REQUIRE(opt_ccube);
+    auto const     ccube = good(opt_ccube, "Cannot read counts cube map file!");
+    Fermi::SkyGeom skygeom(ccube);
+    long const     Nw  = 100;
+    long const     Nh  = 100;
+    long const     Ns  = dirs.size();
+    long const     Nd  = 401;
+    long const     Ne  = 38;
+
+    auto const st_off0 = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_initial_offset.bin", Ns, Nw, Nh);
+    assert(st_off0.dimension(0) == Nh);
+    assert(st_off0.dimension(1) == Nw);
+    assert(st_off0.dimension(2) == Ns);
+
+    auto const st_offi0 = Fermi::row_major_file_to_col_major_tensor<unsigned short>(
+        "./xtsrcmaps/tests/expected/src_initial_offset_idx.bin", Ns, Nw, Nh);
+    assert(st_offi0.dimension(0) == Nh);
+    assert(st_offi0.dimension(1) == Nw);
+    assert(st_offi0.dimension(2) == Ns);
+
+    auto const st_offs0 = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_initial_offset_scalar.bin", Ns, Nw, Nh);
+    assert(st_offs0.dimension(0) == Nh);
+    assert(st_offs0.dimension(1) == Nw);
+    assert(st_offs0.dimension(2) == Ns);
+
+    auto const st_nmc = Fermi::row_major_file_to_col_major_tensor<char>(
+        "./xtsrcmaps/tests/expected/src_needs_more.bin", Ns, Nw, Nh, Ne);
+    assert(st_nmc.dimension(0) == Ne);
+    assert(st_nmc.dimension(1) == Nh);
+    assert(st_nmc.dimension(2) == Nw);
+    assert(st_nmc.dimension(3) == Ns);
+    Eigen::Tensor<bool, 4> st_nm0 = st_nmc.cast<bool>();
+
+    Tensor4d const st_v0          = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_mean_psf_v0.bin", Ns, Nw, Nh, Ne);
+    assert(st_v0.dimension(0) == Ne);
+    assert(st_v0.dimension(1) == Nh);
+    assert(st_v0.dimension(2) == Nw);
+    assert(st_v0.dimension(3) == Ns);
+
+    Tensor4d const st_psfEst = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_psfEstimate.bin", Ns, Nw, Nh, Ne);
+    assert(st_psfEst.dimension(0) == Ne);
+    assert(st_psfEst.dimension(1) == Nh);
+    assert(st_psfEst.dimension(2) == Nw);
+    assert(st_psfEst.dimension(3) == Ns);
+
+    Tensor3d const uPsf = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/uPsf_normalized_SED.bin", Ns, Ne, Nd);
+    assert(uPsf.dimension(0) == Nd);
+    assert(uPsf.dimension(1) == Ne);
+    assert(uPsf.dimension(2) == Ns);
+
+    Tensor2d const uPeak = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", Ns, Ne);
+    assert(uPeak.dimension(0) == Ne);
+    assert(uPeak.dimension(1) == Ns);
+
+    auto const uPeakRatio = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_peak_ratio.bin", Ns, Nw, Nh, Ne);
+
+    auto const st_upsf_peak = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_mean_psf_peak.bin", Ns, Ne);
+    assert(st_upsf_peak.dimension(0) == Ne);
+    assert(st_upsf_peak.dimension(1) == Ns);
+
+    auto const st_upsf_arr = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/src_mean_psf_values.bin", Ns, Ne, Nd);
+    assert(st_upsf_arr.dimension(0) == Nd);
+    assert(st_upsf_arr.dimension(1) == Ne);
+    assert(st_upsf_arr.dimension(2) == Ns);
+
+    // SUBCASE("Check Upsf Value")
+    // {
+    //     for (long s = 0; s < Ns; ++s)
+    //     {
+    //         for (long e = 0; e < Ne; ++e)
+    //         {
+    //             for (long d = 0; d < Nd; ++d)
+    //             {
+    //                 CHECK_MESSAGE(st_upsf_arr(d, e, s) == uPsf(d, e, s),
+    //                               d << " " << e << " " << s);
+    //             }
+    //         }
+    //     }
+    // }
+
+    // SUBCASE("Check Upsf Peak")
+    // {
+    //     for (long s = 0; s < Ns; ++s)
+    //     {
+    //         for (long e = 0; e < Ne; ++e)
+    //         {
+    //             CHECK_MESSAGE(st_upsf_peak(e, s) == uPeak(e, s), e << " " << s);
+    //         }
+    //     }
+    // }
+
+
+    Fermi::ModelMap::MatCoord3 const pdirs
+        = Fermi::ModelMap::pix_dirs_with_padding(skygeom, Nw, Nh);
+
+    // SUBCASE("Test Pixel Directions with Padding")
+    // {
+    //     REQUIRE(pdirs.rows() == 102);
+    //     REQUIRE(pdirs.cols() == 102);
+    //
+    //     for (long w = 0; w < pdirs.rows(); ++w)
+    //     {
+    //         for (long h = 0; h < pdirs.cols(); ++h)
+    //         {
+    //             auto pix = std::make_pair(h, w);
+    //             REQUIRE(pdirs(w, h) == skygeom.pix2dir(pix));
+    //             REQUIRE_MESSAGE(
+    //                 skygeom.pix2sph(pix).first
+    //                     == doctest::Approx(skygeom.dir2sph(pdirs(w, h)).first),
+    //                 w << " " << h);
+    //             REQUIRE_MESSAGE(
+    //                 skygeom.pix2sph(pix).second
+    //                     == doctest::Approx(skygeom.dir2sph(pdirs(w, h)).second),
+    //                 w << " " << h);
+    //         }
+    //     }
+    // }
+
+    // double const ref_size = 0.2;
+
+    for (long s = 0; s < Ns; ++s)
+    {
+        auto src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+        // // auto src_pix = skygeom.sph2pix(dirs[s]); // Grid Style 2
+        // SUBCASE("Initial Pixel Offset")
+        // {
+        //     for (long h = 0; h < Nh; ++h)
+        //     {
+        //         for (long w = 0; w < Nw; ++w)
+        //         {
+        //             REQUIRE_MESSAGE(
+        //                 doctest::Approx(skygeom.srcpixoff(src_dir, pdirs(w+1,h+1)))
+        //                         .epsilon(1e-5)
+        //                     == st_off0(h, w, s),
+        //                 s << " " << h << " " << w << ": ");
+        //         }
+        //     }
+        // }
+
+        /////
+        Tensor2d const tuPsf
+            = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 }).reshape(Idx2 { Nd, Ne });
+        Tensor1d const tuPeak
+            = uPeak.slice(Idx2 { 0, s }, Idx2 { Ne, 1 }).reshape(Idx1 { Ne });
+
+        Eigen::Map<Eigen::MatrixXd const> const suPsf(tuPsf.data(), Nd, Ne);
+        Eigen::Map<Eigen::VectorXd const> const suPeak(tuPeak.data(), Ne);
+        REQUIRE(suPsf.rows() == Nd);
+        REQUIRE(suPsf.cols() == Ne);
+        REQUIRE(suPeak.rows() == Ne);
+        REQUIRE(suPeak.cols() == 1);
+
+        // SUBCASE("PeakPSF")
+        // {
+        //     for (long e = 0; e < Ne; ++e)
+        //     {
+        //         REQUIRE_MESSAGE(uPeak(e, s) == doctest::Approx(suPeak(e)),
+        //                         s << " " << e);
+        //         REQUIRE_MESSAGE(st_upsf_peak(e, s) == doctest::Approx(suPeak(e)),
+        //                         s << " " << e);
+        //     }
+        // }
+
+        // Eigen::MatrixXd const Offsets
+        //     = Fermi::ModelMap::pixel_angular_offset_from_source_with_padding(
+        //         pdirs, src_dir, src_pix, ref_size, skygeom);
+        // REQUIRE(Offsets.rows() == 102);
+        // REQUIRE(Offsets.cols() == 102);
+
+        Eigen::ArrayXd isep
+            = Fermi::ModelMap::psf_idx_sep(src_dir, pdirs, skygeom).reshaped().array();
+
+        SUBCASE("Pixel PSF logspace displacement")
+        {
+            auto sep_v = Fermi::PSF::separations();
+            for (long h = 0; h < Nh; ++h)
+            {
+                for (long w = 0; w < Nw; ++w)
+                {
+
+                    long   logidx = long(isep.reshaped(Nw, Nh)(w, h));
+                    double resid  = isep.reshaped(Nw, Nh)(w, h) - logidx;
+
+                    double sep    = skygeom.srcpixoff(src_dir, pdirs(w + 1, h + 1));
+                    auto   sepi   = std::upper_bound(sep_v.begin(), sep_v.end(), sep);
+                    REQUIRE_MESSAGE(logidx == std::distance(sep_v.begin(), (sepi - 1)),
+                                    s << " " << h << " " << w << ": "
+                                      << isep.reshaped(Nw, Nh)(w, h) << " " << sep
+                                      << " [" << *(sepi - 1) << " " << *sepi << "]");
+                    REQUIRE_MESSAGE(logidx == st_offi0(h, w, s),
+                                    s << " " << h << " " << w << ": "
+                                      << isep.reshaped(Nw, Nh)(w, h) << " " << sep
+                                      << "  " << resid);
+                    REQUIRE_MESSAGE(doctest::Approx(resid) == 1. - st_offs0(h, w, s),
+                                    s << " " << h << " " << w << ": "
+                                      << isep.reshaped(Nw, Nh)(w, h) << " " << sep
+                                      << "  " << logidx);
+                }
+            }
+        }
+
+        /// Compute the initial mean psf for every pixel vs this source.
+        Eigen::MatrixXd psfEst   = Fermi::ModelMap::psf_lut(isep, suPsf);
+        Eigen::MatrixXd init_psf = psfEst;
+
+        REQUIRE(psfEst.rows() == Nw * Nh);
+        REQUIRE(psfEst.cols() == Ne);
+
+        // SUBCASE("Initial Pixel PSF")
+        // {
+        //     for (long h = 0; h < Nh; ++h)
+        //     {
+        //         for (long w = 0; w < Nw; ++w)
+        //         {
+        //             for (long e = 0; e < Ne; ++e)
+        //             {
+        //                 REQUIRE_MESSAGE(
+        //                     doctest::Approx(psfEst(w + h * Nw, e)).epsilon(1e-3)
+        //                         == st_v0(e, h, w, s),
+        //                     s << " " << w << " " << h << " " << e << "\n");
+        //             }
+        //         }
+        //     }
+        // }
+
+        double const peak_threshold = 1e-6;
+        double const ftol_threshold = 1e-3;
+
+        /// Which pixels need further psf integration because their psf value is too
+        /// close to the peak psf?
+        auto pxs_int                = Fermi::ModelMap::pixels_to_integrate(
+            psfEst, suPeak, peak_threshold, Nw, Nh);
+
+        Eigen::MatrixX<bool> const needs_more
+            = (((init_psf.array().rowwise() / suPeak.transpose().array())
+                >= peak_threshold)
+                   .rowwise()
+                   .any())
+                  .reshaped(Nw, Nh);
+
+        // SUBCASE("Check Needs More and pxs_int")
+        // {
+        //     REQUIRE(needs_more.count() == pxs_int.size());
+        //     for (long h = 0; h < Nh; ++h)
+        //     {
+        //         for (long w = 0; w < Nw; ++w)
+        //         {
+        //             bool st_nm = false;
+        //             for (long e = 0; e < Ne; ++e)
+        //             {
+        //                 st_nm = st_nm || st_nm0(e, h, w, s);
+        //             }
+        //             REQUIRE_MESSAGE(needs_more(w, h) == st_nm,
+        //                             s << " " << h << " " << w << "\n");
+        //
+        //             REQUIRE_MESSAGE(
+        //                 std::find(pxs_int.begin(), pxs_int.end(), std::make_pair(w,
+        //                 h))
+        //                     != pxs_int.end(),
+        //                 s << " " << h << " " << w << "\n");
+        //         }
+        //     }
+        // }
+
+
+        /// Integrate the necessary pixels.
+        for (auto const& p : pxs_int)
+        {
+            long const w       = p.first;
+            long const h       = p.second;
+
+            // Eigen::Matrix<double, 2, 2> sep
+            //     = Fermi::ModelMap::rectangular_true_separations<2>(
+            //         w, h, src_dir, skygeom);
+            // sep = (sep.array() < 1e-4)
+            //           .select(1e4 * sep, 1. + ((sep.array() * 1e4).log() /
+            //           sep_step));
+            // auto y0 = sep.array().floor();
+            // auto y1 = sep.array().ceil();
+            // auto x0
+            //     = 1e-4
+            //       * (y0 >= 1.).select(Eigen::pow(Fermi::PSF::sep_delta, (y0 - 1.)),
+            //       y0);
+            // auto x1
+            //     = 1e-4
+            //       * (y1 >= 1.).select(Eigen::pow(Fermi::PSF::sep_delta, (y1 - 1.)),
+            //       y1);
+            // sep = (sep.array() - x0).array() * ((y1 - y0).array() / (x1 -
+            // x0).array())
+            //       + y0;
+            //
+            // auto asep = sep.reshaped().array();
+            //
+            // Eigen::MatrixXd v1(1, Ne);
+            // // Fermi::ModelMap::mean_psf_lut(v1, sep.reshaped().array(), suPsf);
+            // Eigen::ArrayXd r = asep - asep.floor();
+            //
+            // v1 = (suPsf(asep.floor(), Eigen::all).array().colwise() * (1. - r)
+            //           + suPsf(asep.floor() + 1, Eigen::all).array().colwise() * r)
+            //              .colwise()
+            //              .mean();
+            // REQUIRE(v1.rows() == 1);
+            // REQUIRE(v1.cols() == 38);
+
+            Eigen::MatrixXd v1 = Fermi::ModelMap::integrate_psf_recursive(
+                w,
+                h,
+                src_dir,
+                skygeom,
+                ftol_threshold,
+                suPsf,
+                psfEst.block(w + h * Nw, 0, 1, Ne));
+            REQUIRE(v1.rows() == 1);
+            REQUIRE(v1.cols() == 38);
+            psfEst.block(w + h * Nw, 0, 1, Ne) = v1;
+            for (long e = 0; e < Ne; ++e)
+            {
+                REQUIRE_MESSAGE(
+                    doctest::Approx(psfEst(w + h * Nw, e)).epsilon(1e-3)
+                    // doctest::Approx(v1(0, e)).epsilon(1e-4)
+                                == st_psfEst(e, h, w, s),
+                    s << " " << h << " " << w << " " << e << "\n"
+                      << needs_more(w, h) << " " << st_nm0(e, h, w, s) << "\n"
+                      << init_psf(w + h * Nw, e) << " " << st_v0(e, h, w, s) << "\n");
+            }
+        }
+
+        // SUBCASE("Final Mean PSF")
+        // {
+        //     // std::cout << needs_more.count() << "\n" << needs_more << std::endl <<
+        //     // std::endl;
+        //     for (long h = 0; h < Nh; ++h)
+        //     {
+        //         for (long w = 0; w < Nw; ++w)
+        //         {
+        //             for (long e = 0; e < Ne; ++e)
+        //             {
+        //                 REQUIRE_MESSAGE(
+        //                     doctest::Approx(psfEst(w + h * Nw, e)).epsilon(1e-3)
+        //                         == st_psfEst(e, h, w, s),
+        //                     s << " " << h << " " << w << " " << e << "\n"
+        //                       << needs_more(w, h) << " " << st_nm0(e, h, w, s) <<
+        //                       "\n"
+        //                       << init_psf(w + h * Nw, e) << " " << st_v0(e, h, w, s)
+        //                       << "\n"
+        //                       << needs_more);
+        //             }
+        //         }
+        //     }
+        // }
+    }
 }

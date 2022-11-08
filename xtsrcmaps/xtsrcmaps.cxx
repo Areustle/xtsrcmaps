@@ -38,7 +38,7 @@ main()
     auto const srcs         = Fermi::parse_src_xml(cfg.srcmdl);
     auto const dirs         = Fermi::directions_from_point_sources(srcs);
     auto const ccube        = good(opt_ccube, "Cannot read counts cube map file!");
-    //
+
     // // skipping ROI cuts.
     // // skipping edisp_bin expansion.
     //
@@ -57,14 +57,14 @@ main()
     // // Read Exposure Cube Fits File.
     // //********************************************************************************
     // auto opt_exp_map     = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
-    // auto opt_wexp_map    = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
-    // auto const exp_cube  = good(opt_exp_map, "Cannot read exposure cube map file!");
-    // auto const wexp_cube = good(opt_wexp_map, "Cannot read exposure cube map file!");
-    // auto const exp_costhetas                 = Fermi::exp_costhetas(exp_cube);
-    // auto const exp_map                       = Fermi::exp_map(exp_cube);
-    // auto const wexp_map                      = Fermi::exp_map(wexp_cube);
-    // auto const src_exposure_cosbins          = Fermi::src_exp_cosbins(dirs, exp_map);
-    // auto const src_weighted_exposure_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
+    // auto opt_wexp_map  = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
+    // auto const exp_cube = good(opt_exp_map, "Cannot read exposure cube map file!");
+    // auto const wexp_cube =good(opt_wexp_map, "Cannot read exposure cube map file!");
+    // auto const exp_costhetas                = Fermi::exp_costhetas(exp_cube);
+    // auto const exp_map                      = Fermi::exp_map(exp_cube);
+    // auto const wexp_map                     = Fermi::exp_map(wexp_cube);
+    // auto const src_exposure_cosbins         = Fermi::src_exp_cosbins(dirs, exp_map);
+    // auto const src_weighted_exposure_cosbins= Fermi::src_exp_cosbins(dirs, wexp_map);
     //
     // //********************************************************************************
     // // Effective Area Computations.
@@ -87,7 +87,7 @@ main()
     // //********************************************************************************
     // // Mean PSF Computations
     // //********************************************************************************
-    // auto const separations   = Fermi::PSF::separations(1e-4, 70., 400);
+    // auto const separations   = Fermi::PSF::separations();
     // auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
     // auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
     // auto const front_psf_val = Fermi::PSF::bilerp(exp_costhetas,
@@ -113,24 +113,24 @@ main()
     //                                          src_weighted_exposure_cosbins,
     //                                          /*Stays front for now.*/ front_LTF);
     //
-    // auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
-    // auto MDuPeak   = Fermi::PSF::peak_psf(MDuPsf);
+    // auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf,
+    // exposure); auto MDuPeak   = Fermi::PSF::peak_psf(MDuPsf);
 
 
-    long Ns   = 263;
-    long Ne   = 38;
-    long Nd   = 401;
+    long Ns                 = 263;
+    long Ne                 = 38;
+    long Nd                 = 401;
 
-    Tensor3d const uPsf = Fermi::row_major_file_to_col_major_tensor(
+    Tensor3d const uPsf     = Fermi::row_major_file_to_col_major_tensor(
         "./xtsrcmaps/tests/expected/uPsf_normalized_SED.bin", Ns, Ne, Nd);
-    assert(uPsf.dimension(0) == Ns);
+    assert(uPsf.dimension(0) == Nd);
     assert(uPsf.dimension(1) == Ne);
-    assert(uPsf.dimension(2) == Nd);
+    assert(uPsf.dimension(2) == Ns);
 
     Tensor2d const uPeak = Fermi::row_major_file_to_col_major_tensor(
         "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", Ns, Ne);
-    assert(uPeak.dimension(0) == Ns);
-    assert(uPeak.dimension(1) == Ne);
+    assert(uPeak.dimension(0) == Ne);
+    assert(uPeak.dimension(1) == Ns);
 
     auto model_map = Fermi::ModelMap::point_src_model_map_wcs(
         100, 100, dirs, uPsf, uPeak, { ccube });

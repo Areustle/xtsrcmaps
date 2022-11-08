@@ -31,9 +31,11 @@ using mdspan3  = std::experimental::mdspan<double, dyext3>;
 using mdspan4  = std::experimental::mdspan<double, dyext4>;
 
 
+using coord2   = std::pair<double, double>;
+using coord3   = std::tuple<double, double, double>;
 
 
-using vpd = std::vector<std::pair<double, double>>;
+using vpd      = std::vector<std::pair<double, double>>;
 
 using Eigen::Index;
 using Eigen::Sizes;

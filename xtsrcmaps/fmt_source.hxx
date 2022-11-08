@@ -401,6 +401,31 @@ struct fmt::formatter<std::pair<double, double>>
 };
 
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Index Pair
+////////////////////////////////////////////////////////////////////////////////
+///
+template <>
+struct fmt::formatter<std::pair<long, long>>
+{
+    template <typename ParseContext>
+    constexpr auto
+    parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto
+    format(std::pair<long, long> const& par, FormatContext& ctx)
+    {
+        return fmt::format_to(
+            ctx.out(), "({}, {})", std::get<0>(par), std::get<1>(par));
+    }
+};
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// MDSPAN and MDARRAY
 ////////////////////////////////////////////////////////////////////////////////

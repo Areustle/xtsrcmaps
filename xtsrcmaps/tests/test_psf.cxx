@@ -18,6 +18,29 @@
 #include "xtsrcmaps/source_utils.hxx"
 #include "xtsrcmaps/tensor_ops.hxx"
 
+TEST_CASE("PSF SEPARATION")
+{
+    auto tsep = Fermi::PSF::separations();
+    REQUIRE(sep_step == doctest::Approx(std::log(70. / 1e-4) / (400. - 1.)));
+    for (size_t j = 0; j < tsep.size(); ++j)
+    {
+        REQUIRE_MESSAGE(tsep[j] == doctest::Approx(Fermi::PSF::separation(j)), j);
+        REQUIRE_MESSAGE(j
+                            == doctest::Approx(Fermi::PSF::inverse_separation(
+                                Fermi::PSF::separation(j))),
+                        Fermi::PSF::separation(j));
+    }
+
+    for (int j = 0; j < int(1e6); ++j)
+    {
+        double d  = j * (3.99e-8);
+        double s  = Fermi::PSF::separation(d);
+        double dp = Fermi::PSF::inverse_separation(s);
+        REQUIRE(doctest::Approx(d) == dp);
+    }
+}
+
+
 TEST_CASE("Test uPsf")
 {
     auto cfg                = Fermi::XtCfg();
@@ -79,7 +102,7 @@ TEST_CASE("Test uPsf")
     //********************************************************************************
     // Mean PSF Computations
     //********************************************************************************
-    auto const separations   = Fermi::PSF::separations(1e-4, 70., 400);
+    auto const separations   = Fermi::PSF::separations();
     // D,Mc,Me
     auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
     auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
@@ -122,9 +145,10 @@ TEST_CASE("Test uPsf")
     SUBCASE("uPsf_normalized") { filecomp3(uPsf, "uPsf_normalized_SED"); }
 
     auto peak = Fermi::PSF::peak_psf(uPsf);
-    SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE");}
+    SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE"); }
 
-    // auto model_map = Fermi::point_src_model_map_wcs(100., 100., dirs, uPsf, { ccube });
+    // auto model_map = Fermi::point_src_model_map_wcs(100., 100., dirs, uPsf, { ccube
+    // });
 }
 
 // TEST_CASE("Test PSF")

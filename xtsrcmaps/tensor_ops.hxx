@@ -35,7 +35,7 @@ sum3_3(mdarray3 const& A, mdarray3 const& B) -> mdarray3;
 auto
 safe_reciprocal(mdarray2 const& A) -> mdarray2;
 
-template <typename T = double, typename... Ds>
+template <typename T, typename... Ds>
 auto
 row_major_file_to_row_major_tensor(std::string const& filename, Ds const... dims)
     -> Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>
@@ -50,7 +50,7 @@ row_major_file_to_row_major_tensor(std::string const& filename, Ds const... dims
     return RMt;
 }
 
-template <typename T = double, typename... Ds>
+template <typename T, typename... Ds>
 auto
 col_major_file_to_col_major_tensor(std::string const& filename, Ds const... dims)
     -> Eigen::Tensor<T, sizeof...(Ds)>
@@ -79,8 +79,8 @@ using make_reverse_sequence
 
 template <typename T, size_t... Rs>
 auto
-to_colmajor(Eigen::Tensor<T, sizeof...(Rs), Eigen::RowMajor>& rm,
-            std::index_sequence<Rs...>)
+to_colmajor_preserve_order(Eigen::Tensor<T, sizeof...(Rs), Eigen::RowMajor>& rm,
+                           std::index_sequence<Rs...>)
     -> Eigen::Tensor<T, sizeof...(Rs), Eigen::ColMajor>
 {
     Eigen::array<Eigen::Index, sizeof...(Rs)>        idx { Rs... };
@@ -88,15 +88,45 @@ to_colmajor(Eigen::Tensor<T, sizeof...(Rs), Eigen::RowMajor>& rm,
     return cm;
 }
 
+// template <typename T, typename I, I Order>
+// auto
+// to_colmajor(Eigen::Tensor<T, Order, Eigen::RowMajor>& rm)
+//     -> Eigen::Tensor<T, Order, Eigen::ColMajor>
+// {
+//     // Eigen::Tensor<T, Order, Eigen::ColMajor> cm = rm.swap_layout().shuffle();
+//     // return cm;
+//     return rm.swap_layout();
+// }
+
 } // namespace detail
 
+
+template <typename T = double, typename I, I Order>
+auto
+to_colmajor_preserve_order(Eigen::Tensor<T, Order, Eigen::RowMajor>& rm)
+    -> Eigen::Tensor<T, Order, Eigen::ColMajor>
+{
+    return detail::to_colmajor_preserve_order(rm,
+                                              detail::make_reverse_sequence<Order> {});
+}
 
 template <typename T = double, typename I, I Order>
 auto
 to_colmajor(Eigen::Tensor<T, Order, Eigen::RowMajor>& rm)
     -> Eigen::Tensor<T, Order, Eigen::ColMajor>
 {
-    return detail::to_colmajor(rm, detail::make_reverse_sequence<Order> {});
+    return rm.swap_layout();
+}
+
+template <typename T = double, typename... Ds>
+auto
+row_major_file_to_col_major_tensor_preserve_order(std::string const& filename,
+                                                  Ds const... dims)
+    -> Eigen::Tensor<T, sizeof...(Ds)>
+{
+    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor> rm
+        = row_major_file_to_row_major_tensor<T>(filename, dims...);
+    return to_colmajor_preserve_order(rm);
 }
 
 template <typename T = double, typename... Ds>
@@ -105,8 +135,19 @@ row_major_file_to_col_major_tensor(std::string const& filename, Ds const... dims
     -> Eigen::Tensor<T, sizeof...(Ds)>
 {
     Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor> rm
-        = row_major_file_to_row_major_tensor(filename, dims...);
-    return to_colmajor(rm);
+        = row_major_file_to_row_major_tensor<T>(filename, dims...);
+    return rm.swap_layout();
+    // return to_colmajor(rm);
+}
+
+template <typename T = double, typename... Ds>
+auto
+row_major_buffer_to_col_major_tensor_preserve_order(T* buf, Ds const... dims)
+    -> Eigen::Tensor<T, sizeof...(Ds)>
+{
+    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> rm(buf, dims...);
+    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>                   rmm = rm;
+    return to_colmajor_preserve_order(rmm);
 }
 
 template <typename T = double, typename... Ds>
@@ -115,8 +156,9 @@ row_major_buffer_to_col_major_tensor(T* buf, Ds const... dims)
     -> Eigen::Tensor<T, sizeof...(Ds)>
 {
     Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> rm(buf, dims...);
-    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor> rmm = rm;
-    return to_colmajor(rmm);
+    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>                   rmm = rm;
+    return rmm.swap_layout();
+    // return to_colmajor(rmm);
 }
 
 // namespace detail
