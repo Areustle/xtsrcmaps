@@ -1,156 +1,231 @@
 #include "xtsrcmaps/model_map.hxx"
 
 #include "xtsrcmaps/bilerp.hxx"
+#include "xtsrcmaps/fmt_source.hxx"
 #include "xtsrcmaps/misc.hxx"
 #include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/sky_geom.hxx"
 
+#include "fmt/format.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 auto
-Fermi::ModelMap::mean_psf(double const d, Tensor2d const& uPsf) -> Tensor1d
+Fermi::ModelMap::pix_dirs_with_padding(SkyGeom const& skygeom,
+                                       long const     Nw,
+                                       long const     Nh) -> MatCoord3
 {
-    long const& Ne = uPsf.dimension(0);
-    if (d >= 70.0 || d < 0.0) return Tensor1d(Ne);
+    long const Nw_pad = Nw + 2;
+    long const Nh_pad = Nh + 2;
 
-    long const i = long(d);
-    FixTen1d_2 pt;
-    pt[0]          = 1.0 - (double(i) - d);
-    pt[1]          = 1.0 + pt[0];
-    Tensor2d psf_s = uPsf.slice(Idx2 { 0, i }, Idx2 { Ne, 2 });
-    return psf_s.contract(pt, IdxPair1 { { { 1, 0 } } });
+    MatCoord3 pdirs(Nw_pad, Nh_pad);
+    for (long ph = 0; ph < Nh_pad; ++ph)
+    {
+        for (long pw = 0; pw < Nw_pad; ++pw)
+        {
+            pdirs(pw, ph) = skygeom.pix2dir({ ph, pw });
+        }
+    }
+
+    return pdirs;
+}
+
+auto
+Fermi::ModelMap::pixel_angular_offset_from_source_with_padding(
+    SkyGeom::coord3 const& src_dir,
+    SkyGeom::coord2 const& src_pix,
+    double const           ref_size,
+    SkyGeom const&         skygeom,
+    long const             Nw,
+    long const             Nh) -> Eigen::MatrixXd
+{
+    long const Nw_pad = Nw + 2;
+    long const Nh_pad = Nh + 2;
+
+    Eigen::MatrixXd Offsets(Nw_pad, Nh_pad);
+    for (long ph = 0; ph < Nh_pad; ++ph)
+    {
+        for (long pw = 0; pw < Nw_pad; ++pw)
+        {
+            auto   pdir    = skygeom.pix2dir({ ph, pw });
+            double pix_sep = ref_size
+                             * std::sqrt(std::pow(src_pix.first - ph, 2)
+                                         + std::pow(src_pix.second - pw, 2));
+            double ang_sep  = skygeom.srcpixoff(src_dir, pdir);
+            Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
+        }
+    }
+
+    return Offsets;
+}
+
+auto
+Fermi::ModelMap::pixel_angular_offset_from_source_with_padding(
+    MatCoord3 const&       pdirs,
+    SkyGeom::coord3 const& src_dir,
+    SkyGeom::coord2 const& src_pix,
+    double const           ref_size,
+    SkyGeom const&         skygeom) -> Eigen::MatrixXd
+{
+    long const Nw_pad = pdirs.rows();
+    long const Nh_pad = pdirs.cols();
+
+    Eigen::MatrixXd Offsets(Nw_pad, Nh_pad);
+    for (long ph = 0; ph < Nh_pad; ++ph)
+    {
+        for (long pw = 0; pw < Nw_pad; ++pw)
+        {
+            double pix_sep = ref_size
+                             * std::sqrt(std::pow(src_pix.first - ph, 2)
+                                         + std::pow(src_pix.second - pw, 2));
+            double ang_sep  = skygeom.srcpixoff(src_dir, pdirs(pw, ph));
+            Offsets(pw, ph) = pix_sep > 1E-6 ? ang_sep / pix_sep - 1. : 0.0;
+        }
+    }
+
+    return Offsets;
+}
+
+// Index in PSF Lookup Table of Pixel given by dispacement from source
+auto
+Fermi::ModelMap::psf_idx_sep(SkyGeom::coord3 const& src_dir,
+                             MatCoord3 const&       pdirs,
+                             SkyGeom const&         skygeom) -> Eigen::MatrixXd
+{
+    long const Nw = pdirs.rows() - 2;
+    long const Nh = pdirs.cols() - 2;
+
+    Eigen::MatrixXd Displacements(Nw, Nh);
+    for (long h = 0; h < Nh; ++h)
+    {
+        for (long w = 0; w < Nw; ++w)
+        {
+            Displacements(w, h) = Fermi::PSF::linear_inverse_separation(
+                skygeom.srcpixoff(src_dir, pdirs(w + 1, h + 1)));
+        }
+    }
+
+    return Displacements;
 }
 
 
 auto
-Fermi::ModelMap::integrate_psf_adaptive(long const      px,
-                                        long const      py,
-                                        Tensor2d const& Offsets,
-                                        Tensor2d const& uPsf,    // Ne, Nd
-                                        Tensor1d const& uPsfPeak // Ne
-                                        ) -> Tensor1d
+Fermi::ModelMap::is_integ_psf_converged(Eigen::Ref<Eigen::MatrixXd const> const& v0,
+                                        Eigen::Ref<Eigen::MatrixXd const> const& v1,
+                                        double const ftol_threshold) -> bool
 {
-    double constexpr peak_threshold = 1e-6; // config.psfEstimatorPeakTh();
-    double const offset             = Offsets(px, py);
-
-    Tensor1d v0                     = mean_psf(offset, uPsf);
-    Tensor1d ones                   = v0.constant(1.0);
-    Tensor1d zeros                  = v0.constant(0.0);
-    Tensor1b zero_uPsfPeak          = uPsfPeak.cast<bool>();
-    Tensor1d safeUPsfPeak           = v0 / zero_uPsfPeak.select(ones, uPsfPeak);
-    Tensor1d peak_ratio             = zero_uPsfPeak.select(zeros, safeUPsfPeak);
-    Tensor0b all_below_peak         = (peak_ratio < peak_threshold).all();
-    if (all_below_peak(0)) return v0;
-
-    return integrate_psf_adapt_recurse<2, 64>(px, py, Offsets, uPsf, v0);
+    return (((v1 - v0).array() / v0.array()).abs() < ftol_threshold).all();
 }
+
+
 
 template <>
 auto
-Fermi::ModelMap::integrate_psf_adapt_recurse<64, 64>(long const      px,
-                                                     long const      py,
-                                                     Tensor2d const& Offsets,
-                                                     Tensor2d const& uPsf, // Ne, Nd
-                                                     Tensor1d const& v0) -> Tensor1d
+Fermi::ModelMap::integrate_psf_recursive<64u>(
+    long const                               pw,
+    long const                               ph,
+    SkyGeom::coord3 const                    src_dir,
+    SkyGeom const&                           skygeom,
+    double const                             ftol_threshold,
+    Eigen::MatrixXd const&                   suPsf, // Nd, Ne
+    Eigen::Ref<Eigen::MatrixXd const> const& v0) -> Eigen::MatrixXd
 {
+    (void)(ftol_threshold);
     (void)(v0);
-    size_t constexpr Nhalf      = 32;
-    size_t const& Ne            = uPsf.dimension(0);
-    Idx2 constexpr e32          = { 3, 2 };
-    Idx2 constexpr e22          = { 2, Nhalf };
-    Idx2 constexpr o2l          = { 0, 0 };
-    Idx2 constexpr o2h          = { 1, 0 };
-    Idx2 off                    = { px, py };
-    IdxPair1 constexpr cdimA    = { { { 1, 0 } } };
-    IdxPair1 constexpr cdimB    = { { { 0, 0 } } };
-    auto constexpr delta_lo_arr = integ_delta_lo<64>();
-    auto constexpr delta_hi_arr = integ_delta_hi<64>();
-    Eigen::TensorMap<Tensor2d const> const Dlo(delta_lo_arr.data(), 2, Nhalf);
-    Eigen::TensorMap<Tensor2d const> const Dhi(delta_hi_arr.data(), 2, Nhalf);
-
-    Tensor1d                 v1(Ne);
-    Tensor2d                 SD(Nhalf, Nhalf);
-    Tensor2d                 ID(3, Nhalf);
-    Eigen::Tensor<double, 2> P = Offsets.slice(off, e32);
-
-    // [3,2][2,Nhalf] = [3,Nhalf]
-    P.contract(Dlo, cdimA, ID);
-
-    // [2,Nhalf][2,Nhalf] = [Nhalf,Nhalf]
-    Dlo.contract(ID.slice(o2l, e22), cdimB, SD.setZero());
-    v1 += mean_psf<2>(SD, uPsf);
-    Dhi.contract(ID.slice(o2h, e22), cdimB, SD.setZero());
-    v1 += mean_psf<2>(SD, uPsf);
-    off = { px, py + 1 };
-    P   = Offsets.slice(off, e32);
-    P.contract(Dhi, cdimA, ID);
-    Dlo.contract(ID.slice(o2l, e22), cdimB, SD.setZero());
-    v1 += mean_psf<2>(SD, uPsf);
-    Dhi.contract(ID.slice(o2h, e22), cdimB, SD.setZero());
-    v1 += mean_psf<2>(SD, uPsf);
-
-    return v1;
+    return integrate_psf_<64u>(pw, ph, src_dir, skygeom, suPsf);
 }
 
+
+
 auto
-Fermi::ModelMap::point_src_model_map_wcs(long const      Npx,
-                                         long const      Npy,
+Fermi::ModelMap::pixels_to_integrate(
+    Eigen::Ref<Eigen::MatrixXd const> const& mean_psf_v0,
+    Eigen::Ref<Eigen::VectorXd const> const& uPeak,
+    double const                             peak_threshold,
+    long const                               Nw,
+    long const                               Nh) -> std::vector<std::pair<long, long>>
+{
+    Eigen::MatrixX<bool> needs_more
+        = (((mean_psf_v0.array().rowwise() / uPeak.transpose().array())
+            >= peak_threshold)
+               .rowwise()
+               .any())
+              .reshaped(Nw, Nh);
+
+    std::vector<std::pair<long, long>> Idxs {};
+    Fermi::ModelMap::visit_lambda(needs_more, [&Idxs](bool v, long w, long h) {
+        if (v) { Idxs.push_back({ w, h }); }
+    });
+    Idxs.shrink_to_fit();
+    return Idxs;
+}
+
+
+auto
+Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
+                                         long const      Nh,
                                          vpd const&      dirs,
                                          Tensor3d const& uPsf,
-                                         Tensor2d const& uPsfPeak,
+                                         Tensor2d const& uPeak,
                                          SkyGeom const&  skygeom) -> Tensor4d
 {
-    long const& Ns = uPsf.dimension(0);
-    long const& Ne = uPsf.dimension(1);
-    long const& Nd = uPsf.dimension(2);
-    assert(dirs.size() == 263);
-    assert(Ns == 263);
-    assert(Ne == 38);
-    assert(Nd == 401);
+    long const Ns               = dirs.size();
+    long const Nd               = uPsf.dimension(0);
+    long const Ne               = uPsf.dimension(1);
 
-    Tensor4d mm(Ns, Npx, Npy, Ne);
+    double const peak_threshold = 1e-6;
+    double const ftol_threshold = 1e-3;
+    auto         pdirs          = pix_dirs_with_padding(skygeom, Nw, Nh);
 
-    Eigen::Tensor<double, 3> PixDirs(3, Npx, Npy);
-    for (long px = 0; px < Npx; ++px)
+    Tensor4d xtpsfEst(Nw, Nh, Ne, Ns);
+
+    for (long s = 0; s < Ns; ++s)
     {
-        for (long py = 0; py < Npy; ++py)
+        auto src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+        // auto         src_pix  = skygeom.sph2pix(dirs[s]); // Grid Style 2
+        // double const ref_size = 0.2;
+
+        /////
+        Tensor2d const tuPsf
+            = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 }).reshape(Idx2 { Nd, Ne });
+        Tensor1d const tuPeak
+            = uPeak.slice(Idx2 { 0, s }, Idx2 { Ne, 1 }).reshape(Idx1 { Ne });
+
+        Eigen::Map<Eigen::MatrixXd const> const suPsf(tuPsf.data(), Nd, Ne);
+        Eigen::Map<Eigen::VectorXd const> const suPeak(tuPeak.data(), Ne);
+
+        // Eigen::MatrixXd const Offsets =
+        // pixel_angular_offset_from_source_with_padding(
+        //     pdirs, src_dir, src_pix, ref_size, skygeom);
+
+        Eigen::ArrayXd isep = psf_idx_sep(src_dir, pdirs, skygeom).reshaped().array();
+
+        /// Compute the initial mean psf for every pixel vs this source.
+        Eigen::MatrixXd psfEst = psf_lut(isep, suPsf);
+
+        /// Which pixels need further psf integration because their psf value is too
+        /// close to the peak psf?
+        auto pxs_int = pixels_to_integrate(psfEst, suPeak, peak_threshold, Nw, Nh);
+
+        /// Integrate the necessary pixels.
+        for (auto const& p : pxs_int)
         {
-            auto pdir           = skygeom.pix2dir({ px + 1.0, py + 1.0 });
-            PixDirs(0l, px, py) = std::get<0>(pdir);
-            PixDirs(1l, px, py) = std::get<1>(pdir);
-            PixDirs(2l, px, py) = std::get<2>(pdir);
+            long const w  = p.first;
+            long const h  = p.second;
+
+            long const pw = p.first;
+            long const ph = p.second;
+
+            Eigen::MatrixXd v1
+                = integrate_psf_recursive(pw,
+                                          ph,
+                                          src_dir,
+                                          skygeom,
+                                          ftol_threshold,
+                                          suPsf,
+                                          psfEst.block(w + h * Nw, 0, 1, Ne));
+            psfEst.block(w + h * Nw, 0, 1, Ne) = v1;
         }
     }
 
-    for (int s = 0; s < Ns; ++s)
-    {
-        auto     src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
-        Tensor2d Offsets(Npx + 2, Npy + 2);
-        Offsets.setZero();
-        for (long px = 0; px < Npx; ++px)
-        {
-            for (long py = 0; py < Npy; ++py)
-            {
-                Offsets(px, py) = PSF::inverse_separations(skygeom.srcpixoff(
-                    src_dir,
-                    { PixDirs(0, px, py), PixDirs(1, px, py), PixDirs(2, px, py) }));
-            }
-        }
-
-        Tensor2d const suPsf
-            = uPsf.slice(Idx3 { s, 0, 0 }, Idx3 { 1, Ne, Nd }).reshape(Idx2 { Ne, Nd });
-        Tensor1d const suPsfPeak
-            = uPsfPeak.slice(Idx2 { s, 0 }, Idx2 { 1, Ne }).reshape(Idx1 { Ne });
-
-        for (long px = 0; px < Npx; ++px)
-        {
-            for (long py = 0; py < Npy; ++py)
-            {
-                mm.slice(Idx4 { s, px, py, 0 }, Idx4 { 1, 1, 1, Ne })
-                    .reshape(Idx1 { Ne })
-                    = integrate_psf_adaptive(px, py, Offsets, suPsf, suPsfPeak);
-            }
-        }
-    }
-
-    return mm;
+    return xtpsfEst;
 }

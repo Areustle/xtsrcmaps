@@ -64,8 +64,7 @@ co_king_base(auto A, auto D, auto P) noexcept
 
 //[Nd, Mc, Me]
 auto
-Fermi::PSF::king(vector<double> const& deltas, irf::psf::Data const& psfdata)
-    -> mdarray3
+Fermi::PSF::king(SepArr const& deltas, irf::psf::Data const& psfdata) -> mdarray3
 {
 
     Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
@@ -95,22 +94,6 @@ Fermi::PSF::king(vector<double> const& deltas, irf::psf::Data const& psfdata)
     return mdarray3(kings, A.extent(0), A.extent(1), A.extent(2));
 }
 
-//////
-auto
-Fermi::PSF::separations(double const xmin, double const xmax, size_t const N)
-    -> std::vector<double>
-{
-    auto   sep   = std::vector<double>(N + 1, 0.0);
-    double xstep = std::log(xmax / xmin) / (N - 1.);
-    for (size_t i = 0; i < N; ++i) sep[i + 1] = xmin * std::exp(i * xstep);
-    return sep;
-}
-
-auto
-Fermi::PSF::inverse_separations(double const s) -> double
-{
-    return std::clamp(1 + std::log(s * 1e4) / sep_step, 0.0, 399.);
-}
 
 // R  (psf_bilerp result)      [Nc, Ne, Nd]
 // C  (costhetas)         [Nc]

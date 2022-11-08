@@ -3,12 +3,12 @@
 add_executable(
   tests
   # test_exposure.cxx
-  test_fitsfuncs.cxx
+  # test_fitsfuncs.cxx
   # test_healpix.cxx
   # test_irf.cxx
   # test_king.cxx
   test_main.cxx #
-  test_psf.cxx
+  # test_psf.cxx
   test_model_map.cxx
   # test_sky_geom.cxx
   # test_src_utils.cxx

@@ -59,7 +59,7 @@ auto
 Fermi::separations_lerp_pars(double const ds, std::vector<double> const& sep)
     -> std::tuple<double, double, size_t>
 {
-    double      vd     = PSF::inverse_separations(ds);
+    double      vd     = PSF::inverse_separation(ds);
     size_t      i      = size_t(vd);
     auto const& sep_lo = sep[i];
     auto const& sep_hi = sep[i + 1];
