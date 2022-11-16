@@ -2,9 +2,12 @@
 
 #include "xtsrcmaps/bilerp.hxx"
 #include "xtsrcmaps/fmt_source.hxx"
+#include "xtsrcmaps/genz_malik.hxx"
 #include "xtsrcmaps/misc.hxx"
 #include "xtsrcmaps/psf.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
+
+#include <cmath>
 
 #include "fmt/format.h"
 #include "unsupported/Eigen/CXX11/Tensor"
@@ -171,60 +174,180 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
     long const Ns               = dirs.size();
     long const Nd               = uPsf.dimension(0);
     long const Ne               = uPsf.dimension(1);
+    long const Nevts            = Nw * Nh;
 
-    double const peak_threshold = 1e-6;
+    // double const peak_threshold = 1e-6;
     double const ftol_threshold = 1e-3;
-    auto         pdirs          = pix_dirs_with_padding(skygeom, Nw, Nh);
+
+    auto get_dir_points         = [&](Tensor3d const& points) -> Array3Xd {
+        Array3Xd dir_points(3, points.dimension(1) * points.dimension(2));
+        for (long j = 0; j < Nevts; ++j)
+        {
+            for (long i = 0; i < Genz::Ncnt; ++i)
+            {
+                coord3 p = skygeom.pix2dir({ points(0, i, j), points(1, i, j) });
+                dir_points(0, i + Genz::Ncnt * j) = std::get<0>(p);
+                dir_points(1, i + Genz::Ncnt * j) = std::get<1>(p);
+                dir_points(2, i + Genz::Ncnt * j) = std::get<2>(p);
+            }
+        }
+        return dir_points;
+    };
 
     Tensor4d xtpsfEst(Nw, Nh, Ne, Ns);
 
+    Tensor3d low(2, Nh, Nw);
+    Tensor3d high(2, Nh, Nw);
+
+    for (long w = 0; w < Nw; ++w)
+    {
+        for (long h = 0; h < Nh; ++h)
+        {
+            low(0, h, w)  = (1 + h) - 0.5;
+            low(1, h, w)  = (1 + w) - 0.5;
+            high(0, h, w) = (1 + h) + 0.5;
+            high(1, h, w) = (1 + w) + 0.5;
+        }
+    }
+
+    // long const Nsamp                 = Genz::Ncnt * Nevts;
+
+    auto [center, halfwidth, volume] = Genz::region(low, high, Nevts);
+    Tensor3d points                  = Genz::fullsym(center,
+                                    halfwidth * Genz::alpha2,
+                                    halfwidth * Genz::alpha4,
+                                    halfwidth * Genz::alpha5);
+    Array3Xd dir_points              = get_dir_points(points);
+
     for (long s = 0; s < Ns; ++s)
     {
-        auto src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
-        // auto         src_pix  = skygeom.sph2pix(dirs[s]); // Grid Style 2
-        // double const ref_size = 0.2;
+        // Index of events.
+        Eigen::VectorX<Eigen::Index> evtidx
+            = Eigen::VectorX<Eigen::Index>::LinSpaced(Nevts, 0, Nevts - 1);
 
-        /////
-        Tensor2d const tuPsf
-            = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 }).reshape(Idx2 { Nd, Ne });
-        Tensor1d const tuPeak
-            = uPeak.slice(Idx2 { 0, s }, Idx2 { Ne, 1 }).reshape(Idx1 { Ne });
+        Tensor2d const tuPsf = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
+                                   .reshape(Idx2 { Nd, Ne })
+                                   .shuffle(Idx2 { 1, 0 });
 
-        Eigen::Map<Eigen::MatrixXd const> const suPsf(tuPsf.data(), Nd, Ne);
-        Eigen::Map<Eigen::VectorXd const> const suPeak(tuPeak.data(), Ne);
+        MatrixXd result_value(Ne, Nevts);
+        MatrixXd result_error(Ne, Nevts);
+        result_value.setZero();
+        result_error.setZero();
 
-        // Eigen::MatrixXd const Offsets =
-        // pixel_angular_offset_from_source_with_padding(
-        //     pdirs, src_dir, src_pix, ref_size, skygeom);
+        auto           src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+        Eigen::ArrayXd src_d(3, 1);
+        src_d << std::get<0>(src_dir), std::get<1>(src_dir), std::get<2>(src_dir);
 
-        Eigen::ArrayXd isep = psf_idx_sep(src_dir, pdirs, skygeom).reshaped().array();
+        /******************************************************************
+         *
+         * Psf Energy values for sample points in direction space
+         *
+         ******************************************************************/
+        auto sphere_pix_upsf = [&](Array3Xd const& points3) -> Tensor3d {
+            long const Npts     = points3.size() / 3;
+            // Given sample points on the sphere in 3-direction-space, compute the
+            // separation.
+            auto           diff = points3.colwise() - src_d;
+            auto           mag  = diff.colwise().norm();
+            auto           off  = 2. * rad2deg * Eigen::asin(0.5 * mag);
+            ArrayXXd const logsep
+                = (off < 1e-4).select(1e4 * off, 1. + ((off * 1e4).log() / sep_step));
+            TensorMap<Tensor1d const> const idxs(logsep.data(), Npts);
 
-        /// Compute the initial mean psf for every pixel vs this source.
-        Eigen::MatrixXd psfEst = psf_lut(isep, suPsf);
+            Tensor3d vals(Ne, Genz::Ncnt, Npts / Genz::Ncnt);
 
-        /// Which pixels need further psf integration because their psf value is too
-        /// close to the peak psf?
-        auto pxs_int = pixels_to_integrate(psfEst, suPeak, peak_threshold, Nw, Nh);
+            long i = 0;
+            while (i < Npts)
+            {
+                long         d  = 1;
+                double const x1 = std::floor(idxs(i));
+                while ((i + d < Npts) && x1 == std::floor(idxs(i + d))) { ++d; }
+                TensorMap<Tensor1d const> const ss(idxs.data() + i, d);
+                Tensor2d                        alpha(d, 2);
+                TensorMap<Tensor1d>(alpha.data(), d) = ss - x1;
+                TensorMap<Tensor1d>(alpha.data() + d, d)
+                    = 1. - TensorMap<Tensor1d>(alpha.data(), d);
+                TensorMap<Tensor2d const> const psf(
+                    tuPsf.data() + long(x1) * Ne, Ne, 2);
+                Tensor2d const vv = psf.contract(alpha, IdxPair1 { { { 1, 1 } } });
+                TensorMap<Tensor2d>(vals.data() + i * Ne, Ne, d) = vv;
+                i += d;
+            }
+            return vals;
+        };
 
-        /// Integrate the necessary pixels.
-        for (auto const& p : pxs_int)
+        if (!(s % 25) || s == Ns - 1) { std::cout << s << " " << std::flush; }
+        Tensor3d integrand_evals = sphere_pix_upsf(dir_points);
+        // [Ne, Nevts]
+        auto [value, error]      = Genz::result_err(integrand_evals);
+
+        // size_t not_converged_count = not_converged.size();
+        size_t iteration_depth   = 1;
+        while (iteration_depth < 6)
         {
-            long const w  = p.first;
-            long const h  = p.second;
+            // Determine which regions are converged
+            auto [converged, not_converged]
+                = Genz::converged_indices(value, error, ftol_threshold);
 
-            long const pw = p.first;
-            long const ph = p.second;
+            // std::cout << "ITERATION " << iteration_depth << std::endl;
+            // std::cout << "Converged " << converged.size() << std::endl;
+            // std::cout << evtidx.transpose() << std::endl << std::endl;
+            // std::cout << evtidx(converged).transpose() << std::endl << std::endl;
 
-            Eigen::MatrixXd v1
-                = integrate_psf_recursive(pw,
-                                          ph,
-                                          src_dir,
-                                          skygeom,
-                                          ftol_threshold,
-                                          suPsf,
-                                          psfEst.block(w + h * Nw, 0, 1, Ne));
-            psfEst.block(w + h * Nw, 0, 1, Ne) = v1;
+            // Accumulate converged region results into correct event
+            Map<MatrixXd> valM(value.data(), Ne, value.dimension(1));
+            Map<MatrixXd> errM(error.data(), Ne, error.dimension(1));
+            result_value(Eigen::all, evtidx(converged)) += valM(Eigen::all, converged);
+            result_error(Eigen::all, evtidx(converged)) += errM(Eigen::all, converged);
+
+            long const Nucnv = not_converged.size();
+            if (Nucnv == 0) { break; }
+
+            // # nmask.shape [ regions_events ]
+            // nmask = ~cmask
+            // center, halfwidth, vol = region.split(
+            //     center[:, nmask], halfwidth[:, nmask], vol[nmask], split_dim[nmask]
+            // )
+
+            Tensor2d hwUcnv(2, Nucnv);
+            Map<MatrixXd>(hwUcnv.data(), 2, Nucnv)
+                = Map<MatrixXd>(halfwidth.data(), 2, Nevts)(Eigen::all, not_converged);
+
+            Tensor2d volUcnv(1, Nucnv);
+            Map<MatrixXd>(volUcnv.data(), 1, Nucnv)
+                = Map<MatrixXd const>(volume.data(), 1, Nevts)(0, not_converged);
+
+            Tensor1byt split_dim = Genz::split_dims(
+                integrand_evals, error, hwUcnv, volUcnv, not_converged);
+
+            Tensor2d centerUcnv(2, Nucnv);
+            Map<MatrixXd>(centerUcnv.data(), 2, Nucnv)
+                = Map<MatrixXd>(center.data(), 2, Nevts)(Eigen::all, not_converged);
+
+            // evtidx = np.tile(evtidx[nmask], 2)
+            Eigen::VectorX<Eigen::Index> uevx = evtidx(not_converged);
+            evtidx.resize(Nucnv * 2);
+            evtidx << uevx, uevx;
+
+            center.resize(2, Nucnv * 2);
+            halfwidth.resize(2, Nucnv * 2);
+            volume.resize(1, Nucnv * 2);
+
+            Genz::region_split(
+                center, halfwidth, volume, split_dim, center, hwUcnv, volUcnv);
+
+            points                 = Genz::fullsym(center,
+                                   halfwidth * Genz::alpha2,
+                                   halfwidth * Genz::alpha4,
+                                   halfwidth * Genz::alpha5);
+            dir_points             = get_dir_points(points);
+            integrand_evals        = sphere_pix_upsf(dir_points);
+            std::tie(value, error) = Genz::result_err(integrand_evals);
+
+            ++iteration_depth;
         }
+        std::cout << iteration_depth;
+        break;
     }
 
     return xtpsfEst;

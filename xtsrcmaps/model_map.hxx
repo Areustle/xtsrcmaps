@@ -332,9 +332,7 @@ integrate_psf_(long const             w,
     // sep.unaryExpr(&PSF::linear_inverse_separation);
 
     Eigen::MatrixXd v1(1, Ne);
-    // std::cout << sep << std::endl << std::endl;
     mean_psf_lut(v1, sep.reshaped().array(), suPsf);
-    // std::cout << v1 << std::endl << std::endl;
     return v1;
 }
 

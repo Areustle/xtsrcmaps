@@ -9,6 +9,7 @@ add_library(
   bilerp.cxx
   exposure.cxx
   fitsfuncs.cxx
+  genz_malik.cxx
   healpix.cxx
   irf.cxx
   model_map.cxx
@@ -21,7 +22,7 @@ add_library(
 add_library(Fermi::xtsrcmaps_lib ALIAS xtsrcmaps_lib)
 target_link_libraries(
   xtsrcmaps_lib
-  PUBLIC std::mdspan PkgConfig::wcslib Eigen3::Eigen 
+  PUBLIC std::mdspan PkgConfig::wcslib Eigen3::Eigen
   PRIVATE fmt::fmt std::mdspan PkgConfig::cfitsio
 )
 

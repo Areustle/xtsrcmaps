@@ -15,7 +15,9 @@ constexpr double sep_step = 0.033731417579011382769913057686378448039204491;
 constexpr double sep_delta
     = 1.0343067728020497121475244691736145227943806311378006312643513;
 
-using SepArr = std::array<double, 401>;
+constexpr double edm1 = 0.0343067728020497121475244691736145227943806311378006312643513;
+
+using SepArr          = std::array<double, 401>;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /// Given a PSF IRF grid and a set of separations, compute the King/Moffat results
