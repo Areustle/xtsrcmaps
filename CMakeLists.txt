@@ -54,7 +54,7 @@ add_compile_options(
   -march=native
   -Wno-unused-parameter
   $<$<CONFIG:RELEASE>:-O3>
-  $<$<CONFIG:RELEASE>:-Og>
+  # $<$<CONFIG:RELEASE>:-Og>
   $<$<CONFIG:DEBUG>:-pedantic>
   $<$<CONFIG:DEBUG>:-g3>
   $<$<CONFIG:DEBUG>:-Og>
