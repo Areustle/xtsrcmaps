@@ -181,7 +181,7 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
 
     auto get_dir_points         = [&](Tensor3d const& points) -> Array3Xd {
         Array3Xd dir_points(3, points.dimension(1) * points.dimension(2));
-        for (long j = 0; j < Nevts; ++j)
+        for (long j = 0; j < points.dimension(2); ++j)
         {
             for (long i = 0; i < Genz::Ncnt; ++i)
             {
@@ -253,6 +253,11 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
             ArrayXXd const logsep
                 = (off < 1e-4).select(1e4 * off, 1. + ((off * 1e4).log() / sep_step));
             TensorMap<Tensor1d const> const idxs(logsep.data(), Npts);
+            // std::cout << std::endl
+            //           << idxs.reshape(Idx2 { 17, Npts / 17 })
+            //                  .slice(Idx2 { 0, 1 }, Idx2 { 17, 1 })
+            //                  .reshape(Idx2 { 1, 17 })
+            //           << std::endl;
 
             Tensor3d vals(Ne, Genz::Ncnt, Npts / Genz::Ncnt);
 
@@ -273,6 +278,10 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
                 TensorMap<Tensor2d>(vals.data() + i * Ne, Ne, d) = vv;
                 i += d;
             }
+            // std::cout << std::endl
+            //           << vals.slice(Idx3 { 0, 0, 1 }, Idx3 { Ne, 17, 1 })
+            //                  .reshape(Idx2 { Ne, 17 })
+            //           << std::endl;
             return vals;
         };
 
@@ -283,16 +292,11 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
 
         // size_t not_converged_count = not_converged.size();
         size_t iteration_depth   = 1;
-        while (iteration_depth < 6)
+        while (iteration_depth < 8)
         {
             // Determine which regions are converged
             auto [converged, not_converged]
                 = Genz::converged_indices(value, error, ftol_threshold);
-
-            // std::cout << "ITERATION " << iteration_depth << std::endl;
-            // std::cout << "Converged " << converged.size() << std::endl;
-            // std::cout << evtidx.transpose() << std::endl << std::endl;
-            // std::cout << evtidx(converged).transpose() << std::endl << std::endl;
 
             // Accumulate converged region results into correct event
             Map<MatrixXd> valM(value.data(), Ne, value.dimension(1));
@@ -301,6 +305,7 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
             result_error(Eigen::all, evtidx(converged)) += errM(Eigen::all, converged);
 
             long const Nucnv = not_converged.size();
+            // std::cout << Nucnv << " " << error.maximum() << std::endl;
             if (Nucnv == 0) { break; }
 
             // # nmask.shape [ regions_events ]
@@ -334,20 +339,19 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
             volume.resize(1, Nucnv * 2);
 
             Genz::region_split(
-                center, halfwidth, volume, split_dim, center, hwUcnv, volUcnv);
+                center, halfwidth, volume, split_dim, centerUcnv, hwUcnv, volUcnv);
 
             points                 = Genz::fullsym(center,
                                    halfwidth * Genz::alpha2,
                                    halfwidth * Genz::alpha4,
                                    halfwidth * Genz::alpha5);
-            dir_points             = get_dir_points(points);
-            integrand_evals        = sphere_pix_upsf(dir_points);
-            std::tie(value, error) = Genz::result_err(integrand_evals);
+            integrand_evals        = sphere_pix_upsf(get_dir_points(points));
+            std::tie(value, error) = Genz::result_err(integrand_evals, volume);
 
             ++iteration_depth;
         }
-        std::cout << iteration_depth;
-        break;
+        // std::cout << iteration_depth;
+        // break;
     }
 
     return xtpsfEst;

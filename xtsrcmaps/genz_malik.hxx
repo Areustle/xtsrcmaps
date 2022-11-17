@@ -221,9 +221,9 @@ region_split(Tensor2d&         center,
              Tensor2d&         halfwidth,
              Tensor2d&         volume,
              Tensor1byt const& split_dim,
-             Tensor2d const&   centerUcnv,
-             Tensor2d const&   hwUcnv,
-             Tensor2d const&   volUcnv) -> void;
+             Tensor2d const&   cenUcv,
+             Tensor2d const&   hwUcv,
+             Tensor2d const&   volUcv) -> void;
 
 // def split(centers: NPF, halfwidth: NPF, volumes: NPF, split_dim: NPI):
 //
