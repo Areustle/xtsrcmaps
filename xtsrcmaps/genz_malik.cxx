@@ -125,14 +125,20 @@ converged_indices(Tensor2d const& value,
                   double const    ftol_threshold)
     -> std::tuple<std::vector<long>, std::vector<long>>
 {
-    Tensor1d const err = (error / value.abs()).maximum(Idx1 { 0 });
+    Tensor1d const abserr = error.abs().maximum(Idx1 { 0 });
+    Tensor1d const relerr = (error / value.abs()).maximum(Idx1 { 0 });
+    // std::cout << err.reshape(Idx2 { 100, 100 }).slice(Idx2 { 0, 0 }, Idx2 { 45, 30 })
+    //           << std::endl;
 
-    auto converged     = std::vector<long> {};
-    auto not_converged = std::vector<long> {};
+    auto converged        = std::vector<long> {};
+    auto not_converged    = std::vector<long> {};
 
-    for (long i = 0; i < err.size(); ++i)
+    for (long i = 0; i < relerr.size(); ++i)
     {
-        if (err(i) > ftol_threshold) { not_converged.push_back(i); }
+        if (relerr(i) > ftol_threshold && abserr(i) > ftol_threshold)
+        {
+            not_converged.push_back(i);
+        }
         else { converged.push_back(i); }
     }
 
@@ -224,22 +230,68 @@ region_split(Tensor2d&         center,
              Tensor2d&         halfwidth,
              Tensor2d&         volume,
              Tensor1byt const& split_dim,
-             Tensor2d const&   centerUcnv,
-             Tensor2d const&   hwUcnv,
-             Tensor2d const&   volUcnv) -> void
+             Tensor2d const&   cenUcv,
+             Tensor2d const&   hwUcv,
+             Tensor2d const&   volUcv) -> void
 {
-    long const Nucnv                                  = split_dim.size();
+    long const Nucnv     = split_dim.size();
 
-    halfwidth.slice(Idx2 { 0, 0 }, Idx2 { 2, Nucnv }) = 0.5 * hwUcnv;
+    //     h = np.copy(halfwidth)
+    //     h[mask] *= 0.5
+    //     h = np.concatenate((h, h), axis=1)
+    Tensor2d const qwUcv = hwUcv * 0.5;
+    halfwidth.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            hwUcv.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }),
+            qwUcv.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }));
+
+    halfwidth.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            qwUcv.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }),
+            hwUcv.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }) // 0
+        );
     halfwidth.slice(Idx2 { 0, Nucnv }, Idx2 { 2, Nucnv })
         = halfwidth.slice(Idx2 { 0, 0 }, Idx2 { 2, Nucnv });
 
-    volume.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }) = 0.5 * volUcnv;
+
+    //     v = np.copy(volumes)
+    //     v *= 0.5
+    //     v = np.concatenate((v, v), axis=0)
+    volume.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }) = volUcv * 0.5;
     volume.slice(Idx2 { 0, Nucnv }, Idx2 { 1, Nucnv })
         = volume.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv });
 
-    center.slice(Idx2 { 0, 0 }, Idx2 { 2, Nucnv })     = center - hwUcnv;
-    center.slice(Idx2 { 0, Nucnv }, Idx2 { 2, Nucnv }) = center + hwUcnv;
+    //     c1 = np.copy(centers)
+    //     c1[mask] -= h[mask]
+    //     c2 = np.copy(centers)
+    //     c2[mask] += h[mask]
+    //     c = np.concatenate((c1, c2), axis=1)
+
+    //     c1
+    Tensor2d const left = cenUcv - qwUcv;
+    center.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            cenUcv.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }), // 1
+            left.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })    // 0
+        );
+    center.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            left.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }),  // 1
+            cenUcv.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }) // 0
+        );
+
+    // c2
+    Tensor2d const right = cenUcv + qwUcv;
+    center.slice(Idx2 { 0, Nucnv }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            cenUcv.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }), // 1
+            right.slice(Idx2 { 0, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })   // 0
+        );
+    center.slice(Idx2 { 1, Nucnv }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv })
+        = split_dim.select(
+            right.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }), // 1
+            cenUcv.slice(Idx2 { 1, 0 }, Idx2 { 1, Nucnv }).reshape(Idx1 { Nucnv }) // 0
+        );
 }
 
 } // namespace Fermi::Genz
