@@ -15,3 +15,16 @@ _prefix/
 .gdb_history
 analysis/perf*
 perf.data
+
+perf.data.old
+perf.data.xtsrcmaps.svg
+xtsrcmaps/tests/expected/src_initial_offset.bin
+xtsrcmaps/tests/expected/src_initial_offset_idx.bin
+xtsrcmaps/tests/expected/src_initial_offset_scalar.bin
+xtsrcmaps/tests/expected/src_mean_psf_peak.bin
+xtsrcmaps/tests/expected/src_mean_psf_v0.bin
+xtsrcmaps/tests/expected/src_mean_psf_values.bin
+xtsrcmaps/tests/expected/src_needs_more.bin
+xtsrcmaps/tests/expected/src_peak_ratio.bin
+xtsrcmaps/tests/expected/src_pix_offset.bin
+xtsrcmaps/tests/expected/src_psfEstimate.bin

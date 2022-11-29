@@ -127,8 +127,6 @@ converged_indices(Tensor2d const& value,
 {
     Tensor1d const abserr = error.abs().maximum(Idx1 { 0 });
     Tensor1d const relerr = (error / value.abs()).maximum(Idx1 { 0 });
-    // std::cout << err.reshape(Idx2 { 100, 100 }).slice(Idx2 { 0, 0 }, Idx2 { 45, 30 })
-    //           << std::endl;
 
     auto converged        = std::vector<long> {};
     auto not_converged    = std::vector<long> {};

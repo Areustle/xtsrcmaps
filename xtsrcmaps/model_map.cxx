@@ -162,6 +162,106 @@ Fermi::ModelMap::pixels_to_integrate(
     return Idxs;
 }
 
+auto
+psf_sample_full_energy(ArrayXd const& src_d, Tensor2d const& tuPsf_ED) -> auto
+{
+
+    long const Ne = tuPsf_ED.dimension(0);
+
+    /******************************************************************
+     * Psf Energy values for sample points in direction space
+     ******************************************************************/
+    return [&, Ne](Array3Xd const& points3) -> Tensor3d {
+        long const Npts     = points3.size() / 3;
+        // std::cout << Npts << " " << std::flush;
+        // Given sample points on the sphere in 3-direction-space, compute the
+        // separation.
+        auto           diff = points3.colwise() - src_d;
+        auto           mag  = diff.colwise().norm();
+        auto           off  = 2. * rad2deg * Eigen::asin(0.5 * mag);
+        ArrayXXd const separation_index
+            = (off < 1e-4).select(1e4 * off, 1. + ((off * 1e4).log() / sep_step));
+        TensorMap<Tensor1d const> const idxs(separation_index.data(), Npts);
+        // std::cout << std::endl
+        //           << idxs.reshape(Idx2 { 17, Npts / 17 })
+        //                  .slice(Idx2 { 0, 1 }, Idx2 { 17, 1 })
+        //                  .reshape(Idx2 { 1, 17 })
+        //           << std::endl;
+
+        Tensor3d vals(Ne, Fermi::Genz::Ncnt, Npts / Fermi::Genz::Ncnt);
+
+        long i = 0;
+        while (i < Npts)
+        {
+            long         d  = 1;
+            double const x1 = std::floor(idxs(i));
+            while ((i + d < Npts) && x1 == std::floor(idxs(i + d))) { ++d; }
+            TensorMap<Tensor1d const> const ss(idxs.data() + i, d);
+            Tensor2d                        alpha(d, 2);
+            TensorMap<Tensor1d>(alpha.data(), d) = ss - x1;
+            TensorMap<Tensor1d>(alpha.data() + d, d)
+                = 1. - TensorMap<Tensor1d>(alpha.data(), d);
+            TensorMap<Tensor2d const> const psf(tuPsf_ED.data() + long(x1) * Ne, Ne, 2);
+            Tensor2d const vv = psf.contract(alpha, IdxPair1 { { { 1, 1 } } });
+            TensorMap<Tensor2d>(vals.data() + i * Ne, Ne, d) = vv;
+            i += d;
+        }
+        // std::cout << std::endl
+        //           << vals.slice(Idx3 { 0, 0, 1 }, Idx3 { Ne, 17, 1 })
+        //                  .reshape(Idx2 { Ne, 17 })
+        //           << std::endl;
+        return vals;
+    };
+}
+
+
+auto
+psf_sample_single_energy(ArrayXd const& src_d, Tensor2d const& tuPsf_DE) -> auto
+{
+
+    long const Nd = tuPsf_DE.dimension(0);
+
+    /******************************************************************
+     * Psf Energy values for sample points in direction space
+     ******************************************************************/
+    return [&, Nd](Array3Xd const& points3, long const& ei) -> Tensor3d {
+        long const Npts     = points3.size() / 3;
+        // std::cout << Npts << " " << std::flush;
+        // Given sample points on the sphere in 3-direction-space, compute the
+        // separation.
+        auto           diff = points3.colwise() - src_d;
+        auto           mag  = diff.colwise().norm();
+        auto           off  = 2. * rad2deg * Eigen::asin(0.5 * mag);
+        ArrayXXd const separation_index
+            = (off < 1e-4).select(1e4 * off, 1. + ((off * 1e4).log() / sep_step));
+        TensorMap<Tensor1d const> const idxs(separation_index.data(), Npts);
+
+        Tensor3d vals(1, Fermi::Genz::Ncnt, Npts / Fermi::Genz::Ncnt); // 1, 17, Nevts
+
+        long i = 0;
+        while (i < Npts)
+        {
+            long         d  = 1;
+            double const x1 = std::floor(idxs(i));
+            while ((i + d < Npts) && x1 == std::floor(idxs(i + d))) { ++d; }
+            TensorMap<Tensor1d const> const ss(idxs.data() + i, d);
+            Tensor2d                        alpha(d, 2);
+            TensorMap<Tensor1d>(alpha.data(), d) = ss - x1;
+            TensorMap<Tensor1d>(alpha.data() + d, d)
+                = 1. - TensorMap<Tensor1d>(alpha.data(), d);
+
+            TensorMap<Tensor2d const> const psf(
+                tuPsf_DE.data() + long(x1) + Nd * ei, 2, 1);
+
+            Tensor2d const vv = psf.contract(alpha, IdxPair1 { { { 0, 1 } } });
+
+            TensorMap<Tensor2d>(vals.data() + i, 1, d) = vv;
+            i += d;
+        }
+        return vals;
+    };
+}
+
 
 auto
 Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
@@ -213,11 +313,11 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
     // long const Nsamp                 = Genz::Ncnt * Nevts;
 
     auto [center, halfwidth, volume] = Genz::region(low, high, Nevts);
-    Tensor3d points                  = Genz::fullsym(center,
+    Tensor3d       points            = Genz::fullsym(center,
                                     halfwidth * Genz::alpha2,
                                     halfwidth * Genz::alpha4,
                                     halfwidth * Genz::alpha5);
-    Array3Xd dir_points              = get_dir_points(points);
+    Array3Xd const dir_points        = get_dir_points(points);
 
     for (long s = 0; s < Ns; ++s)
     {
@@ -225,133 +325,110 @@ Fermi::ModelMap::point_src_model_map_wcs(long const      Nw,
         Eigen::VectorX<Eigen::Index> evtidx
             = Eigen::VectorX<Eigen::Index>::LinSpaced(Nevts, 0, Nevts - 1);
 
-        Tensor2d const tuPsf = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
-                                   .reshape(Idx2 { Nd, Ne })
-                                   .shuffle(Idx2 { 1, 0 });
-
         MatrixXd result_value(Ne, Nevts);
         MatrixXd result_error(Ne, Nevts);
         result_value.setZero();
         result_error.setZero();
+
+        Tensor2d const tuPsf_ED = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
+                                      .reshape(Idx2 { Nd, Ne })
+                                      .shuffle(Idx2 { 1, 0 });
+        Tensor2d const tuPsf_DE
+            = uPsf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 }).reshape(Idx2 { Nd, Ne });
 
         auto           src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
         Eigen::ArrayXd src_d(3, 1);
         src_d << std::get<0>(src_dir), std::get<1>(src_dir), std::get<2>(src_dir);
 
         /******************************************************************
-         *
          * Psf Energy values for sample points in direction space
-         *
          ******************************************************************/
-        auto sphere_pix_upsf = [&](Array3Xd const& points3) -> Tensor3d {
-            long const Npts     = points3.size() / 3;
-            // Given sample points on the sphere in 3-direction-space, compute the
-            // separation.
-            auto           diff = points3.colwise() - src_d;
-            auto           mag  = diff.colwise().norm();
-            auto           off  = 2. * rad2deg * Eigen::asin(0.5 * mag);
-            ArrayXXd const logsep
-                = (off < 1e-4).select(1e4 * off, 1. + ((off * 1e4).log() / sep_step));
-            TensorMap<Tensor1d const> const idxs(logsep.data(), Npts);
-            // std::cout << std::endl
-            //           << idxs.reshape(Idx2 { 17, Npts / 17 })
-            //                  .slice(Idx2 { 0, 1 }, Idx2 { 17, 1 })
-            //                  .reshape(Idx2 { 1, 17 })
-            //           << std::endl;
+        // auto sphere_pix_upsf = psf_sample_full_energy(src_d, tuPsf_ED);
+        auto sphere_pix_upsf = psf_sample_single_energy(src_d, tuPsf_DE);
 
-            Tensor3d vals(Ne, Genz::Ncnt, Npts / Genz::Ncnt);
-
-            long i = 0;
-            while (i < Npts)
-            {
-                long         d  = 1;
-                double const x1 = std::floor(idxs(i));
-                while ((i + d < Npts) && x1 == std::floor(idxs(i + d))) { ++d; }
-                TensorMap<Tensor1d const> const ss(idxs.data() + i, d);
-                Tensor2d                        alpha(d, 2);
-                TensorMap<Tensor1d>(alpha.data(), d) = ss - x1;
-                TensorMap<Tensor1d>(alpha.data() + d, d)
-                    = 1. - TensorMap<Tensor1d>(alpha.data(), d);
-                TensorMap<Tensor2d const> const psf(
-                    tuPsf.data() + long(x1) * Ne, Ne, 2);
-                Tensor2d const vv = psf.contract(alpha, IdxPair1 { { { 1, 1 } } });
-                TensorMap<Tensor2d>(vals.data() + i * Ne, Ne, d) = vv;
-                i += d;
-            }
-            // std::cout << std::endl
-            //           << vals.slice(Idx3 { 0, 0, 1 }, Idx3 { Ne, 17, 1 })
-            //                  .reshape(Idx2 { Ne, 17 })
-            //           << std::endl;
-            return vals;
-        };
-
-        if (!(s % 25) || s == Ns - 1) { std::cout << s << " " << std::flush; }
-        Tensor3d integrand_evals = sphere_pix_upsf(dir_points);
-        // [Ne, Nevts]
-        auto [value, error]      = Genz::result_err(integrand_evals);
-
-        // size_t not_converged_count = not_converged.size();
-        size_t iteration_depth   = 1;
-        while (iteration_depth < 8)
+        if (!(s % 1) || s == Ns - 1) { std::cout << s << " " << std::endl; }
+        for (long ei = 0; ei < 1; ++ei)
         {
-            // Determine which regions are converged
-            auto [converged, not_converged]
-                = Genz::converged_indices(value, error, ftol_threshold);
 
-            // Accumulate converged region results into correct event
-            Map<MatrixXd> valM(value.data(), Ne, value.dimension(1));
-            Map<MatrixXd> errM(error.data(), Ne, error.dimension(1));
-            result_value(Eigen::all, evtidx(converged)) += valM(Eigen::all, converged);
-            result_error(Eigen::all, evtidx(converged)) += errM(Eigen::all, converged);
+            std::cout << dir_points.block<3, 17>(0, 17 * 101) << std::endl << std::endl;
+            Tensor3d integrand_evals = sphere_pix_upsf(dir_points, ei);
+            // [Ne, Nevts]
+            auto [value, error]      = Genz::result_err(integrand_evals);
 
-            long const Nucnv = not_converged.size();
-            // std::cout << Nucnv << " " << error.maximum() << std::endl;
-            if (Nucnv == 0) { break; }
+            //                  .slice(Idx2 { 0, 1 }, Idx2 { 17, 1 })
+            std::cout << integrand_evals.slice(Idx3 { 0, 0, 101 }, Idx3 { 1, 17, 1 })
+                      << std::endl;
+            std::cout << value.slice(Idx2 { 0, 101 }, Idx2 { 1, 1 }) << std::endl;
+            std::cout << error.slice(Idx2 { 0, 101 }, Idx2 { 1, 1 }) << std::endl;
 
-            // # nmask.shape [ regions_events ]
-            // nmask = ~cmask
-            // center, halfwidth, vol = region.split(
-            //     center[:, nmask], halfwidth[:, nmask], vol[nmask], split_dim[nmask]
-            // )
+            // size_t not_converged_count = not_converged.size();
+            size_t iteration_depth = 1;
+            while (iteration_depth < 2)
+            {
+                // Determine which regions are converged
+                auto [converged, not_converged]
+                    = Genz::converged_indices(value, error, ftol_threshold);
 
-            Tensor2d hwUcnv(2, Nucnv);
-            Map<MatrixXd>(hwUcnv.data(), 2, Nucnv)
-                = Map<MatrixXd>(halfwidth.data(), 2, Nevts)(Eigen::all, not_converged);
+                // // Accumulate converged region results into correct event
+                // Map<MatrixXd> valM(value.data(), Ne, value.dimension(1));
+                // Map<MatrixXd> errM(error.data(), Ne, error.dimension(1));
+                // result_value(Eigen::all, evtidx(converged))
+                //     += valM(Eigen::all, converged);
+                // result_error(Eigen::all, evtidx(converged))
+                //     += errM(Eigen::all, converged);
 
-            Tensor2d volUcnv(1, Nucnv);
-            Map<MatrixXd>(volUcnv.data(), 1, Nucnv)
-                = Map<MatrixXd const>(volume.data(), 1, Nevts)(0, not_converged);
+                long const Nucnv = not_converged.size();
+                // std::cout << Nucnv << " " << error.maximum() << std::endl;
+                if (Nucnv == 0) { break; }
 
-            Tensor1byt split_dim = Genz::split_dims(
-                integrand_evals, error, hwUcnv, volUcnv, not_converged);
+                // # nmask.shape [ regions_events ]
+                // nmask = ~cmask
+                // center, halfwidth, vol = region.split(
+                //     center[:, nmask], halfwidth[:, nmask], vol[nmask],
+                //     split_dim[nmask]
+                // )
 
-            Tensor2d centerUcnv(2, Nucnv);
-            Map<MatrixXd>(centerUcnv.data(), 2, Nucnv)
-                = Map<MatrixXd>(center.data(), 2, Nevts)(Eigen::all, not_converged);
+                Tensor2d hwUcnv(2, Nucnv);
+                Map<MatrixXd>(hwUcnv.data(), 2, Nucnv) = Map<MatrixXd>(
+                    halfwidth.data(), 2, Nevts)(Eigen::all, not_converged);
 
-            // evtidx = np.tile(evtidx[nmask], 2)
-            Eigen::VectorX<Eigen::Index> uevx = evtidx(not_converged);
-            evtidx.resize(Nucnv * 2);
-            evtidx << uevx, uevx;
+                Tensor2d volUcnv(1, Nucnv);
+                Map<MatrixXd>(volUcnv.data(), 1, Nucnv)
+                    = Map<MatrixXd const>(volume.data(), 1, Nevts)(0, not_converged);
 
-            center.resize(2, Nucnv * 2);
-            halfwidth.resize(2, Nucnv * 2);
-            volume.resize(1, Nucnv * 2);
+                Tensor1byt split_dim = Genz::split_dims(
+                    integrand_evals, error, hwUcnv, volUcnv, not_converged);
 
-            Genz::region_split(
-                center, halfwidth, volume, split_dim, centerUcnv, hwUcnv, volUcnv);
+                Tensor2d centerUcnv(2, Nucnv);
+                Map<MatrixXd>(centerUcnv.data(), 2, Nucnv)
+                    = Map<MatrixXd>(center.data(), 2, Nevts)(Eigen::all, not_converged);
 
-            points                 = Genz::fullsym(center,
-                                   halfwidth * Genz::alpha2,
-                                   halfwidth * Genz::alpha4,
-                                   halfwidth * Genz::alpha5);
-            integrand_evals        = sphere_pix_upsf(get_dir_points(points));
-            std::tie(value, error) = Genz::result_err(integrand_evals, volume);
+                // evtidx = np.tile(evtidx[nmask], 2)
+                Eigen::VectorX<Eigen::Index> uevx = evtidx(not_converged);
+                evtidx.resize(Nucnv * 2);
+                evtidx << uevx, uevx;
 
-            ++iteration_depth;
+                center.resize(2, Nucnv * 2);
+                halfwidth.resize(2, Nucnv * 2);
+                volume.resize(1, Nucnv * 2);
+
+                Genz::region_split(
+                    center, halfwidth, volume, split_dim, centerUcnv, hwUcnv, volUcnv);
+
+                points                 = Genz::fullsym(center,
+                                       halfwidth * Genz::alpha2,
+                                       halfwidth * Genz::alpha4,
+                                       halfwidth * Genz::alpha5);
+                integrand_evals        = sphere_pix_upsf(get_dir_points(points), ei);
+                std::tie(value, error) = Genz::result_err(integrand_evals, volume);
+
+                ++iteration_depth;
+            }
+            std::cout << " [" << iteration_depth << "] " << std::endl;
+
+            break;
         }
-        // std::cout << iteration_depth;
-        // break;
+        break;
     }
 
     return xtpsfEst;
