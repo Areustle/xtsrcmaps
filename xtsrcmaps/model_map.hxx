@@ -12,6 +12,31 @@ namespace Fermi::ModelMap
 
 using MatCoord3 = Eigen::Matrix<SkyGeom::coord3, Eigen::Dynamic, Eigen::Dynamic>;
 
+
+auto
+get_init_points(long const Nh, long const Nw) -> MatrixXd;
+
+auto
+get_dir_points(Tensor3d const& points, Fermi::SkyGeom const& skygeom) -> Array3Xd;
+
+auto
+sub_pixel_points(MatrixXd const& points, short const iteration_depth) -> Tensor3d;
+
+auto
+separation(Array3Xd const& points3, ArrayXd const& src_d) -> ArrayXd;
+
+auto
+separation_indices(Array3Xd const& points3, ArrayXd const& src_d) -> Tensor1d;
+
+auto
+index_from_sep(ArrayXd const& sep) -> Tensor1d;
+
+auto
+psf_single_energy(Tensor1d const& idxs,
+                  Tensor2d const& tuPsf_DE,
+                  long const      ei,
+                  long const      Nn) -> Tensor2d;
+
 auto
 pix_dirs_with_padding(SkyGeom const& skygeom, long const Nw, long const Nh)
     -> MatCoord3;
@@ -196,43 +221,43 @@ pixels_to_integrate(Eigen::Ref<Eigen::MatrixXd const> const& mean_psf_v0,
                     long const                               Nw,
                     long const Nh) -> std::vector<std::pair<long, long>>;
 
-template <typename D0, typename D1>
-void
-psf_lut(Eigen::MatrixBase<D0>&      mean_psf_v0,
-        Eigen::ArrayBase<D1> const& sep,
-        Eigen::MatrixXd const&      suPsf)
-{
-    Eigen::ArrayXd r = sep - sep.floor();
-
-    mean_psf_v0      = suPsf(sep.floor(), Eigen::all).array().colwise() * (1. - r)
-                  + suPsf(sep.floor() + 1, Eigen::all).array().colwise() * r;
-}
-
-template <typename D1>
-auto
-psf_lut(Eigen::ArrayBase<D1> const& isep, Eigen::MatrixXd const& suPsf)
-    -> Eigen::MatrixXd
-{
-    Eigen::ArrayXd r = isep - isep.floor();
-
-    return suPsf(isep.floor(), Eigen::all).array().colwise() * (1. - r)
-           + suPsf(isep.floor() + 1, Eigen::all).array().colwise() * r;
-}
-
-template <typename D0, typename D1>
-void
-mean_psf_lut(Eigen::MatrixBase<D0>&      mean_psf,
-             Eigen::ArrayBase<D1> const& sep,
-             Eigen::MatrixXd const&      suPsf)
-{
-    Eigen::ArrayXd r = sep - sep.floor();
-
-    mean_psf         = (suPsf(sep.floor(), Eigen::all).array().colwise() * (1. - r)
-                + suPsf(sep.floor() + 1, Eigen::all).array().colwise() * r)
-                   .colwise()
-                   .mean();
-    // std::cout << mean_psf << std::endl << std::endl;
-}
+// template <typename D0, typename D1>
+// void
+// psf_lut(Eigen::MatrixBase<D0>&      mean_psf_v0,
+//         Eigen::ArrayBase<D1> const& sep,
+//         Eigen::MatrixXd const&      suPsf)
+// {
+//     Eigen::ArrayXd r = sep - sep.floor();
+//
+//     mean_psf_v0      = suPsf(sep.floor(), Eigen::all).array().colwise() * (1. - r)
+//                   + suPsf(sep.floor() + 1, Eigen::all).array().colwise() * r;
+// }
+//
+// template <typename D1>
+// auto
+// psf_lut(Eigen::ArrayBase<D1> const& isep, Eigen::MatrixXd const& suPsf)
+//     -> Eigen::MatrixXd
+// {
+//     Eigen::ArrayXd r = isep - isep.floor();
+//
+//     return suPsf(isep.floor(), Eigen::all).array().colwise() * (1. - r)
+//            + suPsf(isep.floor() + 1, Eigen::all).array().colwise() * r;
+// }
+//
+// template <typename D0, typename D1>
+// void
+// mean_psf_lut(Eigen::MatrixBase<D0>&      mean_psf,
+//              Eigen::ArrayBase<D1> const& sep,
+//              Eigen::MatrixXd const&      suPsf)
+// {
+//     Eigen::ArrayXd r = sep - sep.floor();
+//
+//     mean_psf         = (suPsf(sep.floor(), Eigen::all).array().colwise() * (1. - r)
+//                 + suPsf(sep.floor() + 1, Eigen::all).array().colwise() * r)
+//                    .colwise()
+//                    .mean();
+//     // std::cout << mean_psf << std::endl << std::endl;
+// }
 
 namespace detail
 {
@@ -312,7 +337,6 @@ rectangular_true_separations(long const            pw,
     }
     return SD;
 }
-
 
 template <unsigned short Ndelta>
 auto
