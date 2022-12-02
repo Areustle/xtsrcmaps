@@ -47,6 +47,9 @@ class SkyGeom
     pix2sph(coord2 const&) const -> coord2;
 
     auto
+    pix2sph(double const, double const) const -> coord2;
+
+    auto
     sph2pix(vec_coord2 const&) const -> vec_coord2;
 
     auto

@@ -104,6 +104,22 @@ Fermi::SkyGeom::pix2sph(coord2 const& px) const -> coord2
 }
 
 auto
+Fermi::SkyGeom::pix2sph(double const first, double const second) const -> coord2
+{
+    int    ncoords = 1;
+    int    nelem   = 2;
+    double worldcrd[2], imgcrd[2];
+    double phi[1], theta[1];
+    int    stat[1];
+    double pixcrd[] = { first, second };
+    wcsp2s(m_wcs, ncoords, nelem, pixcrd, imgcrd, phi, theta, worldcrd, stat);
+    double s1 = worldcrd[0];
+    while (s1 < 0) s1 += 360.;
+    while (s1 >= 360) s1 -= 360.;
+    return { s1, worldcrd[1] };
+}
+
+auto
 Fermi::SkyGeom::sph2pix(std::vector<std::pair<double, double>> const& ss) const
     -> std::vector<std::pair<double, double>>
 {
