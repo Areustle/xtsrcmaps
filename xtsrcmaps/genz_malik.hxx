@@ -1,3 +1,10 @@
+// Multi-dimensional Integration over an N-dimensional rectangular region. Algorithm
+// from A.C. Genz, A.A. Malik, An adaptive algorithm for numerical integration over an
+// N-dimensional rectangular region, J. Comput. Appl. Math. 6 (1980) 295-302.
+//
+// Updated by Bernstein, Espelid, Genz in "An Adaptive Algorithm for the Approximate
+// Calculation of Multiple Integrals"
+
 #pragma once
 
 #include <iostream>
@@ -13,7 +20,7 @@ namespace Fermi::Genz
 constexpr long Ncnt = 17;
 
 constexpr double alpha2
-    = 0.35856858280031809199064515390793749545406372969943071; // √(9 / 70)
+    = 0.35856858280031809199064515390793749545406372969943071; // √(9/70)
 constexpr double alpha4
     = 0.94868329805051379959966806332981556011586654179756505; // √(9/10)
 constexpr double alpha5
@@ -83,125 +90,17 @@ constexpr std::array<double, 17> genz_malik_err_weights_17 = {
 auto
 fullsym(Tensor2d const& c, Tensor2d const& l2, Tensor2d const& l4, Tensor2d const& l5)
     -> Tensor3d;
+auto
+fullsym(Tensor2d const& c, double const l2, double const l4, double const l5)
+    -> Tensor3d;
 
 auto
 region(Tensor3d const& low, Tensor3d const& high, long const Nevts)
     -> std::tuple<Tensor2d, Tensor2d, Tensor2d>;
 
-
 auto
-result_err(Tensor3d const& vals) -> std::tuple<Tensor2d, Tensor2d>;
+pixel_region(Tensor3d const& points) -> std::tuple<Tensor2d, double, double>;
 
-// [7, 5] FS rule weights from Genz, Malik: "An adaptive algorithm for numerical
-// integration Over an N-dimensional rectangular region", updated by Bernstein,
-// Espelid, Genz in "An Adaptive Algorithm for the Approximate Calculation of
-// Multiple Integrals"
-auto
-result_err(Tensor3d const& vals, Tensor2d const& volume)
-    -> std::tuple<Tensor2d, Tensor2d>;
-
-
-// [7, 5] FS rule weights from Genz, Malik: "An adaptive algorithm for numerical
-// integration Over an N-dimensional rectangular region", updated by Bernstein,
-// Espelid, Genz in "An Adaptive Algorithm for the Approximate Calculation of
-// Multiple Integrals"
-template <typename F>
-auto
-rule(F&& f, Array3Xd const& points, Tensor2d const& halfwidth, Tensor2d const& volume)
-    // -> Tensor2d
-    -> std::tuple<Tensor2d, Tensor2d>
-{
-    // // dim = p.shape[0] //2
-    // // d1 = points.num_k0k1(dim) // 9
-    // // d2 = points.num_k2(dim) // 4
-    // // d3 = d1 + d2 // 13
-
-    // // # vals shape [ range_dim, points, Nevts ]
-    Tensor3d const vals = f(points); // [Ne, 17, Nevts]
-    // return vals;
-    long const Ne       = vals.dimension(0);
-    // long const Nevts = vals.dimension(2);
-
-    // // vc = vals[:, 0:1, Nevts]  # center integrand value. shape = [ rdim, 1, Nevts ]
-    // // // Tensor2d [Ne, 1, Nevts]
-    // Tensor3d vc      = vals.slice(Idx3 { 0, 0, 0 }, Idx3 { Ne, 1, Nevts });
-    // // # [ range_dim, domain_dim, Nevts ]
-    // // v01 = vals[:, 1:d1:4, Nevts] + vals[:, 2:d1:4, Nevts]
-    // // v23 = vals[:, 3:d1:4, Nevts] + vals[:, 4:d1:4, Nevts]
-    // Tensor3d v01
-    //     = vals.slice(Idx3 { 0, 1, 0 }, Idx3 { Ne, 8, Nevts }).stride(Idx3 { 1, 4, 1
-    //     })
-    //       + vals.slice(Idx3 { 0, 2, 0 }, Idx3 { Ne, 8, Nevts })
-    //             .stride(Idx3 { 1, 4, 1 });
-    // Tensor3d v23
-    //     = vals.slice(Idx3 { 0, 3, 0 }, Idx3 { Ne, 8, Nevts }).stride(Idx3 { 1, 4, 1
-    //     })
-    //       + vals.slice(Idx3 { 0, 4, 0 }, Idx3 { Ne, 8, Nevts })
-    //             .stride(Idx3 { 1, 4, 1 });
-    //
-    // // // # Compute the 4th divided difference to determine dimension on which to
-    // split.
-    // // Tensor1d diff
-    // //     = ((v01 - 2. * vc.reshape(Idx2 { Ne, 1 }).broadcast(Idx2 { 1, 2 }))
-    // //        - ratio * (v23 - 2. * vc.reshape(Idx2 { Ne, 1 }).broadcast(Idx2 { 1, 2
-    // //        })))
-    // //           .abs()
-    // //           .sum(Idx1 { 0 });
-    // //
-    // // // s2 = np.sum(v01, axis=1)  # [ range_dim, ... ]
-    // // // s3 = np.sum(v23, axis=1)  # [ range_dim, ... ]
-    // // // s4 = np.sum(vals[:, d1:d3, ...], axis=1)  # [ range_dim, ... ]
-    // // // s5 = np.sum(vals[:, d3:, ...], axis=1)  # [ range_dim, ... ]
-    // auto s2 = v01.sum(Idx1 { 1 });
-    // auto s3 = v23.sum(Idx1 { 1 });
-    // auto s4 = vals.slice(Idx3 { 0, 9, 0 }, Idx3 { Ne, 4, Nevts }).sum(Idx1 { 1 });
-    // auto s5 = vals.slice(Idx3 { 0, 13, 0 }, Idx3 { Ne, 4, Nevts }).sum(Idx1 { 1 });
-
-    // w = genz_malik_weights(dim)  # [5]
-    // wE = genz_malik_err_weights(dim)  # [4]
-    TensorMap<Tensor1d const> const w(genz_malik_weights_17.data(), 17);
-    TensorMap<Tensor1d const> const wE(genz_malik_err_weights_17.data(), 17);
-
-
-    // # [5] . [5,range_dim, ... ] = [range_dim, ... ]
-    // result = volumes * np.tensordot(w, (vc, s2, s3, s4, s5), (0, 0))
-    // auto result
-    //     = volume(0) * (w(0) * vc + w(1) * s2 + w(2) * s3 + w(3) * s4 + w(4) * s5);
-    Tensor2d result = volume.broadcast(Idx2 { Ne, 1 })
-                      * w.contract(vals, IdxPair1 { { { 0, 1 } } });
-    // // # [4] . [4,range_dim, ... ] = [range_dim, ... ]
-    // // res5th = volumes * np.tensordot(wE, (vc, s2, s3, s4), (0, 0))
-    // Tensor3d const& val5th = vals.slice(Idx3 { 0, 0, 0 }, Idx3 { Ne, 13, Nevts });
-    Tensor2d res5th = wE.contract(vals, IdxPair1 { { { 0, 1 } } });
-
-    // // err = np.abs(res5th - result)  # [range_dim, ... ]
-    Tensor2d err    = (res5th - result).abs(); //  # [range_dim, ... ]
-    //
-    // // # determine split dimension
-    // Tensor<long, 1> split_dim  = diff.argmax().reshape(Idx1 { 1 });
-    // Tensor<long, 1> widest_dim = halfwidth.argmax().reshape(Idx1 { 1 });
-    //
-    // // df = np.sum(err, axis=0) / (volumes * 10 ** dim)  # [ ... ]
-    // Tensor1d df
-    //     = err.sum(Idx1 { 0 }).reshape(Idx1 { 1 }) / (100 * volume); //  # [ ... ]
-    // // delta = np.reshape(diff[split_i] - diff[widest_i], diff.shape[1:])  # [ ... ]
-    // auto delta = diff(split_dim(0)) - diff(widest_dim(0));
-    // // too_close = delta <= df
-    // split_dim  = (df > delta).select(split_dim, widest_dim);
-    // return { result, err, split_dim };
-    return { result, err };
-}
-
-template <typename F>
-auto
-rule(F&& f, Tensor2d const& center, Tensor2d const& halfwidth, Tensor2d const& volume)
-    -> Tensor3d
-{
-    Tensor3d const points
-        = fullsym(center, halfwidth * alpha2, halfwidth * alpha4, halfwidth * alpha5);
-
-    return rule(f, points, halfwidth, volume);
-}
 
 auto
 converged_indices(Tensor2d const& value,
@@ -210,53 +109,92 @@ converged_indices(Tensor2d const& value,
     -> std::tuple<std::vector<long>, std::vector<long>>;
 
 auto
-split_dims(Tensor3d const&          evals,
-           Tensor2d const&          err,
-           Tensor2d const&          hwUcnv,
-           Tensor2d const&          volUcnv,
-           std::vector<long> const& not_converged) -> Tensor1byt;
+dims_to_split(Tensor3d const&          evals,
+              Tensor2d const&          err,
+              double const             halfwidth,
+              double const             volume,
+              std::vector<long> const& not_converged) -> Tensor1byt;
 
 auto
 region_split(Tensor2d&         center,
-             Tensor2d&         halfwidth,
-             Tensor2d&         volume,
+             double&           halfwidth,
+             double&           volume,
              Tensor1byt const& split_dim,
-             Tensor2d const&   cenUcv,
-             Tensor2d const&   hwUcv,
-             Tensor2d const&   volUcv) -> void;
+             Tensor2d const&   cenUcv) -> void;
 
-// def split(centers: NPF, halfwidth: NPF, volumes: NPF, split_dim: NPI):
-//
-//     # centers.shape   [ domain_dim, regions_events ]
-//     # split_dim.shape [ 1, regions_events ]
-//
-//     if np.amin(split_dim) < 0 or np.amax(split_dim) >= (centers.shape[0]):
-//         raise IndexError("split dimension invalid")
-//
-//     if split_dim.ndim < centers.ndim:
-//         split_dim = np.expand_dims(split_dim, 0)
-//
-//     ## {center, hwidth}  [ domain_dim, (regions, events) ]
-//
-//     mask = np.zeros_like(centers, dtype=np.bool_)
-//     np.put_along_axis(mask, split_dim, True, 0)
-//
-//     h = np.copy(halfwidth)
-//     h[mask] *= 0.5
-//
-//     v = np.copy(volumes)
-//     v *= 0.5
-//
-//     c1 = np.copy(centers)
-//     c2 = np.copy(centers)
-//     c1[mask] -= h[mask]
-//     c2[mask] += h[mask]
-//
-//     c = np.concatenate((c1, c2), axis=1)
-//     h = np.concatenate((h, h), axis=1)
-//     v = np.concatenate((v, v), axis=0)
-//
-//     return c, h, v
-//
+// [7, 5] FS rule weights from Genz, Malik: "An adaptive algorithm for numerical
+// integration Over an N-dimensional rectangular region", updated by Bernstein,
+// Espelid, Genz in "An Adaptive Algorithm for the Approximate Calculation of
+// Multiple Integrals"
+auto
+rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d>;
+
+template <typename F, typename G>
+auto
+integrate_region(F&&                  integrand,
+                 G&&                  dir_pix_f,
+                 Eigen::Ref<MatrixXd> result_value,
+                 Tensor2d             centers,
+                 double               halfwidth,
+                 double               volume,
+                 Array3Xd             dir_points,
+                 double const         ftol_threshold,
+                 size_t const         max_iteration_depth = 6) -> void
+{
+
+    long const Nevts       = dir_points.cols() / Genz::Ncnt;
+    // Index of events.
+    IdxVec evtidx          = IdxVec::LinSpaced(Nevts, 0, Nevts - 1);
+
+    // The initial integrand evaluation.
+    // dir_points             = dir_pix_f(genz_points); // Pre-Computed
+    Tensor3d   evals       = integrand(dir_points);
+    long const Nrange      = evals.dimension(0);
+
+    // [range_dim, Nevts]
+    auto [value, error]    = rule(evals, volume);
+
+    size_t iteration_depth = 1;
+    while (iteration_depth <= max_iteration_depth)
+    {
+        // Determine which regions are converged
+        auto [converged, not_converged]
+            = converged_indices(value, error, ftol_threshold);
+
+        // Accumulate converged region results into correct event
+        Map<MatrixXd> valM(value.data(), Nrange, value.dimension(1));
+        result_value(Eigen::all, evtidx(converged)) += valM(Eigen::all, converged);
+
+        long const Nucnv = not_converged.size();
+        if (Nucnv == 0) { break; }
+
+        // evtidx = np.tile(evtidx[nmask], 2)
+        IdxVec uevx = evtidx(not_converged);
+        evtidx.resize(Nucnv * 2);
+        evtidx << uevx, uevx;
+
+        Tensor2d centerUcnv(2, Nucnv);
+
+        Map<MatrixXd>(centerUcnv.data(), 2, Nucnv)
+            = Map<MatrixXd>(centers.data(), 2, Nevts)(Eigen::all, not_converged);
+
+        centers.resize(2, Nucnv * 2);
+
+        Tensor1byt split_dim
+            = dims_to_split(evals, error, halfwidth, volume, not_converged);
+        region_split(centers, halfwidth, volume, split_dim, centerUcnv);
+
+        // Pixel points in observation relative Spherical shell direction space.
+        Tensor3d genz_points = fullsym(
+            centers, halfwidth * alpha2, halfwidth * alpha4, halfwidth * alpha5);
+
+        // The next integrand evaluation.
+        dir_points             = dir_pix_f(genz_points);
+        evals                  = integrand(dir_points);
+        std::tie(value, error) = rule(evals, volume);
+
+        ++iteration_depth;
+    }
+}
 
 } // namespace Fermi::Genz
