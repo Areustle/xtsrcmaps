@@ -40,7 +40,7 @@ constexpr std::array<double, 5> genz_malik_weights
         200. / 19683.,
         (6859. / 19683.) / 4. };
 
-constexpr std::array<double, 17> genz_malik_weights_17 = {
+alignas(64) constexpr std::array<double, 17> genz_malik_weights_17 = {
     (12824. - 9120. * 2. + 400. * 4.) / 19683., // 0
     980. / 6561.,                               // 1
     980. / 6561.,                               // 5
@@ -66,7 +66,7 @@ constexpr std::array<double, 4> genz_malik_err_weights
         (265.0 - 100.0 * (2.)) / 1458.0,
         25. / 729. };
 
-constexpr std::array<double, 17> genz_malik_err_weights_17 = {
+alignas(64) constexpr std::array<double, 17> genz_malik_err_weights_17 = {
     (729.0 - (950.0 * 2.) + 50.0 * 4.) / 729., // 0
     245. / 486.,                               // 1
     245. / 486.,                               // 2
@@ -141,6 +141,7 @@ integrate_region(F&&                  integrand,
                  double const         ftol_threshold,
                  size_t const         max_iteration_depth = 6) -> void
 {
+    auto t0                = std::chrono::high_resolution_clock::now();
 
     long const Nevts       = dir_points.cols() / Genz::Ncnt;
     // Index of events.
@@ -149,10 +150,12 @@ integrate_region(F&&                  integrand,
     // The initial integrand evaluation.
     // dir_points             = dir_pix_f(genz_points); // Pre-Computed
     Tensor3d   evals       = integrand(dir_points);
-    long const Nrange      = evals.dimension(0);
+    long const Nrange      = evals.dimension(1); // [Ne]
 
+    auto t1                = std::chrono::high_resolution_clock::now();
     // [range_dim, Nevts]
     auto [value, error]    = rule(evals, volume);
+    auto t2                = std::chrono::high_resolution_clock::now();
 
     size_t iteration_depth = 1;
     while (iteration_depth <= max_iteration_depth)
@@ -167,6 +170,7 @@ integrate_region(F&&                  integrand,
 
         long const Nucnv = not_converged.size();
         if (Nucnv == 0) { break; }
+        // break;
 
         // evtidx = np.tile(evtidx[nmask], 2)
         IdxVec uevx = evtidx(not_converged);
@@ -195,6 +199,12 @@ integrate_region(F&&                  integrand,
 
         ++iteration_depth;
     }
+
+    auto t3  = std::chrono::high_resolution_clock::now();
+    auto d10 = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    auto d21 = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+    auto d32 = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2);
+    std::cout << " gm: [" << d10 << " " << d21 << " " << d32 << "] " << std::flush;
 }
 
 } // namespace Fermi::Genz

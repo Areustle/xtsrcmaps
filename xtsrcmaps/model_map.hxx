@@ -22,8 +22,25 @@ psf_fast_lut(Array3Xd const& points3, ArrayXd const& src_d, Tensor2d const& tuPs
     -> Tensor3d;
 
 auto
-point_src_model_map_wcs(long const      Nx,
-                        long const      Ny,
+pixel_mean_psf(long const      Nh,
+               long const      Nw,
+               vpd const&      src_dirs,
+               Tensor3d const& psf_lut,
+               SkyGeom const&  skygeom,
+               double const    ftol_threshold = 1e-3) -> Tensor4d;
+
+void
+scale_psf_by_solid_angle(Tensor4d& pixpsf, SkyGeom const& skygeom);
+
+auto
+compute_psf_map_corrections(Tensor4d const& pixpsf,
+                            vpd const&      src_dirs,
+                            SkyGeom const&  skygeom)
+    -> std::tuple<Tensor2d, std::vector<double>>;
+
+auto
+point_src_model_map_wcs(long const      Nh,
+                        long const      Nw,
                         vpd const&      src_dirs,
                         Tensor3d const& uPsf,
                         SkyGeom const&  skygeom,
