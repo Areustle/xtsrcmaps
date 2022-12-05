@@ -1,6 +1,7 @@
 #include "xtsrcmaps/genz_malik.hxx"
 #include "xtsrcmaps/tensor_types.hxx"
 
+#include <chrono>
 #include <iostream>
 
 namespace Fermi::Genz
@@ -163,13 +164,22 @@ rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d
     TensorMap<Tensor1d const> const w(genz_malik_weights_17.data(), 17);
     TensorMap<Tensor1d const> const wE(genz_malik_err_weights_17.data(), 17);
 
-    // # [5] . [5,range_dim, ... ] = [range_dim, ... ]
-    Tensor2d result = volume * w.contract(vals, IdxPair1 { { { 0, 1 } } });
-    // # [4] . [4,range_dim, ... ] = [range_dim, ... ]
-    Tensor2d res5th = volume * wE.contract(vals, IdxPair1 { { { 0, 1 } } });
+    auto t0         = std::chrono::high_resolution_clock::now();
+
+    // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
+    Tensor2d result = volume * w.contract(vals, IdxPair1 { { { 0, 0 } } });
+    auto     t1     = std::chrono::high_resolution_clock::now();
+    // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
+    Tensor2d res5th = volume * wE.contract(vals, IdxPair1 { { { 0, 0 } } });
+    auto     t2     = std::chrono::high_resolution_clock::now();
+
+    auto d10        = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    auto d21        = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+
+    std::cout << " [" << d10 << " " << d21 << "] " << std::flush;
 
     // err = np.abs(res5th - result)  # [range_dim, ... ]
-    Tensor2d err    = (res5th - result).abs(); //  # [range_dim, ... ]
+    Tensor2d err = (res5th - result).abs(); //  # [range_dim, ... ]
     return { result, err };
 }
 
@@ -205,29 +215,29 @@ dims_to_split(Tensor3d const&          evals,
               double const             volume,
               std::vector<long> const& not_converged) -> Tensor1byt
 {
-    long const Ne    = evals.dimension(0);
+    long const Ne    = evals.dimension(1);
     long const Nevts = evals.dimension(2);
     long const Nucnv = not_converged.size();
 
     // SPLIT DIM
     Tensor2d diff(2, Nucnv);
 
-    Tensor3d evalUcnv(Ne, Ncnt, Nucnv);
-    Map<MatrixXd>(evalUcnv.data(), Ne * Ncnt, Nucnv) = Map<MatrixXd const>(
-        evals.data(), Ne * Ncnt, Nevts)(Eigen::all, not_converged);
-    Tensor3d vc  = 2. * evalUcnv.slice(Idx3 { 0, 0, 0 }, Idx3 { Ne, 1, Nucnv });
+    Tensor3d evalUcnv(Ncnt, Ne, Nucnv);
+    Map<MatrixXd>(evalUcnv.data(), Ncnt * Ne, Nucnv) = Map<MatrixXd const>(
+        evals.data(), Ncnt * Ne, Nevts)(Eigen::all, not_converged);
+    Tensor3d vc  = 2. * evalUcnv.slice(Idx3 { 0, 0, 0 }, Idx3 { 1, Ne, Nucnv });
 
     // # [ range_dim, domain_dim, ... ]
-    Tensor3d v01 = evalUcnv.slice(Idx3 { 0, 1, 0 }, Idx3 { Ne, 2, Nucnv })
-                   + evalUcnv.slice(Idx3 { 0, 3, 0 }, Idx3 { Ne, 2, Nucnv });
-    Tensor3d v23 = evalUcnv.slice(Idx3 { 0, 5, 0 }, Idx3 { Ne, 2, Nucnv })
-                   + evalUcnv.slice(Idx3 { 0, 7, 0 }, Idx3 { Ne, 2, Nucnv });
+    Tensor3d v01 = evalUcnv.slice(Idx3 { 1, 0, 0 }, Idx3 { 2, Ne, Nucnv })
+                   + evalUcnv.slice(Idx3 { 3, 0, 0 }, Idx3 { 2, Ne, Nucnv });
+    Tensor3d v23 = evalUcnv.slice(Idx3 { 5, 0, 0 }, Idx3 { 2, Ne, Nucnv })
+                   + evalUcnv.slice(Idx3 { 7, 0, 0 }, Idx3 { 2, Ne, Nucnv });
 
     // Compute the 4th divided difference to determine dimension on which to split.
-    diff = ((v01 - vc.broadcast(Idx3 { 1, 2, 1 }))
-            - ratio * (v23 - vc.broadcast(Idx3 { 1, 2, 1 })))
+    diff = ((v01 - vc.broadcast(Idx3 { 2, 1, 1 }))
+            - ratio * (v23 - vc.broadcast(Idx3 { 2, 1, 1 })))
                .abs()
-               .sum(Idx1 { 0 });
+               .sum(Idx1 { 1 });
 
     Tensor2d errUcnv(Ne, Nucnv);
     Map<MatrixXd>(errUcnv.data(), Ne, Nucnv)
