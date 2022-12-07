@@ -4,7 +4,6 @@
 #include "xtsrcmaps/config.hxx"
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/misc.hxx"
-#include "xtsrcmaps/model_map.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
 #include "xtsrcmaps/source_utils.hxx"

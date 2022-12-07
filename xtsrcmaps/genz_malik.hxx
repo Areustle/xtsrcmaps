@@ -141,7 +141,7 @@ integrate_region(F&&                  integrand,
                  double const         ftol_threshold,
                  size_t const         max_iteration_depth = 6) -> void
 {
-    auto t0                = std::chrono::high_resolution_clock::now();
+    // auto t0                = std::chrono::high_resolution_clock::now();
 
     long const Nevts       = dir_points.cols() / Genz::Ncnt;
     // Index of events.
@@ -152,10 +152,10 @@ integrate_region(F&&                  integrand,
     Tensor3d   evals       = integrand(dir_points);
     long const Nrange      = evals.dimension(1); // [Ne]
 
-    auto t1                = std::chrono::high_resolution_clock::now();
+    // auto t1                = std::chrono::high_resolution_clock::now();
     // [range_dim, Nevts]
     auto [value, error]    = rule(evals, volume);
-    auto t2                = std::chrono::high_resolution_clock::now();
+    // auto t2                = std::chrono::high_resolution_clock::now();
 
     size_t iteration_depth = 1;
     while (iteration_depth <= max_iteration_depth)
@@ -200,11 +200,11 @@ integrate_region(F&&                  integrand,
         ++iteration_depth;
     }
 
-    auto t3  = std::chrono::high_resolution_clock::now();
-    auto d10 = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-    auto d21 = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-    auto d32 = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2);
-    std::cout << " gm: [" << d10 << " " << d21 << " " << d32 << "] " << std::flush;
+    // auto t3  = std::chrono::high_resolution_clock::now();
+    // auto d10 = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    // auto d21 = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+    // auto d32 = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2);
+    // std::cout << " gm: [" << d10 << " " << d21 << " " << d32 << "] " << std::flush;
 }
 
 } // namespace Fermi::Genz

@@ -62,37 +62,43 @@ co_king_base(auto A, auto D, auto P) noexcept
     }
 }
 
-//[Nd, Mc, Me]
-auto
-Fermi::PSF::king(SepArr const& deltas, irf::psf::Data const& psfdata) -> mdarray3
-{
-
-    Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
-    // Fermi::IrfScale const& scale    = psfdata.psf_scaling_params;
-    assert(psf_grid.params.extent(0) == psf_grid.cosths.size());
-    assert(psf_grid.params.extent(1) == psf_grid.logEs.size());
-
-    auto seps = vector<double>(deltas.size());
-    std::transform(deltas.cbegin(), deltas.cend(), seps.begin(), radians);
-
-
-    auto kings = vector<double>(
-        deltas.size() * psf_grid.params.extent(0) * psf_grid.params.extent(1), 0.0);
-
-    auto       A = mdspan(kings.data(),
-                    deltas.size(),
-                    psf_grid.params.extent(0),
-                    psf_grid.params.extent(1));
-    auto const D = mdspan(seps.data(), seps.size());
-    auto const P = mdspan(psf_grid.params.data(),
-                          psf_grid.params.extent(0),
-                          psf_grid.params.extent(1),
-                          psf_grid.params.extent(2));
-
-    co_king_base(A, D, P);
-
-    return mdarray3(kings, A.extent(0), A.extent(1), A.extent(2));
-}
+// //[Nd, Mc, Me] -> [Me, Mc, Nd]
+// auto
+// Fermi::PSF::king(SepArr const& deltas, irf::psf::Data const& psfdata) -> Tensor3d
+// {
+//
+//     Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
+//     // Fermi::IrfScale const& scale    = psfdata.psf_scaling_params;
+//     assert(psf_grid.params.extent(0) == psf_grid.logEs.size()); // Ne
+//     assert(psf_grid.params.extent(1) == psf_grid.cosths.size()); // Nc
+//     //
+//     long const Ne = psf_grid.logEs.size();
+//     long const Nc = psf_grid.cosths.size();
+//     long const Nd = deltas.size();
+//
+//     // auto seps = vector<double>(deltas.size());
+//     // std::transform(deltas.cbegin(), deltas.cend(), seps.begin(), to_radians);
+//     //
+//     // auto kings = vector<double>(
+//     //     deltas.size() * psf_grid.params.dimension(0) *
+//     psf_grid.params.dimension(1), 0.0);
+//     //
+//     // auto       A = mdspan(kings.data(),
+//     //                 deltas.size(),
+//     //                 psf_grid.params.extent(0),
+//     //                 psf_grid.params.extent(1));
+//     //
+//     Tensor3d A (Nc, Ne, Nd);
+//     auto const D = mdspan(seps.data(), seps.size());
+//     auto const P = mdspan(psf_grid.params.data(),
+//                           psf_grid.params.extent(0),
+//                           psf_grid.params.extent(1),
+//                           psf_grid.params.extent(2));
+//
+//     co_king_base(A, D, P);
+//
+//     return mdarray3(kings, A.extent(0), A.extent(1), A.extent(2));
+// }
 
 
 // R  (psf_bilerp result)      [Nc, Ne, Nd]
@@ -203,8 +209,7 @@ Fermi::PSF::mean_psf(                    //
 }
 
 auto
-Fermi::PSF::partial_total_integral(std::vector<double> const& deltas,
-                                   mdarray3 const&            mean_psf)
+Fermi::PSF::partial_total_integral(SepArr const& deltas, mdarray3 const& mean_psf)
     -> std::pair<mdarray3, mdarray2>
 {
     auto Ns = mean_psf.extent(0);

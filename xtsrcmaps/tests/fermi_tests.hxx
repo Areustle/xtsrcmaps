@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "xtsrcmaps/tensor_ops.hxx"
 #include "xtsrcmaps/tensor_types.hxx"
 
 auto
@@ -17,37 +18,46 @@ veq(auto v1, auto v2) -> void
 
 template <typename T>
 auto
-md2comp(mdarray2 const& computed, std::vector<T> const& expected) -> void
+et2comp(Tensor2d const& computed, std::vector<T> const& expected) -> void
 {
     REQUIRE(computed.size() == expected.size());
-    auto sp_b = std::experimental::mdspan(
-        expected.data(), computed.extent(0), computed.extent(1));
-    for (size_t i = 0; i < computed.extent(0); ++i)
-        for (size_t j = 0; j < computed.extent(1); ++j)
+    TensorMap<Tensor<T, 2> const> sp_b(
+        expected.data(), computed.dimension(0), computed.dimension(1));
+
+    for (long j = 0; j < computed.dimension(1); ++j)
+        for (long i = 0; i < computed.dimension(0); ++i)
             REQUIRE_MESSAGE(computed(i, j) == doctest::Approx(sp_b(i, j)),
+                            i << " " << j);
+}
+
+template <typename T>
+auto
+et2comp_exprm(Tensor2d const& computed, std::vector<T> const& expected) -> void
+{
+    REQUIRE(computed.size() == expected.size());
+    TensorMap<Tensor<T, 2, Eigen::RowMajor> const> sp_b(
+        expected.data(), computed.dimension(1), computed.dimension(0));
+
+    for (long j = 0; j < computed.dimension(1); ++j)
+        for (long i = 0; i < computed.dimension(0); ++i)
+            REQUIRE_MESSAGE(computed(i, j) == doctest::Approx(sp_b(j, i)),
                             i << " " << j);
 }
 
 template <typename T = double>
 auto
-filecomp2(mdarray2 const& computed, std::string const& filebase) -> void
+filecomp2(Tensor2d const& computed, std::string const& filebase) -> void
 {
-    const size_t sz_exp = computed.extent(0) * computed.extent(1);
-    REQUIRE(computed.size() == sz_exp);
-    auto expected = std::vector<T>(sz_exp);
+    const size_t sz_exp   = computed.size();
+    auto         expected = std::vector<T>(sz_exp);
 
-    std::ifstream ifs("./xtsrcmaps/tests/expected/" + filebase + ".bin",
-                      std::ios::in | std::ios::binary);
-    ifs.read((char*)(&expected[0]), sizeof(T) * sz_exp);
-    REQUIRE(ifs.good());
-    ifs.close();
+    Tensor2d const sp_b   = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/" + filebase + ".bin",
+        computed.dimension(1),
+        computed.dimension(0));
 
-    // md2comp(computed, expected);
-    REQUIRE(computed.size() == expected.size());
-    auto sp_b = std::experimental::mdspan(
-        expected.data(), computed.extent(0), computed.extent(1));
-    for (size_t i = 0; i < computed.extent(0); ++i)
-        for (size_t j = 0; j < computed.extent(1); ++j)
+    for (long j = 0; j < computed.dimension(1); ++j)
+        for (long i = 0; i < computed.dimension(0); ++i)
             REQUIRE_MESSAGE(computed(i, j) == doctest::Approx(sp_b(i, j)),
                             i << " " << j << " " << filebase);
 }
@@ -55,60 +65,17 @@ filecomp2(mdarray2 const& computed, std::string const& filebase) -> void
 
 template <typename T = double>
 auto
-filecomp3(mdarray3 const& computed, std::string const& filebase) -> void
+filecomp3(Tensor3d const& computed, std::string const& filebase) -> void
 {
-    const size_t sz_exp = computed.extent(0) * computed.extent(1) * computed.extent(2);
-    REQUIRE(computed.size() == sz_exp);
-    auto expected = std::vector<T>(sz_exp);
+    Tensor2d const sp_b = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/" + filebase + ".bin",
+        computed.dimension(0),
+        computed.dimension(1),
+        computed.dimension(2));
 
-    std::ifstream ifs("./xtsrcmaps/tests/expected/" + filebase + ".bin",
-                      std::ios::in | std::ios::binary);
-    REQUIRE(ifs.good());
-    ifs.read((char*)(&expected[0]), sizeof(T) * sz_exp);
-    ifs.close();
-
-    // md2comp(computed, expected);
-    REQUIRE(computed.size() == expected.size());
-    auto sp_b = std::experimental::mdspan(
-        expected.data(), computed.extent(0), computed.extent(1), computed.extent(2));
-    for (size_t i = 0; i < computed.extent(0); ++i)
-        for (size_t j = 0; j < computed.extent(1); ++j)
-            for (size_t k = 0; k < computed.extent(2); ++k)
+    for (long k = 0; k < computed.dimension(2); ++k)
+        for (long j = 0; j < computed.dimension(1); ++j)
+            for (long i = 0; i < computed.dimension(0); ++i)
                 REQUIRE_MESSAGE(computed(i, j, k) == doctest::Approx(sp_b(i, j, k)),
                                 i << " " << j << " " << k << " " << filebase);
-}
-
-
-template <typename T = double>
-auto
-filecomp3T(mdarray3 const& computed, std::string const& filebase) -> void
-{
-    const size_t sz_exp = computed.extent(0) * computed.extent(1) * computed.extent(2);
-    REQUIRE(computed.size() == sz_exp);
-    auto expected = std::vector<T>(sz_exp);
-    REQUIRE(computed.extent(0) == 40);  // C
-    REQUIRE(computed.extent(1) == 38);  // E
-    REQUIRE(computed.extent(2) == 401); // D
-    //
-    size_t const Nc = computed.extent(0);
-    size_t const Ne = computed.extent(1);
-    size_t const Nd = computed.extent(2);
-
-    std::ifstream ifs("./xtsrcmaps/tests/expected/" + filebase + ".bin",
-                      std::ios::in | std::ios::binary);
-    REQUIRE(ifs.good());
-    ifs.read((char*)(&expected[0]), sizeof(T) * sz_exp);
-    ifs.close();
-
-    // D, C, E --> C, E, D
-    // C, E, D --> D, C, E
-
-    // md2comp(computed, expected);
-    REQUIRE(computed.size() == expected.size());
-    auto sp_b = std::experimental::mdspan(expected.data(), Nd, Nc, Ne);
-    for (size_t c = 0; c < Nc; ++c)
-        for (size_t e = 0; e < Ne; ++e)
-            for (size_t d = 0; d < Nd; ++d)
-                REQUIRE_MESSAGE(computed(c, e, d) == doctest::Approx(sp_b(d, c, e)),
-                                c << " " << e << " " << d << " " << filebase);
 }

@@ -42,10 +42,10 @@ TEST_CASE("test bilerps")
     // clang-format on
 
     auto const clbound       = std::vector<float> {
-              0.9875, 0.9875, 0.9875, 0.9875, 0.9625, 0.9625, 0.9625, 0.9625, 0.9375, 0.9375,
-              0.9125, 0.9125, 0.8875, 0.8625, 0.8625, 0.8375, 0.8125, 0.7875, 0.7625, 0.7375,
-              0.7125, 0.6875, 0.6625, 0.6375, 0.6125, 0.5875, 0.5375, 0.5125, 0.4875, 0.4375,
-              0.4125, 0.3625, 0.3375, 0.2875, 0.2375, -1,     -1,     -1,     -1,     -1
+        0.9875, 0.9875, 0.9875, 0.9875, 0.9625, 0.9625, 0.9625, 0.9625, 0.9375, 0.9375,
+        0.9125, 0.9125, 0.8875, 0.8625, 0.8625, 0.8375, 0.8125, 0.7875, 0.7625, 0.7375,
+        0.7125, 0.6875, 0.6625, 0.6375, 0.6125, 0.5875, 0.5375, 0.5125, 0.4875, 0.4375,
+        0.4125, 0.3625, 0.3375, 0.2875, 0.2375, -1,     -1,     -1,     -1,     -1
     };
 
     auto const cubound = std::vector<float> {
@@ -57,7 +57,7 @@ TEST_CASE("test bilerps")
 
 
     auto Cs = aeff.front.effective_area.cosths;
-    auto IC = std::span(Cs);
+    auto IC = std::span(Cs.data(), Cs.size());
 
     for (size_t i = 0; i < exp_costhetas.size(); ++i)
     {
@@ -92,7 +92,7 @@ TEST_CASE("test bilerps")
     };
 
     auto Es = aeff.front.effective_area.logEs;
-    auto IE = std::span(Es);
+    auto IE = std::span(Es.data(), Es.size());
 
     for (size_t i = 0; i < logE.size(); ++i)
     {
@@ -116,9 +116,9 @@ TEST_CASE("Test Source Exposure Cosine Bins.")
     auto src_exposure_cosbins          = Fermi::src_exp_cosbins(dirs, exp_map);
     auto src_weighted_exposure_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
 
-    md2comp(src_exposure_cosbins, FermiTest::exposure_source_cosine_bins);
-    md2comp(src_weighted_exposure_cosbins,
-            FermiTest::weighted_exposure_source_cosine_bins);
+    et2comp_exprm(src_exposure_cosbins, FermiTest::exposure_source_cosine_bins);
+    et2comp_exprm(src_weighted_exposure_cosbins,
+                  FermiTest::weighted_exposure_source_cosine_bins);
 }
 
 
@@ -164,8 +164,8 @@ TEST_CASE("Test Aeff Value Front")
         = Fermi::aeff_value(exp_costhetas, logEs, aeff.front.effective_area);
     auto back_aeff = Fermi::aeff_value(exp_costhetas, logEs, aeff.back.effective_area);
 
-    md2comp(front_aeff, FermiTest::aeff_front_c_e);
-    md2comp(back_aeff, FermiTest::aeff_back_c_e);
+    et2comp_exprm(front_aeff, FermiTest::aeff_front_c_e);
+    et2comp_exprm(back_aeff, FermiTest::aeff_back_c_e);
 }
 
 TEST_CASE("Test Exposure")
@@ -200,6 +200,8 @@ TEST_CASE("Test Exposure")
     auto const wexp_map                      = Fermi::exp_map(owexpmap.value());
     auto const src_exposure_cosbins          = Fermi::src_exp_cosbins(dirs, exp_map);
     auto const src_weighted_exposure_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
+    long const Nsrc                          = src_exposure_cosbins.dimension(1);
+    long const Ne                            = front_LTF.first.size();
 
     auto const front_aeff
         = Fermi::aeff_value(exp_costhetas, logEs, aeff.front.effective_area);
@@ -207,79 +209,98 @@ TEST_CASE("Test Exposure")
         = Fermi::aeff_value(exp_costhetas, logEs, aeff.back.effective_area);
     SUBCASE("EXPECTED AEFF")
     {
-        md2comp(front_aeff, FermiTest::aeff_front_c_e);
-        md2comp(back_aeff, FermiTest::aeff_back_c_e);
+        et2comp_exprm(front_aeff, FermiTest::aeff_front_c_e);
+        et2comp_exprm(back_aeff, FermiTest::aeff_back_c_e);
     }
 
-    auto const exp_aeff_f = Fermi::contract210(src_exposure_cosbins, front_aeff);
+    // auto const exp_aeff_f = Fermi::contract210(src_exposure_cosbins, front_aeff);
+    Tensor2d const exp_aeff_f
+        = front_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
     SUBCASE("EXPECTED FRONT EXPOSURE VALUE AFTER CONTRACTION WITH COSBINS")
     {
-        md2comp(exp_aeff_f, FermiTest::Aeff::Front::exp_aeff);
+        REQUIRE(exp_aeff_f.dimension(0) == Ne);
+        REQUIRE(exp_aeff_f.dimension(1) == Nsrc);
+        et2comp(exp_aeff_f, FermiTest::Aeff::Front::exp_aeff);
     }
 
-    auto const exp_aeff_b = Fermi::contract210(src_exposure_cosbins, back_aeff);
+    // auto const exp_aeff_b = Fermi::contract210(src_exposure_cosbins, back_aeff);
+    Tensor2d const exp_aeff_b
+        = back_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
     SUBCASE("EXPECTED BACK EXPOSURE VALUE AFTER CONTRACTION WITH COSBINS")
     {
-        md2comp(exp_aeff_b, FermiTest::Aeff::Back::exp_aeff);
+        REQUIRE(exp_aeff_b.dimension(0) == Ne);
+        REQUIRE(exp_aeff_b.dimension(1) == Nsrc);
+        et2comp(exp_aeff_b, FermiTest::Aeff::Back::exp_aeff);
     }
 
-    auto const wexp_aeff_f
-        = Fermi::contract210(src_weighted_exposure_cosbins, front_aeff);
+    // auto const wexp_aeff_f
+    //     = Fermi::contract210(src_weighted_exposure_cosbins, front_aeff);
+    Tensor2d const wexp_aeff_f
+        = front_aeff.contract(src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
     SUBCASE("EXPECTED FRONT WEIGHTED_EXPOSURE VALUE AFTER CONTRACTION WITH COSBINS")
     {
-        md2comp(wexp_aeff_f, FermiTest::Aeff::Front::wexp_aeff);
+        REQUIRE(wexp_aeff_f.dimension(0) == Ne);
+        REQUIRE(wexp_aeff_f.dimension(1) == Nsrc);
+        et2comp(wexp_aeff_f, FermiTest::Aeff::Front::wexp_aeff);
     }
 
-    auto const wexp_aeff_b
-        = Fermi::contract210(src_weighted_exposure_cosbins, back_aeff);
+    // auto const wexp_aeff_b
+    //     = Fermi::contract210(src_weighted_exposure_cosbins, back_aeff);
+    Tensor2d const wexp_aeff_b
+        = back_aeff.contract(src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
     SUBCASE("EXPECTED BACK WEIGHTED_EXPOSURE VALUE AFTER CONTRACTION WITH COSBINS")
     {
-        md2comp(wexp_aeff_b, FermiTest::Aeff::Back::wexp_aeff);
+        REQUIRE(wexp_aeff_b.dimension(0) == Ne);
+        REQUIRE(wexp_aeff_b.dimension(1) == Nsrc);
+        et2comp(wexp_aeff_b, FermiTest::Aeff::Back::wexp_aeff);
     }
 
     SUBCASE("EXPECTED EXPOSURE BIN MATCHES EXPOSURE TEXTFILE")
     {
         const size_t sz_exp = 9994;
         REQUIRE(FermiTest::expected_exposure.size() == sz_exp);
-        auto veexp = std::vector<double>(sz_exp);
+        Tensor2d const stexp = Fermi::row_major_file_to_col_major_tensor(
+            "./xtsrcmaps/tests/expected/exposure.bin", 38, 263);
 
-        std::ifstream exposure_s("./xtsrcmaps/tests/expected/exposure.bin",
-                                 std::ios::in | std::ios::binary);
-        exposure_s.read((char*)(&veexp[0]), sizeof(double) * sz_exp);
-        auto const oeexp = mdarray2(veexp, 263, 38);
-
-        md2comp(oeexp, FermiTest::expected_exposure);
+        et2comp(stexp, FermiTest::expected_exposure);
     }
 
-    auto const lef = Fermi::mul210(exp_aeff_f, front_LTF.first);
+    TensorMap<Tensor2d const> LTFe(front_LTF.first.data(), Ne, 1);
+    TensorMap<Tensor2d const> LTFw(front_LTF.second.data(), Ne, 1);
+
+    // auto const lef = Fermi::mul210(exp_aeff_f, front_LTF.first);
+    Tensor2d const lef = exp_aeff_f * LTFe.broadcast(Idx2 { 1, Nsrc });
     SUBCASE("EXPECTED FRONT EXPOSURE VALUE AFTER LTF SCALING")
     {
         filecomp2(lef, "exposure_lef");
     }
 
-    auto const lwf = Fermi::mul210(wexp_aeff_f, front_LTF.second);
+    // auto const lwf        = Fermi::mul210(wexp_aeff_f, LTFw);
+    Tensor2d const lwf = wexp_aeff_f * LTFw.broadcast(Idx2 { 1, Nsrc });
     SUBCASE("EXPECTED FRONT WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING")
     {
         filecomp2(lwf, "exposure_lwf");
     }
 
-    auto const leb = Fermi::mul210(exp_aeff_b, front_LTF.first);
+    // auto const leb        = Fermi::mul210(exp_aeff_b, LTFe);
+    Tensor2d const leb = exp_aeff_b * LTFe.broadcast(Idx2 { 1, Nsrc });
     SUBCASE("EXPECTED BACK EXPOSURE VALUE AFTER LTF SCALING (Front LTF apparently).")
     {
         filecomp2(leb, "exposure_leb");
     }
 
-    auto const lwb = Fermi::mul210(wexp_aeff_b, front_LTF.second);
+    // auto const lwb        = Fermi::mul210(wexp_aeff_b, LTFw);
+    Tensor2d const lwb = wexp_aeff_b * LTFw.broadcast(Idx2 { 1, Nsrc });
     SUBCASE("EXPECTED BACK WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING (Front LTF "
             "apparently).")
     {
         filecomp2(lwb, "exposure_lwb");
     }
 
-    auto const exposure = Fermi::exposure(src_exposure_cosbins,
-                                          src_weighted_exposure_cosbins,
-                                          front_aeff,
-                                          back_aeff,
-                                          front_LTF);
+    Tensor2d const exposure = Fermi::exposure(src_exposure_cosbins,
+                                              src_weighted_exposure_cosbins,
+                                              front_aeff,
+                                              back_aeff,
+                                              front_LTF);
     SUBCASE("EXPECTED EXPOSURE!") { filecomp2(exposure, "exposure"); }
 }

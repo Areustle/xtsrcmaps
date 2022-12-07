@@ -1,7 +1,7 @@
 #include "xtsrcmaps/genz_malik.hxx"
 #include "xtsrcmaps/tensor_types.hxx"
 
-#include <chrono>
+// #include <chrono>
 #include <iostream>
 
 namespace Fermi::Genz
@@ -164,19 +164,18 @@ rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d
     TensorMap<Tensor1d const> const w(genz_malik_weights_17.data(), 17);
     TensorMap<Tensor1d const> const wE(genz_malik_err_weights_17.data(), 17);
 
-    auto t0         = std::chrono::high_resolution_clock::now();
+    // auto t0         = std::chrono::high_resolution_clock::now();
 
     // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
     Tensor2d result = volume * w.contract(vals, IdxPair1 { { { 0, 0 } } });
-    auto     t1     = std::chrono::high_resolution_clock::now();
+    // auto     t1     = std::chrono::high_resolution_clock::now();
     // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
     Tensor2d res5th = volume * wE.contract(vals, IdxPair1 { { { 0, 0 } } });
-    auto     t2     = std::chrono::high_resolution_clock::now();
+    // auto     t2     = std::chrono::high_resolution_clock::now();
 
-    auto d10        = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-    auto d21        = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-
-    std::cout << " [" << d10 << " " << d21 << "] " << std::flush;
+    // auto d10        = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+    // auto d21        = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+    // std::cout << " [" << d10 << " " << d21 << "] " << std::flush;
 
     // err = np.abs(res5th - result)  # [range_dim, ... ]
     Tensor2d err = (res5th - result).abs(); //  # [range_dim, ... ]

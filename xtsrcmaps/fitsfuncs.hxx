@@ -1,6 +1,6 @@
 #pragma once
 
-// #include "xtsrcmaps/tensor_types.hxx"
+#include "xtsrcmaps/tensor_types.hxx"
 
 #include <array>
 #include <optional>
@@ -50,9 +50,9 @@ read_expcube(std::string const&, std::string const&) -> std::optional<ExposureCu
 
 struct TablePars
 {
-    std::vector<size_t>             extents;
-    std::vector<size_t>             offsets;
-    std::vector<std::vector<float>> rowdata;
+    std::vector<size_t> extents;
+    std::vector<size_t> offsets;
+    Tensor2f            rowdata;
 };
 
 auto

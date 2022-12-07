@@ -8,59 +8,62 @@
 namespace Fermi
 {
 
-auto
-contract210(mdarray2 const& A, mdarray2 const& B) -> mdarray2;
+// auto
+// contract210(Tensor2d const& A, Tensor2d const& B) -> Tensor2d;
+//
+// auto
+// contract3210(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
+//
+// auto
+// mul210(mdarray2 const& A, std::vector<double> const& v) -> mdarray2;
+//
+// auto
+// mul310(mdarray3 const& A, std::vector<double> const& v) -> mdarray3;
+//
+// auto
+// mul32_1(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
+//
+// auto
+// mul322(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
+//
+// auto
+// sum2_2(mdarray2 const& A, mdarray2 const& B) -> mdarray2;
+//
+// auto
+// sum3_3(mdarray3 const& A, mdarray3 const& B) -> mdarray3;
 
-auto
-contract3210(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
+// auto
+// safe_reciprocal(mdarray2 const& A) -> mdarray2;
 
+template <typename T, typename... RMDs>
 auto
-mul210(mdarray2 const& A, std::vector<double> const& v) -> mdarray2;
-
-auto
-mul310(mdarray3 const& A, std::vector<double> const& v) -> mdarray3;
-
-auto
-mul32_1(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
-
-auto
-mul322(mdarray3 const& A, mdarray2 const& B) -> mdarray3;
-
-auto
-sum2_2(mdarray2 const& A, mdarray2 const& B) -> mdarray2;
-
-auto
-sum3_3(mdarray3 const& A, mdarray3 const& B) -> mdarray3;
-
-auto
-safe_reciprocal(mdarray2 const& A) -> mdarray2;
-
-template <typename T, typename... Ds>
-auto
-row_major_file_to_row_major_tensor(std::string const& filename, Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>
+row_major_file_to_row_major_tensor(std::string const& filename,
+                                   RMDs const... row_major_dims)
+    -> Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor>
 {
-    static_assert(sizeof...(Ds) > 0);
-    auto          v = std::vector<T>((... * dims));
+    static_assert(sizeof...(RMDs) > 0);
+    auto          v = std::vector<T>((... * row_major_dims));
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read((char*)(&v[0]), sizeof(T) * (... * dims));
+    ifs.read((char*)(&v[0]), sizeof(T) * (... * row_major_dims));
     ifs.close();
-    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> RMt(v.data(),
-                                                                           dims...);
+    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor>> RMt(
+        v.data(), row_major_dims...);
     return RMt;
 }
 
-template <typename T, typename... Ds>
+template <typename T, typename... CMDs>
 auto
-col_major_file_to_col_major_tensor(std::string const& filename, Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds)>
+col_major_file_to_col_major_tensor(std::string const& filename,
+                                   CMDs const... col_major_dims)
+    -> Eigen::Tensor<T, sizeof...(CMDs)>
 {
-    static_assert(sizeof...(Ds) > 0);
-    auto          v = std::vector<T>((... * dims));
+    static_assert(sizeof...(CMDs) > 0);
+    auto          v = std::vector<T>((... * col_major_dims));
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-    ifs.read((char*)(&v[0]), sizeof(T) * (... * dims));
+    ifs.read((char*)(&v[0]), sizeof(T) * (... * col_major_dims));
     ifs.close();
-    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds)>> CMt(v.data(), dims...);
+    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(CMDs)>> CMt(v.data(),
+                                                            col_major_dims...);
     return CMt;
 }
 
@@ -118,86 +121,51 @@ to_colmajor(Eigen::Tensor<T, Order, Eigen::RowMajor>& rm)
     return rm.swap_layout();
 }
 
-template <typename T = double, typename... Ds>
+template <typename T = double, typename... RMDs>
 auto
 row_major_file_to_col_major_tensor_preserve_order(std::string const& filename,
-                                                  Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds)>
+                                                  RMDs const... row_major_dims)
+    -> Eigen::Tensor<T, sizeof...(RMDs)>
 {
-    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor> rm
-        = row_major_file_to_row_major_tensor<T>(filename, dims...);
+    Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> rm
+        = row_major_file_to_row_major_tensor<T>(filename, row_major_dims...);
     return to_colmajor_preserve_order(rm);
 }
 
-template <typename T = double, typename... Ds>
+template <typename T = double, typename... RMDs>
 auto
-row_major_file_to_col_major_tensor(std::string const& filename, Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds)>
+row_major_file_to_col_major_tensor(std::string const& filename,
+                                   RMDs const... row_major_dims)
+    -> Eigen::Tensor<T, sizeof...(RMDs)>
 {
-    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor> rm
-        = row_major_file_to_row_major_tensor<T>(filename, dims...);
+    Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> rm
+        = row_major_file_to_row_major_tensor<T>(filename, row_major_dims...);
     return rm.swap_layout();
-    // return to_colmajor(rm);
 }
 
-template <typename T = double, typename... Ds>
+template <typename T = double, typename... RMDs>
 auto
-row_major_buffer_to_col_major_tensor_preserve_order(T* buf, Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds)>
+row_major_buffer_to_col_major_tensor_preserve_order(T const* buf,
+                                                    RMDs const... row_major_dims)
+    -> Eigen::Tensor<T, sizeof...(RMDs)>
 {
-    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> rm(buf, dims...);
-    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>                   rmm = rm;
+    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> const> const rm(
+        buf, row_major_dims...);
+    Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> rmm = rm;
     return to_colmajor_preserve_order(rmm);
 }
 
-template <typename T = double, typename... Ds>
+template <typename T = double, typename... RMDs>
 auto
-row_major_buffer_to_col_major_tensor(T* buf, Ds const... dims)
-    -> Eigen::Tensor<T, sizeof...(Ds)>
+row_major_buffer_to_col_major_tensor(T const* buf, RMDs const... row_major_dims)
+    -> Eigen::Tensor<T, sizeof...(RMDs)>
 {
-    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> rm(buf, dims...);
-    Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>                   rmm = rm;
+    Eigen::TensorMap<Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> const> const rm(
+        buf, row_major_dims...);
+    Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor> rmm = rm;
     return rmm.swap_layout();
     // return to_colmajor(rmm);
 }
 
-// namespace detail
-// {
-// template <typename M, size_t... Is>
-// auto
-// row_major_mdarray_to_col_major_tensor(M const& mdarr, std::index_sequence<Is...>
-// const&)
-// {
-//     Eigen::TensorMap<Eigen::Tensor<double, M::rank, Eigen::RowMajor>> rm(
-//         mdarr.data(), M::extent(Is)...);
-//     return to_colmajor(rm);
-// }
-// } // namespace detail
-//
-// template <typename M>
-// auto
-// row_major_mdarray_to_col_major_tensor(M const& mdarr)
-//     -> Eigen::Tensor<typename M::value_type, M::rank(), Eigen::ColMajor>
-// {
-//     return detail::row_major_mdarray_to_col_major_tensor(
-//         mdarr, std::make_index_sequence<M::rank()> {});
-// }
-
-
-
-// template <typename T = double, typename... Ds>
-// auto
-// large_file_rm_to_cm_tensor(std::string const& filename, Ds const... dims)
-//     -> Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>
-// {
-//     static_assert(sizeof...(Ds) > 0);
-//     auto          v = std::vector<T>((... * dims));
-//     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
-//     ifs.read((char*)(&v[0]), sizeof(T) * (... * dims));
-//     ifs.close();
-//     Eigen::TensorMap<Eigen::Tensor<T, sizeof...(Ds), Eigen::RowMajor>> RMt(v.data(),
-//                                                                            dims...);
-//     return RMt;
-// }
 
 } // namespace Fermi

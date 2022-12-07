@@ -4,6 +4,7 @@
 #include "xtsrcmaps/config.hxx"
 #include "xtsrcmaps/irf.hxx"
 #include "xtsrcmaps/misc.hxx"
+#include "xtsrcmaps/tensor_ops.hxx"
 
 #include "xtsrcmaps/tests/fits/aeff_expected.hxx"
 
@@ -17,22 +18,86 @@ TEST_CASE("Load AEFF IRF")
     REQUIRE(oaeff);
     auto aeff = oaeff.value();
 
-    CHECK(aeff.front.effective_area.cosths.size() == 34);
-    CHECK(aeff.front.effective_area.cosths == FermiTest::Aeff::Front::effarea_cosths);
+    CHECK(aeff.front.effective_area.cosths.dimension(0) == 34);
+    std::vector<double> escth(aeff.front.effective_area.cosths.data(),
+                              aeff.front.effective_area.cosths.data() + 34);
+    CHECK(escth == FermiTest::Aeff::Front::effarea_cosths);
     for (size_t i = 0; i < FermiTest::Aeff::Front::effarea_cosths.size(); ++i)
         CHECK(aeff.front.effective_area.cosths[i]
               == FermiTest::Aeff::Front::effarea_cosths[i]);
-    CHECK(aeff.front.effective_area.logEs.size() == 76);
-    CHECK(aeff.front.effective_area.logEs == FermiTest::Aeff::Front::effarea_loge);
 
+    CHECK(aeff.front.effective_area.logEs.size() == 76);
+    std::vector<double> loges(aeff.front.effective_area.logEs.data(),
+                              aeff.front.effective_area.logEs.data() + 76);
+    CHECK(loges == FermiTest::Aeff::Front::effarea_loge);
+    for (size_t i = 0; i < FermiTest::Aeff::Front::effarea_loge.size(); ++i)
+        CHECK(aeff.front.effective_area.logEs[i]
+              == FermiTest::Aeff::Front::effarea_loge[i]);
+
+    CHECK(doctest::Approx(aeff.front.effective_area.minCosTheta) == 0.2);
     CHECK(aeff.front.efficiency_params.p0 != aeff.front.efficiency_params.p1);
 
     auto expect_fr_efp_p0 = std::array<float, 6> { -2.210081, 6.0228114,    -0.52524257,
                                                    2.3434312, -0.073382795, 3.5008383 };
     auto expect_fr_efp_p1 = std::array<float, 6> { 1.9994605, -4.4488373, 0.47518694,
                                                    2.3434312, 0.06638942, 3.5008383 };
+
     CHECK(aeff.front.efficiency_params.p0 == expect_fr_efp_p0);
     CHECK(aeff.front.efficiency_params.p1 == expect_fr_efp_p1);
+
+    REQUIRE(aeff.front.effective_area.params.dimension(0) == 76); // Me
+    REQUIRE(aeff.front.effective_area.params.dimension(1) == 34); // Mc
+    REQUIRE(aeff.front.effective_area.params.dimension(2) == 1);
+
+    // Test effective_area params are what we expect
+    //
+    TensorMap<Tensor2d const> expect_fr_effarea(
+        FermiTest::Aeff::Front::effarea_raw_params.data(), 74, 32);
+
+    // Middle of block Body
+    Tensor2d middle_ea
+        = aeff.front.effective_area.params.slice(Idx3 { 1, 1, 0 }, Idx3 { 74, 32, 1 })
+              .reshape(Idx2 { 74, 32 });
+
+    for (long j = 0; j < middle_ea.dimension(1); ++j)
+    {
+        for (long i = 0; i < middle_ea.dimension(0); ++i)
+        {
+            REQUIRE(doctest::Approx(middle_ea(i, j)) == expect_fr_effarea(i, j));
+        }
+    }
+    // Sides
+    Tensor1d top
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 32, 1 })
+              .reshape(Idx1 { 32 });
+    Tensor1d bottom
+        = aeff.front.effective_area.params.slice(Idx3 { 75, 1, 0 }, Idx3 { 1, 32, 1 })
+              .reshape(Idx1 { 32 });
+    Tensor1d left
+        = aeff.front.effective_area.params.slice(Idx3 { 1, 0, 0 }, Idx3 { 74, 1, 1 })
+              .reshape(Idx1 { 74 });
+    Tensor1d right
+        = aeff.front.effective_area.params.slice(Idx3 { 1, 33, 0 }, Idx3 { 74, 1, 1 })
+              .reshape(Idx1 { 74 });
+    for (long i = 0; i < 32; ++i)
+    {
+        REQUIRE(doctest::Approx(top(i)) == expect_fr_effarea(0, i));
+        REQUIRE(doctest::Approx(bottom(i)) == expect_fr_effarea(73, i));
+    }
+    for (long i = 0; i < 74; ++i)
+    {
+        REQUIRE(doctest::Approx(left(i)) == expect_fr_effarea(i, 0));
+        REQUIRE(doctest::Approx(right(i)) == expect_fr_effarea(i, 31));
+    }
+    // Corners
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 0, 0))
+            == expect_fr_effarea(0, 0));
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(75, 0, 0))
+            == expect_fr_effarea(73, 0));
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 33, 0))
+            == expect_fr_effarea(0, 31));
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(75, 33, 0))
+            == expect_fr_effarea(73, 31));
 }
 
 TEST_CASE("Test Irf Efficiency factor Generation.")

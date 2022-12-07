@@ -69,13 +69,13 @@ constexpr uint64_t operator"" _u64(unsigned long long int const x)
 constexpr double operator"" _deg(long double deg) { return deg * deg2rad; }
 
 constexpr double
-radians(double const x)
+to_radians(double const x)
 {
     // return x * M_PI / 180.;
     return x * deg2rad;
 }
 constexpr double
-degrees(double const x)
+to_degrees(double const x)
 {
     // return x * 180. / M_PI;
     return x * rad2deg;
