@@ -54,7 +54,7 @@ TEST_CASE("Test King")
     auto const opt_psf = Fermi::load_psf(cfg.psf_name);
     REQUIRE(opt_psf);
     auto const psf         = opt_psf.value();
-    auto       separations = Fermi::PSF::separations(1e-4, 70., 400);
+    auto       separations = Fermi::PSF::separations();
     REQUIRE(separations.size() == 401);
     auto expected_separations = std::vector<float> {
         0,           0.0001,      0.000103431, 0.000106979, 0.000110649, 0.000114445,

@@ -3,8 +3,6 @@
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/irf_types.hxx"
 
-#include "experimental/mdspan"
-
 #include <cmath>
 #include <optional>
 #include <vector>

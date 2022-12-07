@@ -1,41 +1,41 @@
 #pragma once
 
-#include "experimental/mdarray"
-#include "experimental/mdspan"
+// #include "experimental/mdarray"
+// #include "experimental/mdspan"
 
 #include "unsupported/Eigen/CXX11/Tensor"
 
-using dyext1   = std::experimental::extents<uint64_t, std::dynamic_extent>;
-using dyext2   = std::experimental::extents<uint64_t,
-                                          std::dynamic_extent, //
-                                          std::dynamic_extent>;
-using dyext3   = std::experimental::extents<uint64_t,
-                                          std::dynamic_extent, //
-                                          std::dynamic_extent,
-                                          std::dynamic_extent>;
-using dyext4   = std::experimental::extents<uint64_t,
-                                          std::dynamic_extent,
-                                          std::dynamic_extent,
-                                          std::dynamic_extent,
-                                          std::dynamic_extent>;
-
-// mdarray
-using mdarray1 = std::experimental::mdarray<double, dyext1>;
-using mdarray2 = std::experimental::mdarray<double, dyext2>;
-using mdarray3 = std::experimental::mdarray<double, dyext3>;
-using mdarray4 = std::experimental::mdarray<double, dyext4>;
-// mdspan
-using mdspan1  = std::experimental::mdspan<double, dyext1>;
-using mdspan2  = std::experimental::mdspan<double, dyext2>;
-using mdspan3  = std::experimental::mdspan<double, dyext3>;
-using mdspan4  = std::experimental::mdspan<double, dyext4>;
-
-
-using coord2   = std::pair<double, double>;
-using coord3   = std::tuple<double, double, double>;
+// using dyext1   = std::experimental::extents<uint64_t, std::dynamic_extent>;
+// using dyext2   = std::experimental::extents<uint64_t,
+//                                           std::dynamic_extent, //
+//                                           std::dynamic_extent>;
+// using dyext3   = std::experimental::extents<uint64_t,
+//                                           std::dynamic_extent, //
+//                                           std::dynamic_extent,
+//                                           std::dynamic_extent>;
+// using dyext4   = std::experimental::extents<uint64_t,
+//                                           std::dynamic_extent,
+//                                           std::dynamic_extent,
+//                                           std::dynamic_extent,
+//                                           std::dynamic_extent>;
+//
+// // mdarray
+// using mdarray1 = std::experimental::mdarray<double, dyext1>;
+// using mdarray2 = std::experimental::mdarray<double, dyext2>;
+// using mdarray3 = std::experimental::mdarray<double, dyext3>;
+// using mdarray4 = std::experimental::mdarray<double, dyext4>;
+// // mdspan
+// using mdspan1  = std::experimental::mdspan<double, dyext1>;
+// using mdspan2  = std::experimental::mdspan<double, dyext2>;
+// using mdspan3  = std::experimental::mdspan<double, dyext3>;
+// using mdspan4  = std::experimental::mdspan<double, dyext4>;
 
 
-using vpd      = std::vector<std::pair<double, double>>;
+using coord2 = std::pair<double, double>;
+using coord3 = std::tuple<double, double, double>;
+
+
+using vpd    = std::vector<std::pair<double, double>>;
 
 using Eigen::Index;
 using Eigen::Sizes;
@@ -49,38 +49,50 @@ using Eigen::ArrayX2d;
 using Eigen::ArrayXd;
 using Eigen::ArrayXXd;
 using Eigen::MatrixXd;
+using Eigen::Vector2d;
 using Eigen::VectorXd;
 
 template <typename T>
 using Map = Eigen::Map<T>;
 template <typename T>
-using TensorMap  = Eigen::TensorMap<T>;
+using TensorMap   = Eigen::TensorMap<T>;
 
-using Tensor0b   = Tensor<bool, 0>;
-using Tensor1b   = Tensor<bool, 1>;
-using Tensor2b   = Tensor<bool, 2>;
-using Tensor3b   = Tensor<bool, 3>;
+using Tensor0b    = Tensor<bool, 0>;
+using Tensor1b    = Tensor<bool, 1>;
+using Tensor2b    = Tensor<bool, 2>;
+using Tensor3b    = Tensor<bool, 3>;
+using Tensor0d    = Tensor<double, 0>;
+using Tensor1d    = Tensor<double, 1>;
+using Tensor2d    = Tensor<double, 2>;
+using Tensor3d    = Tensor<double, 3>;
+using Tensor4d    = Tensor<double, 4>;
+using Tensor0f    = Tensor<float, 0>;
+using Tensor1f    = Tensor<float, 1>;
+using Tensor2f    = Tensor<float, 2>;
+using Tensor3f    = Tensor<float, 3>;
+using Tensor4f    = Tensor<float, 4>;
 
-using Tensor0d   = Tensor<double, 0>;
-using Tensor1d   = Tensor<double, 1>;
-using Tensor2d   = Tensor<double, 2>;
-using Tensor3d   = Tensor<double, 3>;
-using Tensor4d   = Tensor<double, 4>;
+using Tensor1idx  = Tensor<Eigen::Index, 1>;
+using Tensor1byt  = Tensor<unsigned char, 1>;
 
-using Tensor1idx = Tensor<Eigen::Index, 1>;
-using Tensor1byt = Tensor<unsigned char, 1>;
+using Tensor0i    = Tensor<Eigen::DenseIndex, 0>;
+using Tensor1i    = Tensor<Eigen::DenseIndex, 1>;
+using Tensor2i    = Tensor<Eigen::DenseIndex, 2>;
+using Tensor3i    = Tensor<Eigen::DenseIndex, 3>;
+using Tensor4i    = Tensor<Eigen::DenseIndex, 4>;
 
-using Tensor0i   = Tensor<Eigen::DenseIndex, 0>;
-using Tensor1i   = Tensor<Eigen::DenseIndex, 1>;
-using Tensor2i   = Tensor<Eigen::DenseIndex, 2>;
-using Tensor3i   = Tensor<Eigen::DenseIndex, 3>;
-using Tensor4i   = Tensor<Eigen::DenseIndex, 4>;
+using IdxPair     = Eigen::IndexPair<Eigen::Index>;
+using Idx1        = Eigen::array<Eigen::Index, 1>;
+using Idx2        = Eigen::array<Eigen::Index, 2>;
+using Idx3        = Eigen::array<Eigen::Index, 3>;
+using Idx4        = Eigen::array<Eigen::Index, 4>;
+using IdxPair1    = Eigen::array<Eigen::IndexPair<Eigen::Index>, 1>;
 
-using IdxPair    = Eigen::IndexPair<Eigen::Index>;
-using Idx1       = Eigen::array<Eigen::Index, 1>;
-using Idx2       = Eigen::array<Eigen::Index, 2>;
-using Idx3       = Eigen::array<Eigen::Index, 3>;
-using Idx4       = Eigen::array<Eigen::Index, 4>;
-using IdxPair1   = Eigen::array<Eigen::IndexPair<Eigen::Index>, 1>;
+using IdxVec      = Eigen::VectorX<Eigen::DenseIndex>;
 
-using IdxVec     = Eigen::VectorX<Eigen::DenseIndex>;
+using RowTensor1d = Eigen::Tensor<double, 1, Eigen::RowMajor>;
+using RowTensor2d = Eigen::Tensor<double, 2, Eigen::RowMajor>;
+using RowTensor3d = Eigen::Tensor<double, 3, Eigen::RowMajor>;
+using RowTensor1f = Eigen::Tensor<float, 1, Eigen::RowMajor>;
+using RowTensor2f = Eigen::Tensor<float, 2, Eigen::RowMajor>;
+using RowTensor3f = Eigen::Tensor<float, 3, Eigen::RowMajor>;

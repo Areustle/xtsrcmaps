@@ -2,7 +2,7 @@
 
 #include "xtsrcmaps/tensor_types.hxx"
 
-#include "experimental/mdspan"
+// #include "experimental/mdspan"
 
 #include <array>
 #include <cmath>
@@ -13,17 +13,17 @@ namespace Fermi
 
 struct IrfData3
 {
-    std::vector<double> cosths;
-    std::vector<double> logEs;
-    mdarray3            params;
-    double              minCosTheta;
+    Tensor1d cosths;
+    Tensor1d logEs;
+    Tensor3d params;
+    double   minCosTheta;
 
-    auto
-    mdspan() -> mdspan3
-    {
-        return mdspan3(
-            params.data(), params.extent(0), params.extent(1), params.extent(2));
-    }
+    // auto
+    // mdspan() -> mdspan3
+    // {
+    //     return mdspan3(
+    //         params.data(), params.extent(0), params.extent(1), params.extent(2));
+    // }
 };
 
 struct IrfScale
@@ -78,7 +78,7 @@ struct ExposureMap
 {
     std::size_t nside;
     std::size_t nbins;
-    mdarray2    params; // Healpix, CosineBin
+    Tensor2d    params; // Healpix, CosineBin -> CosineBin, Healpix
 };
 
 

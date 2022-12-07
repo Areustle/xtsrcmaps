@@ -75,12 +75,13 @@ TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.size() == 1);
-        CHECK(v.rowdata[0].size() == expected.rowdata.size());
+        CHECK(v.rowdata.dimension(1) == 1);
+        CHECK(v.rowdata.dimension(0) == expected.rowdata.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
-        CHECK(v.rowdata[0] == expected.rowdata);
+        std::vector<float> vv(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        CHECK(vv == expected.rowdata);
     };
 
     // FRONT
@@ -109,12 +110,14 @@ TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT"
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.size() == 1);
-        CHECK(v.rowdata[0].size() == expected.rowdata.size());
+        CHECK(v.rowdata.dimension(1) == 1);
+        CHECK(v.rowdata.dimension(0) == expected.rowdata.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
-        CHECK(v.rowdata[0] == expected.rowdata);
+        // CHECK(v.rowdata[0] == expected.rowdata);
+        std::vector<float> vv(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        CHECK(vv == expected.rowdata);
     };
 
     auto testAEFF2 = [](std::string tablename, auto expected) -> void {
@@ -127,14 +130,16 @@ TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT"
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.size() == 2);
-        CHECK(v.rowdata[0].size() == expected.rowdata0.size());
-        CHECK(v.rowdata[1].size() == expected.rowdata1.size());
+        CHECK(v.rowdata.dimension(1) == 2);
+        CHECK(v.rowdata.dimension(0) == expected.rowdata0.size());
+        CHECK(v.rowdata.dimension(0) == expected.rowdata1.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
-        CHECK(v.rowdata[0] == expected.rowdata0);
-        CHECK(v.rowdata[1] == expected.rowdata1);
+        std::vector<float> v0(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        CHECK(v0 == expected.rowdata0);
+        std::vector<float> v1(&v.rowdata(0, 1), &v.rowdata(0, 2));
+        CHECK(v1 == expected.rowdata1);
     };
 
     // FRONT

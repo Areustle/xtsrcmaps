@@ -161,7 +161,7 @@ Fermi::ModelMap::pixel_mean_psf(long const      Nh,
 
     for (long s = 0; s < Ns; ++s)
     {
-        auto t0                 = std::chrono::high_resolution_clock::now();
+        // auto t0                 = std::chrono::high_resolution_clock::now();
         // A slice of the PSF table just for this source's segment of the table.
         Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
                                       .reshape(Idx2 { Nd, Ne })
@@ -182,7 +182,7 @@ Fermi::ModelMap::pixel_mean_psf(long const      Nh,
         // View of the results buffer
         Map<MatrixXd> result_value(xtpsf.data() + s * Ne * Nevts, Ne, Nevts);
 
-        auto t1 = std::chrono::high_resolution_clock::now();
+        // auto t1 = std::chrono::high_resolution_clock::now();
         // The Genz Malik Integration rule adapted for this problem.
         Genz::integrate_region(integrand,
                                get_dir_points,
@@ -192,11 +192,11 @@ Fermi::ModelMap::pixel_mean_psf(long const      Nh,
                                volume,
                                dir_points,
                                ftol_threshold);
-        auto t2  = std::chrono::high_resolution_clock::now();
-        auto d10 = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-        auto d21 = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-        std::cout << " mm: [" << d10 << " " << d21 << "] " << std::flush;
-        std::cout << std::endl;
+        // auto t2  = std::chrono::high_resolution_clock::now();
+        // auto d10 = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+        // auto d21 = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+        // std::cout << " mm: [" << d10 << " " << d21 << "] " << std::flush;
+        // std::cout << std::endl;
     }
 
     return xtpsf;
@@ -265,11 +265,11 @@ Fermi::ModelMap::scale_psf_by_solid_angle(Tensor4d& pixpsf, SkyGeom const& skyge
 }
 
 inline auto
-segment_point_nearest_to_source(Eigen::Vector2d const& v,
-                                Eigen::Vector2d const& p0,
-                                Eigen::Vector2d const& p1,
-                                double const&          c1,
-                                double const&          c2) -> Eigen::Vector2d
+point_nearest_to_source_on_segment(Eigen::Vector2d const& v,
+                                   Eigen::Vector2d const& p0,
+                                   Eigen::Vector2d const& p1,
+                                   double const&          c1,
+                                   double const&          c2) -> Eigen::Vector2d
 {
     // v = p1 - p0
     // if ((w.v)=c1 <= 0) then before P0 return p0
@@ -284,7 +284,6 @@ Fermi::ModelMap::compute_psf_map_corrections(Tensor4d const& pixpsf,
                                              SkyGeom const&  skygeom)
     -> std::tuple<Tensor2d, std::vector<double>>
 {
-    using Eigen::Vector2d;
     long const Ne = pixpsf.dimension(0);
     long const Nh = pixpsf.dimension(1);
     long const Nw = pixpsf.dimension(2);
@@ -342,10 +341,10 @@ Fermi::ModelMap::compute_psf_map_corrections(Tensor4d const& pixpsf,
         if (!is_in_fov) { break; }
 
         // Points on boundary of FOV nearest to the source.
-        Vector2d pSAB    = segment_point_nearest_to_source(AB, A, B, AS_AB, lenAB);
-        Vector2d pSAD    = segment_point_nearest_to_source(AD, A, D, AS_AD, lenAD);
-        Vector2d pSCB    = segment_point_nearest_to_source(CB, C, B, CS_CB, lenCB);
-        Vector2d pSCD    = segment_point_nearest_to_source(CD, C, D, CS_CD, lenCD);
+        Vector2d pSAB    = point_nearest_to_source_on_segment(AB, A, B, AS_AB, lenAB);
+        Vector2d pSAD    = point_nearest_to_source_on_segment(AD, A, D, AS_AD, lenAD);
+        Vector2d pSCB    = point_nearest_to_source_on_segment(CB, C, B, CS_CB, lenCB);
+        Vector2d pSCD    = point_nearest_to_source_on_segment(CD, C, D, CS_CD, lenCD);
 
         // Distance between the source and the boundary lines of the field of view;
         double const dAB = sph_diff(S, pSAB, skygeom);

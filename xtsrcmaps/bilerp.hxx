@@ -6,6 +6,8 @@
 #include <tuple>
 #include <vector>
 
+#include "xtsrcmaps/tensor_types.hxx"
+
 namespace Fermi
 {
 
@@ -26,21 +28,27 @@ lerp_pars(std::vector<double> const&,
     -> std::vector<std::tuple<double, double, size_t>>;
 
 auto
+lerp_pars(Tensor1d const&,
+          std::vector<double> const&,
+          std::optional<double> const = std::nullopt)
+    -> std::vector<std::tuple<double, double, size_t>>;
+
+auto
 separations_lerp_pars(double const ds, std::vector<double> const& sep)
     -> std::tuple<double, double, size_t>;
 
 inline auto
-bilerp(std::tuple<double, double, size_t> const& ct,
-       std::tuple<double, double, size_t> const& et,
+bilerp(std::tuple<double, double, size_t> const& et,
+       std::tuple<double, double, size_t> const& ct,
        auto const&                               IP) -> double
 {
     auto const& [c_weight, c_complement, c_index] = ct;
     auto const& [e_weight, e_complement, e_index] = et;
 
-    return c_complement * e_complement * IP(c_index - 1, e_index - 1) //
-           + c_weight * e_complement * IP(c_index, e_index - 1)       //
-           + c_complement * e_weight * IP(c_index - 1, e_index)       //
-           + c_weight * e_weight * IP(c_index, e_index);              //
+    return c_complement * e_complement * IP(e_index - 1, c_index - 1) //
+           + c_complement * e_weight * IP(e_index, c_index - 1)       //
+           + c_weight * e_complement * IP(e_index - 1, c_index)       //
+           + c_weight * e_weight * IP(e_index, c_index);              //
 }
 
 auto

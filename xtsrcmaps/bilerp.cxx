@@ -1,6 +1,6 @@
 #include "xtsrcmaps/bilerp.hxx"
 
-#include "xtsrcmaps/psf.hxx"
+// #include "xtsrcmaps/psf.hxx"
 
 #include <algorithm>
 #include <cassert>
@@ -56,16 +56,33 @@ Fermi::lerp_pars(std::vector<double> const&  rng,
 }
 
 auto
-Fermi::separations_lerp_pars(double const ds, std::vector<double> const& sep)
-    -> std::tuple<double, double, size_t>
+Fermi::lerp_pars(Tensor1d const&             rng,
+                 std::vector<double> const&  vals,
+                 std::optional<double> const zero_lower_bound)
+    -> std::vector<std::tuple<double, double, size_t>>
 {
-    double      vd     = PSF::inverse_separation(ds);
-    size_t      i      = size_t(vd);
-    auto const& sep_lo = sep[i];
-    auto const& sep_hi = sep[i + 1];
-    auto const  tt     = (vd - sep_lo) / (sep_hi - sep_lo);
-    return { tt, 1 - tt, i };
+    auto sp    = std::span(rng.data(), rng.size());
+    auto lerps = std::vector<std::tuple<double, double, size_t>>(vals.size());
+    std::transform(vals.cbegin(),
+                   vals.cend(),
+                   lerps.begin(), //
+                   [&](auto const& v) -> std::tuple<double, double, size_t> {
+                       return lerp_pars(sp, v, zero_lower_bound);
+                   });
+    return lerps;
 }
+
+// auto
+// Fermi::separations_lerp_pars(double const ds, std::vector<double> const& sep)
+//     -> std::tuple<double, double, size_t>
+// {
+//     double      vd     = PSF::inverse_separation(ds);
+//     size_t      i      = size_t(vd);
+//     auto const& sep_lo = sep[i];
+//     auto const& sep_hi = sep[i + 1];
+//     auto const  tt     = (vd - sep_lo) / (sep_hi - sep_lo);
+//     return { tt, 1 - tt, i };
+// }
 
 
 auto

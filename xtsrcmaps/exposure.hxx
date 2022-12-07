@@ -17,20 +17,19 @@ exp_costhetas(fits::ExposureCubeData const&) -> std::vector<double>;
 
 auto
 src_exp_cosbins(std::vector<std::pair<double, double>> const&, ExposureMap const&)
-    -> mdarray2;
+    -> Tensor2d;
 
 auto
 aeff_value(std::vector<double> const&, std::vector<double> const&, IrfData3 const&)
-    -> mdarray2;
+    -> Tensor2d;
 
 auto
-exposure(mdarray2 const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
-         mdarray2 const& src_weighted_exposure_cosbins, /*[Nsrc, Nc]*/
-         mdarray2 const& front_aeff,                    /*[Nc, Ne]*/
-         mdarray2 const& back_aeff,                     /*[Nc, Ne]*/
-         std::pair<std::vector<double>, std::vector<double>> const& front_ltfs /*[Ne]*/
-         // std::pair<std::vector<double>, std::vector<double>> const& back_ltfs   /*[Ne]*/
-         ) -> mdarray2;
+exposure(Tensor2d const& src_exposure_cosbins,
+         Tensor2d const& src_weighted_exposure_cosbins,
+         Tensor2d const& front_aeff,
+         Tensor2d const& back_aeff,
+         std::pair<std::vector<double>, std::vector<double>> const& front_ltfs)
+    -> Tensor2d;
 
 
 } // namespace Fermi

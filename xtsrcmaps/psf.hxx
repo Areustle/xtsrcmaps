@@ -24,8 +24,8 @@ using SepArr          = std::array<double, 401>;
 /// Given a PSF IRF grid and a set of separations, compute the King/Moffat results
 /// for every entry in the table and every separation.
 ///////////////////////////////////////////////////////////////////////////////////////
-auto
-king(SepArr const& deltas, irf::psf::Data const& data) -> mdarray3; //[Nd, Me, Mc]
+// auto
+// king(SepArr const& deltas, irf::psf::Data const& data) -> Tensor3d;
 
 
 // constexpr auto
@@ -98,7 +98,7 @@ mean_psf(                                //
     mdarray2 const& exposure /*[Ns, Ne]*/) -> mdarray3;
 
 auto
-partial_total_integral(std::vector<double> const& deltas, mdarray3 const& mean_psf)
+partial_total_integral(SepArr const& deltas, mdarray3 const& mean_psf)
     -> std::pair<mdarray3, mdarray2>;
 
 auto
