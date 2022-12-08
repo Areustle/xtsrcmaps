@@ -118,16 +118,14 @@ Fermi::aeff_value(vector<double> const& costhet,
     auto const& IC = AeffData.cosths;
     auto const& IE = AeffData.logEs;
 
-    assert(AeffData.params.dimension(2) == 1);
+    assert(AeffData.params.dimension(0) == 1);
     TensorMap<Tensor2d const> IP(AeffData.params.data(),
-                                 AeffData.params.dimension(0),
-                                 AeffData.params.dimension(1));
-
+                                 AeffData.params.dimension(1),
+                                 AeffData.params.dimension(2));
 
     co_aeff_value_base(R, C, E, IC, IE, IP, AeffData.minCosTheta);
 
     // [E,C]
-    // return mdarray2(aeff, R.extent(0), R.extent(1));
     return R;
 }
 

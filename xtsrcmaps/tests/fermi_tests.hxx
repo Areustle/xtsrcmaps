@@ -67,11 +67,11 @@ template <typename T = double>
 auto
 filecomp3(Tensor3d const& computed, std::string const& filebase) -> void
 {
-    Tensor2d const sp_b = Fermi::row_major_file_to_col_major_tensor(
+    Tensor3d const sp_b = Fermi::row_major_file_to_col_major_tensor(
         "./xtsrcmaps/tests/expected/" + filebase + ".bin",
-        computed.dimension(0),
+        computed.dimension(2),
         computed.dimension(1),
-        computed.dimension(2));
+        computed.dimension(0));
 
     for (long k = 0; k < computed.dimension(2); ++k)
         for (long j = 0; j < computed.dimension(1); ++j)

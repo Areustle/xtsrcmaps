@@ -14,7 +14,7 @@ add_library(
   healpix.cxx
   bilerp.cxx
   exposure.cxx
-  # psf.cxx
+  psf.cxx
   # genz_malik.cxx
   # model_map.cxx
 )

@@ -11,7 +11,6 @@
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/irf.hxx"
 #include "xtsrcmaps/misc.hxx"
-#include "xtsrcmaps/model_map.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
 #include "xtsrcmaps/psf.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
@@ -93,7 +92,7 @@ TEST_CASE("Test uPsf")
     //********************************************************************************
     // Exposure
     //********************************************************************************
-    auto const exposure      = Fermi::exposure(src_exposure_cosbins,
+    auto const exposure    = Fermi::exposure(src_exposure_cosbins,
                                           src_weighted_exposure_cosbins,
                                           front_aeff,
                                           back_aeff,
@@ -102,11 +101,14 @@ TEST_CASE("Test uPsf")
     //********************************************************************************
     // Mean PSF Computations
     //********************************************************************************
-    auto const separations   = Fermi::PSF::separations();
     // D,Mc,Me
-    auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
-    auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
-    // C,E,D
+    // Me,Mc,D
+    // [E C D]
+    auto const front_kings = Fermi::PSF::king(psf_irf.front);
+    auto const back_kings  = Fermi::PSF::king(psf_irf.back);
+    SUBCASE("Kings") { filecomp3(front_kings, "king_front"); }
+
+    // D E C
     auto const front_obs_psf = Fermi::PSF::bilerp(exp_costhetas,
                                                   logEs,
                                                   psf_irf.front.rpsf.cosths,
@@ -118,7 +120,6 @@ TEST_CASE("Test uPsf")
                                                  psf_irf.back.rpsf.cosths,
                                                  psf_irf.back.rpsf.logEs,
                                                  back_kings);
-
 
     auto const front_corr_exp_psf
         = Fermi::PSF::corrected_exposure_psf(front_obs_psf,
@@ -135,20 +136,18 @@ TEST_CASE("Test uPsf")
                                              /*Stays front for now.*/ front_LTF);
 
 
+    // [Nd, Ne, Ns]
     auto uPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
     SUBCASE("u PSF") { filecomp3(uPsf, "mean_psf"); }
 
-    auto [partinteg, totinteg] = Fermi::PSF::partial_total_integral(separations, uPsf);
-    SUBCASE("uPsf_part_int_SED") { filecomp3(partinteg, "uPsf_part_int_SED"); }
-
-    Fermi::PSF::normalize(uPsf, totinteg);
-    SUBCASE("uPsf_normalized") { filecomp3(uPsf, "uPsf_normalized_SED"); }
-
-    auto peak = Fermi::PSF::peak_psf(uPsf);
-    SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE"); }
-
-    // auto model_map = Fermi::point_src_model_map_wcs(100., 100., dirs, uPsf, { ccube
-    // });
+    // auto [partinteg, totinteg] = Fermi::PSF::partial_total_integral(uPsf);
+    // SUBCASE("uPsf_part_int_SED") { filecomp3(partinteg, "uPsf_part_int_SED"); }
+    //
+    // Fermi::PSF::normalize(uPsf, totinteg);
+    // SUBCASE("uPsf_normalized") { filecomp3(uPsf, "uPsf_normalized_SED"); }
+    //
+    // auto peak = Fermi::PSF::peak_psf(uPsf);
+    // SUBCASE("peak") { filecomp2(peak, "uPsf_peak_SE"); }
 }
 
 // TEST_CASE("Test PSF")

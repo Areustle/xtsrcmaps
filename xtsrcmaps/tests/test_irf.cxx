@@ -45,9 +45,9 @@ TEST_CASE("Load AEFF IRF")
     CHECK(aeff.front.efficiency_params.p0 == expect_fr_efp_p0);
     CHECK(aeff.front.efficiency_params.p1 == expect_fr_efp_p1);
 
-    REQUIRE(aeff.front.effective_area.params.dimension(0) == 76); // Me
-    REQUIRE(aeff.front.effective_area.params.dimension(1) == 34); // Mc
-    REQUIRE(aeff.front.effective_area.params.dimension(2) == 1);
+    REQUIRE(aeff.front.effective_area.params.dimension(0) == 1);
+    REQUIRE(aeff.front.effective_area.params.dimension(1) == 76); // Me
+    REQUIRE(aeff.front.effective_area.params.dimension(2) == 34); // Mc
 
     // Test effective_area params are what we expect
     //
@@ -56,7 +56,7 @@ TEST_CASE("Load AEFF IRF")
 
     // Middle of block Body
     Tensor2d middle_ea
-        = aeff.front.effective_area.params.slice(Idx3 { 1, 1, 0 }, Idx3 { 74, 32, 1 })
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 1, 1 }, Idx3 { 1, 74, 32 })
               .reshape(Idx2 { 74, 32 });
 
     for (long j = 0; j < middle_ea.dimension(1); ++j)
@@ -68,16 +68,16 @@ TEST_CASE("Load AEFF IRF")
     }
     // Sides
     Tensor1d top
-        = aeff.front.effective_area.params.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 32, 1 })
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 0, 1 }, Idx3 { 1, 1, 32 })
               .reshape(Idx1 { 32 });
     Tensor1d bottom
-        = aeff.front.effective_area.params.slice(Idx3 { 75, 1, 0 }, Idx3 { 1, 32, 1 })
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 75, 1 }, Idx3 { 1, 1, 32 })
               .reshape(Idx1 { 32 });
     Tensor1d left
-        = aeff.front.effective_area.params.slice(Idx3 { 1, 0, 0 }, Idx3 { 74, 1, 1 })
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 74, 1 })
               .reshape(Idx1 { 74 });
     Tensor1d right
-        = aeff.front.effective_area.params.slice(Idx3 { 1, 33, 0 }, Idx3 { 74, 1, 1 })
+        = aeff.front.effective_area.params.slice(Idx3 { 0, 1, 33 }, Idx3 { 1, 74, 1 })
               .reshape(Idx1 { 74 });
     for (long i = 0; i < 32; ++i)
     {
@@ -92,11 +92,11 @@ TEST_CASE("Load AEFF IRF")
     // Corners
     REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 0, 0))
             == expect_fr_effarea(0, 0));
-    REQUIRE(doctest::Approx(aeff.front.effective_area.params(75, 0, 0))
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 75, 0))
             == expect_fr_effarea(73, 0));
-    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 33, 0))
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 0, 33))
             == expect_fr_effarea(0, 31));
-    REQUIRE(doctest::Approx(aeff.front.effective_area.params(75, 33, 0))
+    REQUIRE(doctest::Approx(aeff.front.effective_area.params(0, 75, 33))
             == expect_fr_effarea(73, 31));
 }
 
