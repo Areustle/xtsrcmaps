@@ -100,32 +100,32 @@ main()
                                                  psf_irf.back.rpsf.cosths,
                                                  psf_irf.back.rpsf.logEs,
                                                  back_kings);
-    // auto const front_corr_exp_psf
-    //     = Fermi::PSF::corrected_exposure_psf(front_psf_val,
-    //                                          front_aeff,
-    //                                          src_exposure_cosbins,
-    //                                          src_weighted_exposure_cosbins,
-    //                                          front_LTF);
-    // auto const back_corr_exp_psf
-    //     = Fermi::PSF::corrected_exposure_psf(back_psf_val,
-    //                                          back_aeff,
-    //                                          src_exposure_cosbins,
-    //                                          src_weighted_exposure_cosbins,
-    //                                          /*Stays front for now.*/ front_LTF);
+    auto const front_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(front_psf_val,
+                                             front_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             front_LTF);
+    auto const back_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(back_psf_val,
+                                             back_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             /*Stays front for now.*/ front_LTF);
+
+    auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
+    auto MDuPeak   = Fermi::PSF::peak_psf(MDuPsf);
+
+
+    // long Ns             = 263;
+    // long Ne             = 38;
+    // long Nd             = 401;
     //
-    // auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
-    // auto MDuPeak        = Fermi::PSF::peak_psf(MDuPsf);
-
-
-    long Ns             = 263;
-    long Ne             = 38;
-    long Nd             = 401;
-
-    Tensor3d const uPsf = Fermi::row_major_file_to_col_major_tensor(
-        "./xtsrcmaps/tests/expected/uPsf_normalized_SED.bin", Ns, Ne, Nd);
-    assert(uPsf.dimension(0) == Nd);
-    assert(uPsf.dimension(1) == Ne);
-    assert(uPsf.dimension(2) == Ns);
+    // Tensor3d const uPsf = Fermi::row_major_file_to_col_major_tensor(
+    //     "./xtsrcmaps/tests/expected/uPsf_normalized_SED.bin", Ns, Ne, Nd);
+    // assert(uPsf.dimension(0) == Nd);
+    // assert(uPsf.dimension(1) == Ne);
+    // assert(uPsf.dimension(2) == Ns);
 
     // Tensor2d const uPeak = Fermi::row_major_file_to_col_major_tensor(
     //     "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", Ns, Ne);
@@ -133,5 +133,5 @@ main()
     // assert(uPeak.dimension(1) == Ns);
 
     auto model_map = Fermi::ModelMap::point_src_model_map_wcs(
-        100, 100, dirs, uPsf, { ccube }, 1e-3);
+        100, 100, dirs, MDuPsf, { ccube }, 1e-3);
 }
