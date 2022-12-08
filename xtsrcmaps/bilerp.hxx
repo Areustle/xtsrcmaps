@@ -40,7 +40,7 @@ separations_lerp_pars(double const ds, std::vector<double> const& sep)
 inline auto
 bilerp(std::tuple<double, double, size_t> const& et,
        std::tuple<double, double, size_t> const& ct,
-       auto const&                               IP) -> double
+       Tensor2d const&                           IP) -> double
 {
     auto const& [c_weight, c_complement, c_index] = ct;
     auto const& [e_weight, e_complement, e_index] = et;

@@ -87,9 +87,9 @@ main()
     //********************************************************************************
     // Mean PSF Computations
     //********************************************************************************
-    auto const separations   = Fermi::PSF::separations();
-    auto const front_kings   = Fermi::PSF::king(separations, psf_irf.front);
-    auto const back_kings    = Fermi::PSF::king(separations, psf_irf.back);
+    // auto const separations   = Fermi::PSF::separations();
+    auto const front_kings   = Fermi::PSF::king(psf_irf.front);
+    auto const back_kings    = Fermi::PSF::king(psf_irf.back);
     auto const front_psf_val = Fermi::PSF::bilerp(exp_costhetas,
                                                   logEs,
                                                   psf_irf.front.rpsf.cosths,
@@ -100,21 +100,21 @@ main()
                                                  psf_irf.back.rpsf.cosths,
                                                  psf_irf.back.rpsf.logEs,
                                                  back_kings);
-    auto const front_corr_exp_psf
-        = Fermi::PSF::corrected_exposure_psf(front_psf_val,
-                                             front_aeff,
-                                             src_exposure_cosbins,
-                                             src_weighted_exposure_cosbins,
-                                             front_LTF);
-    auto const back_corr_exp_psf
-        = Fermi::PSF::corrected_exposure_psf(back_psf_val,
-                                             back_aeff,
-                                             src_exposure_cosbins,
-                                             src_weighted_exposure_cosbins,
-                                             /*Stays front for now.*/ front_LTF);
-
-    auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
-    auto MDuPeak        = Fermi::PSF::peak_psf(MDuPsf);
+    // auto const front_corr_exp_psf
+    //     = Fermi::PSF::corrected_exposure_psf(front_psf_val,
+    //                                          front_aeff,
+    //                                          src_exposure_cosbins,
+    //                                          src_weighted_exposure_cosbins,
+    //                                          front_LTF);
+    // auto const back_corr_exp_psf
+    //     = Fermi::PSF::corrected_exposure_psf(back_psf_val,
+    //                                          back_aeff,
+    //                                          src_exposure_cosbins,
+    //                                          src_weighted_exposure_cosbins,
+    //                                          /*Stays front for now.*/ front_LTF);
+    //
+    // auto MDuPsf = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
+    // auto MDuPeak        = Fermi::PSF::peak_psf(MDuPsf);
 
 
     long Ns             = 263;

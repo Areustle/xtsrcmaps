@@ -10,51 +10,20 @@
 #include "xtsrcmaps/psf.hxx"
 #include "xtsrcmaps/source_utils.hxx"
 #include "xtsrcmaps/tensor_ops.hxx"
-
-auto
-veq(auto v1, auto v2) -> void
-{
-    REQUIRE(v1.size() == v2.size());
-    for (size_t i = 0; i < v1.size(); ++i) REQUIRE(v1[i] == doctest::Approx(v2[i]));
-}
-
-auto
-filecompDCE(mdarray3 const&    computed,
-            std::string const& filebase,
-            size_t const       ext0 = 401,
-            size_t const       ext1 = 10,
-            size_t const       ext2 = 25) -> void
-{
-    const size_t sz_exp = ext0 * ext1 * ext2;
-    REQUIRE(computed.size() == sz_exp);
-    REQUIRE(computed.extent(0) == ext0);
-    REQUIRE(computed.extent(1) == ext1);
-    auto expected = std::vector<double>(sz_exp);
-
-    std::ifstream ifs("./xtsrcmaps/tests/expected/" + filebase + ".bin",
-                      std::ios::in | std::ios::binary);
-    ifs.read((char*)(&expected[0]), sizeof(double) * sz_exp);
-    ifs.close();
-
-    // md2comp(computed, expected);
-    REQUIRE(computed.size() == expected.size());
-    auto sp_b = std::experimental::mdspan(
-        expected.data(), computed.extent(0), computed.extent(1), computed.extent(2));
-    for (size_t i = 0; i < computed.extent(0); ++i)
-        for (size_t j = 0; j < computed.extent(1); ++j)
-            for (size_t k = 0; k < computed.extent(2); ++k)
-                REQUIRE_MESSAGE(computed(i, j, k) == doctest::Approx(sp_b(i, j, k)),
-                                i << " " << j << " "
-                                  << " " << k << " " << filebase);
-}
+#include "xtsrcmaps/tests/fermi_tests.hxx"
 
 TEST_CASE("Test King")
 {
     auto const cfg     = Fermi::XtCfg();
     auto const opt_psf = Fermi::load_psf(cfg.psf_name);
     REQUIRE(opt_psf);
-    auto const psf         = opt_psf.value();
-    auto       separations = Fermi::PSF::separations();
+    auto const psf = opt_psf.value();
+
+    REQUIRE(psf.front.rpsf.params.dimension(0) == 6);
+    REQUIRE(psf.front.rpsf.params.dimension(1) == psf.front.rpsf.logEs.size());
+    REQUIRE(psf.front.rpsf.params.dimension(2) == psf.front.rpsf.cosths.size());
+
+    auto separations = Fermi::PSF::separations();
     REQUIRE(separations.size() == 401);
     auto expected_separations = std::vector<float> {
         0,           0.0001,      0.000103431, 0.000106979, 0.000110649, 0.000114445,
@@ -382,6 +351,6 @@ TEST_CASE("Test King")
     // };
     // SUBCASE("front rpsf") { veq(psf.front.rpsf.params.container(), expected_rpsf); }
 
-    auto kings = Fermi::PSF::king(separations, psf.front);
-    SUBCASE("Kings") { filecompDCE(kings, "king_front"); }
+    auto kings = Fermi::PSF::king(psf.front);
+    SUBCASE("Kings") { filecomp3(kings, "king_front"); }
 }

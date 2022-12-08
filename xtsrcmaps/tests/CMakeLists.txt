@@ -9,8 +9,8 @@ add_executable(
   test_irf.cxx
   test_healpix.cxx
   test_exposure.cxx
-  # test_king.cxx
-  # test_psf.cxx
+  test_king.cxx
+  test_psf.cxx
   # test_model_map_v2.cxx
 )
 target_link_libraries(

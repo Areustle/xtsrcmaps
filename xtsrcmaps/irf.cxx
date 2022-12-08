@@ -103,7 +103,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
     logEs(M_e - 1)  = 10.;
 
     long     Ngrids = extents.size() - 4;
-    Tensor3d params(M_e, M_t, Ngrids); // Note column major Tensor.
+    Tensor3d params(Ngrids, M_e, M_t); // Note column major Tensor.
 
     TensorMap<Tensor3f const> pv(row.data() + offsets[4], M_e_base, M_t_base, Ngrids);
 
@@ -117,12 +117,12 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
             for (long e = 0; e < M_e; ++e) // energy
             {
                 long const e_   = e == 0 ? 0 : e >= M_e_base ? M_e_base - 1 : e - 1;
-                params(e, t, p) = pv(e_, t_, p);
+                params(p, e, t) = pv(e_, t_, p);
             }
         }
     }
 
-    return { cosths, logEs, params, row(off_cos0) }; // row[offsets[2]] };
+    return { cosths, logEs, params, row(off_cos0) };
 }
 
 auto
