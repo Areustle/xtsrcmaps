@@ -15,8 +15,8 @@ add_library(
   bilerp.cxx
   exposure.cxx
   psf.cxx
-  # genz_malik.cxx
-  # model_map.cxx
+  genz_malik.cxx
+  model_map.cxx
 )
 
 add_library(Fermi::xtsrcmaps_lib ALIAS xtsrcmaps_lib)
@@ -26,8 +26,8 @@ target_link_libraries(
   PRIVATE fmt::fmt PkgConfig::cfitsio
 )
 
-# add_executable(xtsrcmaps xtsrcmaps.cxx)
-# target_link_libraries(xtsrcmaps PRIVATE fmt::fmt Fermi::xtsrcmaps_lib)
+add_executable(xtsrcmaps xtsrcmaps.cxx)
+target_link_libraries(xtsrcmaps PRIVATE fmt::fmt Fermi::xtsrcmaps_lib)
 
 # Tests ####
 add_subdirectory(tests)

@@ -37,28 +37,6 @@ king_single(double const sep, Tensor1d const& pars) noexcept -> double
     // x ^ -g as exp(-g * ln(x)) with SIMD log and exp.
 }
 
-// A               [Nd, Mc, Me] -> [Ne, Nc, Nd]
-// D (Separations) [Nd]
-// P (IRF Params)  [Mc, Me, 6] -> [6, Ne, Nc]
-inline void
-co_king_base(Tensor3d& A, Tensor1d const& D, Tensor3d const& P) noexcept
-{
-    assert(P.dimension(0) == 6);
-
-    for (long d = 0; d < A.dimension(2); ++d)
-    {
-        for (long c = 0; c < A.dimension(1); ++c)
-        {
-            for (long e = 0; e < A.dimension(0); ++e)
-            {
-                A(e, c, d) = king_single(
-                    D(d),
-                    P.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 }).reshape(Idx1 { 6 }));
-            }
-        }
-    }
-}
-
 //[Nd, Nc, Ne] -> [Ne, Nc, Nd]
 auto
 Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d
@@ -79,64 +57,39 @@ Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d
 
     Tensor3d Kings(Ne, Nc, Nd);
 
-    co_king_base(Kings, delta, psf_grid.params);
+    // // co_king_base(Kings, delta, psf_grid.params);
+    // Kings               [Nd, Mc, Me] -> [Ne, Nc, Nd]
+    // delta (Separations) [Nd]
+    // psf_grid.params (IRF Params)  [Mc, Me, 6] -> [6, Ne, Nc]
+    auto const& P = psf_grid.params;
+    assert(P.dimension(0) == 6);
+    assert(P.dimension(1) == Ne);
+    assert(P.dimension(2) == Nc);
+
+    for (long d = 0; d < Nd; ++d)
+    {
+        for (long c = 0; c < Nc; ++c)
+        {
+            for (long e = 0; e < Ne; ++e)
+            {
+                Kings(e, c, d) = king_single(
+                    delta(d),
+                    P.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 }).reshape(Idx1 { 6 }));
+            }
+        }
+    }
 
     // [E C D]
     return Kings;
 }
 
 
-// R  (psf_bilerp result) [Nc, Ne, Nd] -> [Nd, Ne, Nc]
-// C  (costhetas)         [Nc]
-// E  (Energies)          [Ne]
-// IP (IRF Params)        [Nd, Me, Mc] -> [Md, Me, Nc]
-// IC (IRF costheta)      [Mc]
-// IE (IRF energies)      [Me]
-inline void
-co_psf_bilerp(auto            Bilerps,
-              auto const&     C,
-              auto const&     E,
-              Tensor3d const& LUT,
-              Tensor1d const& IC,
-              Tensor1d const& IE) noexcept
-{
-    auto const clerps = Fermi::lerp_pars(IC, C);
-    auto const elerps = Fermi::lerp_pars(IE, E);
-
-    // for (size_t d = 0; d < R.extent(0); ++d)
-    // {
-    //     auto const sIP = submdspan(IP, d, full_extent, full_extent);
-    //     for (size_t c = 0; c < R.extent(1); ++c)
-    //         for (size_t e = 0; e < R.extent(2); ++e)
-    //             R(d, c, e) = Fermi::bilerp(clerps[c], elerps[e], sIP);
-    // }
-
-    for (long c = 0; c < Bilerps.dimension(2); ++c)
-    {
-        auto ct = clerps[c];
-        for (long e = 0; e < Bilerps.dimension(1); ++e)
-        {
-            auto et = elerps[e];
-            for (long d = 0; d < Bilerps.dimension(0); ++d)
-            {
-                Bilerps(d, e, c) = Fermi::bilerp(
-                    et,
-                    ct,
-                    LUT.slice(Idx3 { 0, 0, d },
-                              Idx3 { LUT.dimension(0), LUT.dimension(1), 1 })
-                        .reshape(Idx2 { LUT.dimension(0), LUT.dimension(1) }));
-            }
-        }
-    }
-}
-
-
 auto
-Fermi::PSF::bilerp(std::vector<double> const& costhetas,
-                   std::vector<double> const& logEs,
-                   Tensor1d const&            par_cosths,
-                   Tensor1d const&            par_logEs,
-                   Tensor3d const&            kings /*[Me, Mc, Nd]*/
+Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
+                   std::vector<double> const& logEs,      // [Ne]
+                   Tensor1d const&            par_cosths, // [Mc]
+                   Tensor1d const&            par_logEs,  // [Me]
+                   Tensor3d const&            kings       /*[Me, Mc, Nd]*/
                    ) -> Tensor3d
 {
     long const Nd = kings.dimension(2);
@@ -145,18 +98,35 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,
     assert(par_logEs.size() == kings.dimension(0));
     assert(par_cosths.size() == kings.dimension(1));
 
-    // auto        bilerps = vector<double>(Nc * Ne * Nd, 0.0);
-    // auto        R       = mdspan(bilerps.data(), Nc, Ne, Nd);
     Tensor3d Bilerps(Nd, Ne, Nc);
+    Bilerps.setZero();
 
-    auto const& E  = logEs;
-    auto const& C  = costhetas;
-    auto const& IC = par_cosths;
-    auto const& IE = par_logEs;
-    // auto const  IP = mdspan(kings.data(), Nd, Mc, Me);
-    // auto const& LUT = kings;
+    // co_psf_bilerp(Bilerps, costhetas, logEs, kings, par_cosths, par_logEs);
+    //
+    // Sample the Look Up Table's axes parameters with the supplied sample points
+    auto const clerps = Fermi::lerp_pars(par_cosths, costhetas);
+    auto const elerps = Fermi::lerp_pars(par_logEs, logEs);
 
-    co_psf_bilerp(Bilerps, C, E, kings, IC, IE);
+    // biLerp the [E,C] slice of the Kings lookup table for each psf separation (D)
+    for (long c = 0; c < Bilerps.dimension(2); ++c)
+    {
+        auto ct = clerps[c];
+        for (long e = 0; e < Bilerps.dimension(1); ++e)
+        {
+            auto et = elerps[e];
+            for (long d = 0; d < Bilerps.dimension(0); ++d)
+            {
+
+                Bilerps(d, e, c) = Fermi::bilerp(
+                    et,
+                    ct,
+                    kings
+                        .slice(Idx3 { 0, 0, d },
+                               Idx3 { kings.dimension(0), kings.dimension(1), 1 })
+                        .reshape(Idx2 { kings.dimension(0), kings.dimension(1) }));
+            }
+        }
+    }
 
     return Bilerps;
 }
@@ -187,7 +157,6 @@ Fermi::PSF::corrected_exposure_psf(
     Tensor3d psf_aeff
         = obs_psf * obs_aeff.reshape(Idx3 { 1, Ne, Nc }).broadcast(Idx3 { Nd, 1, 1 });
 
-    // [S, E, D] = SUM_c ([S, C] * [C, E, D])
     // [D, E, S] = SUM_c ([D, E, C] * [C, S])
     // auto exposure_psf = Fermi::contract3210(psf_aeff, src_exposure_cosbins);
     Tensor3d exposure_psf
@@ -196,7 +165,6 @@ Fermi::PSF::corrected_exposure_psf(
     Tensor3d wexp_psf
         = psf_aeff.contract(src_weighted_exposure_cosbins, IdxPair1 { { { 2, 0 } } });
 
-    // [S, E, D]
     // [D, E, S]
     // auto corrected_exp_psf          = Fermi::mul310(exposure_psf, front_LTF.first);
     Tensor3d corrected_exp_psf = exposure_psf * fLTR1.broadcast(Idx3 { Nd, 1, Ns });
