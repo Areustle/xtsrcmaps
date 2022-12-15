@@ -4,6 +4,7 @@
 #include <tuple>
 #include <vector>
 
+#include "xtsrcmaps/misc.hxx"
 
 namespace
 {
@@ -41,7 +42,7 @@ legendre_poly_rw(double const eps = 1e-15) -> std::vector<std::pair<double, doub
     result.reserve(N);
     for (size_t i = 1; i <= N; ++i)
     {
-        double abcissa      = std::cos(M_PI * (i - 0.25) / (N + 0.5));
+        double abcissa      = std::cos(pi * (i - 0.25) / (N + 0.5));
         auto [value, deriv] = ::poly_root_deriv<N>(abcissa);
 
         // Use Newtons method to improve polynomial root estimate.
@@ -56,7 +57,7 @@ legendre_poly_rw(double const eps = 1e-15) -> std::vector<std::pair<double, doub
         abcissa -= ratio;
 
         result.emplace_back(abcissa,
-                            2.0 / ((1 - (abcissa * abcissa)) * (deriv * deriv)));
+                            2.0 / ((1. - (abcissa * abcissa)) * (deriv * deriv)));
     }
     return result;
 }

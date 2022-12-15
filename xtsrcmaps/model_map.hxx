@@ -11,6 +11,16 @@ namespace Fermi::ModelMap
 {
 
 auto
+point_src_model_map_wcs(long const      Nh,
+                        long const      Nw,
+                        vpd const&      src_dirs,
+                        Tensor3d const& uPsf,
+                        SkyGeom const&  skygeom,
+                        Tensor2d const& exposure,
+                        Tensor3d const& partial_integrals, /* [D,E,S] */
+                        double const    ftol_threshold = 1e-3) -> Tensor4d;
+
+auto
 get_init_points(long const Nh, long const Nw) -> Tensor3d;
 
 auto
@@ -29,22 +39,43 @@ pixel_mean_psf(long const      Nh,
                SkyGeom const&  skygeom,
                double const    ftol_threshold = 1e-3) -> Tensor4d;
 
+auto
+solid_angle(Tensor3d const& points, Fermi::SkyGeom const& skygeom) -> Tensor2d;
+
 void
-scale_psf_by_solid_angle(Tensor4d& pixpsf, SkyGeom const& skygeom);
+scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& skygeom);
+
+void
+scale_map_by_exposure(Tensor4d& model_map, Tensor2d const& exposure);
+
+void
+scale_map_by_correction_factors(Tensor4d&       model_map,
+                                Tensor2d const& MapInteg,
+                                Tensor1d const& psf_radius,
+                                Tensor1b const& is_in_fov,
+                                Tensor3d const& mean_psf,         /* [D,E,S] */
+                                Tensor3d const& partial_integrals /* [D,E,S] */
+
+);
 
 auto
-compute_psf_map_corrections(Tensor4d const& pixpsf,
-                            vpd const&      src_dirs,
-                            SkyGeom const&  skygeom)
-    -> std::tuple<Tensor2d, std::vector<double>>;
+psf_boundary_radius(long const     Nh,
+                    long const     Nw,
+                    vpd const&     src_dirs,
+                    SkyGeom const& skygeom) -> std::pair<Tensor1d, Tensor1b>;
 
 auto
-point_src_model_map_wcs(long const      Nh,
-                        long const      Nw,
-                        vpd const&      src_dirs,
-                        Tensor3d const& uPsf,
-                        SkyGeom const&  skygeom,
-                        double const    ftol_threshold = 1e-3) -> Tensor4d;
+map_integral(Tensor4d const& model_map,
+             vpd const&      src_dirs,
+             SkyGeom const&  skygeom,
+             Tensor1d const& psf_radius,
+             Tensor1b const& is_in_fov) -> Tensor2d;
+
+auto
+integral(Tensor1d const& angles,
+         Tensor3d const& mean_psf,         /* [D,E,S] */
+         Tensor3d const& partial_integrals /* [D,E,S] */
+         ) -> Tensor2d;
 
 
 } // namespace Fermi::ModelMap

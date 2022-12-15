@@ -209,51 +209,48 @@ Fermi::PSF::partial_total_integral(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */
     assert(seps.size() == Nd);
     TensorMap<Tensor1d> delta(seps.data(), Nd);
     assert(Nd == delta.size());
-    delta = D2R * delta;
-    //
-    // auto v1  = vector<double>(Ns * Ne * Nd, 0.0);
-    // auto v2  = vector<double>(Ns * Ne, 1.0);
-    // auto sp1 = mdspan(v1.data(), Ns, Ne, Nd);
-    // auto sp2 = mdspan(v2.data(), Ns, Ne);
+    delta = deg2rad * delta;
 
     Tensor3d parint(Nd, Ne, Ns);
     parint.setZero();
-    Tensor2d totint(Ne, Ns);
+    Tensor3d totint(1, Ne, Ns);
     totint.setConstant(1.);
 
-    for (long s = 0; s < Ns; ++s)
-    {
-        for (long e = 0; e < Ne; ++e)
-        {
-            // sp1(s, e, 0) = 0.;
-            parint(0, e, s) = 0.;
-            for (long d = 1; d < Nd; ++d)
-            {
-                double theta1(delta(d - 1));
-                double theta2(delta(d));
-                double y1(2. * M_PI * mean_psf(d - 1, e, s) * std::sin(theta1));
-                double y2(2. * M_PI * mean_psf(d, e, s) * std::sin(theta2));
-                double slope((y2 - y1) / (theta2 - theta1));
-                double intercept(y1 - theta1 * slope);
-                double value(slope * (theta2 * theta2 - theta1 * theta1) / 2.
-                             + intercept * (theta2 - theta1));
-                parint(d, e, s) = parint(d - 1, e, s) + value;
-            }
-            // Ensure normalizations of differential and integral arrays.
-            // We only need to do the normilization if the sum in non-zero
-            if (parint(Nd - 1, e, s) != 0.0)
-            {
-                for (long d = 1; d < Nd - 1; ++d)
-                {
-                    // m_psfValues.at(index) /= partialIntegral.back();
-                    parint(d, e, s) /= parint(Nd - 1, e, s);
-                }
-                totint(e, s)         = parint(Nd - 1, e, s);
-                parint(Nd - 1, e, s) = 1.0;
-            }
-        }
-    }
-    return { parint, totint };
+    Idx3 const i0 = { 0, 0, 0 };
+    Idx3 const i1 = { 1, 0, 0 };
+    Idx3 const i2 = { Nd - 1, 0, 0 };
+    Idx3 const i3 = { Nd - 1, 1, 1 };
+    Idx3 const i4 = { Nd, 1, 1 };
+    Idx3 const i5 = { 1, Ne, Ns };
+    Idx3 const i6 = { Nd - 1, Ne, Ns };
+    // Idx3 const i7 = { Nd, Ne, Ns };
+
+    // Use Midpoint Rule to compute approximate sum of psf from each separation entry
+    // over the lookup table.
+
+    // [Nd, 1, 1]
+    Tensor3d X    = delta.slice(Idx1 { 0 }, Idx1 { Nd }).reshape(i4);
+    // [Nd-1, 1, 1]
+    Tensor3d DX   = X.slice(i1, i3) - X.slice(i0, i3);
+    Tensor3d SX   = X.slice(i1, i3) + X.slice(i0, i3);
+    // [Nd, Ne, Ns]
+    Tensor3d Y = X.unaryExpr([](double t) { return twopi * std::sin(t); }).broadcast(i5)
+                 * mean_psf;
+    // [Nd-1, Ne, Ns]
+    // Tensor3d DY          = Y.slice(i1, i6) - Y.slice(i0, i6);
+    Tensor3d M           = (Y.slice(i1, i6) - Y.slice(i0, i6)) / DX.broadcast(i5);
+    Tensor3d B           = Y.slice(i0, i6) - (M * X.slice(i0, i3).broadcast(i5));
+    Tensor3d V           = (0.5 * M * SX.broadcast(i5) + B) * DX.broadcast(i5);
+    // [Nd, Ne, Ns]
+    parint.slice(i1, i6) = V.cumsum(0);
+    //
+    // Normalize the partial along the separation dimension.
+    totint               = parint.slice(i2, i5);
+    Tensor3d invtotint   = totint.inverse();
+    Tensor3d zeros       = totint.constant(0.0);
+    parint *= (totint == 0.0).select(zeros, invtotint).broadcast(i4);
+
+    return { parint, totint.reshape(Idx2 { Ne, Ns }) };
 }
 
 auto
@@ -261,24 +258,23 @@ Fermi::PSF::normalize(Tensor3d&       mean_psf,       /* [Nd, Ne, Ns] */
                       Tensor2d const& total_integrals /*     [Ne, Ns] */
                       ) -> void
 {
-    for (long s = 0; s < mean_psf.dimension(2); ++s)
-    {
-        for (long e = 0; e < mean_psf.dimension(1); ++e)
-        {
-            for (long d = 0; d < mean_psf.dimension(0); ++d)
-            {
-                mean_psf(d, e, s) /= total_integrals(e, s);
-            }
-        }
-    }
+    long const Nd = mean_psf.dimension(0);
+    long const Ne = mean_psf.dimension(1);
+    long const Ns = mean_psf.dimension(2);
+    assert(total_integrals.dimension(0) == Ne);
+    assert(total_integrals.dimension(1) == Ns);
+    mean_psf
+        /= total_integrals.reshape(Idx3 { 1, Ne, Ns }).broadcast(Idx3 { Nd, 1, 1 });
 }
 
 auto
-Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */) -> Tensor2d
+Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [D, E, S] */) -> Tensor2d
 {
     // auto Nd = mean_psf.dimension(0);
-    auto Ne = mean_psf.dimension(1);
-    auto Ns = mean_psf.dimension(2);
+    long const Ne = mean_psf.dimension(1);
+    long const Ns = mean_psf.dimension(2);
+    return mean_psf.slice(Idx3 { 0, 0, 0 }, Idx3 { 1, Ne, Ns })
+        .reshape(Idx2 { Ne, Ns });
     // auto const& Ns = mean_psf.extent(0);
     // auto const& Ne = mean_psf.extent(1);
     // auto const& Nd = mean_psf.extent(2);
@@ -286,11 +282,63 @@ Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */) -> Tensor2d
     // for (long i = 0; i < Ns * Ne; ++i) { v[i] = mean_psf.container()[i * Nd]; }
     //
     // return mdarray2(v, Ns, Ne);
-    return mean_psf.slice(Idx3 { 0, 0, 0 }, Idx3 { 1, Ne, Ns })
-        .reshape(Idx2 { Ne, Ns });
 }
-//
-// auto
-// Fermi::PSF::integral(std::vector<double> deltas,
-//                      Tensor3d const&     partial_integrals,
-//                      Tensor3d const&     mean_psf) -> Tensor3d;
+
+auto
+Fermi::PSF::fast_separation_lower_index(Tensor1d seps) -> Tensor1i
+{
+    seps           = 1e4 * seps;
+    Tensor1d Mseps = 1. + (seps.log() / sep_step);
+    Tensor1i index = (seps < 1.).select(seps, Mseps).floor().cast<Eigen::DenseIndex>();
+    return index;
+}
+
+
+auto
+Fermi::PSF::psf_lookup_table_and_partial_integrals(
+    irf::psf::Pass8FB const&   psf_irf,
+    std::vector<double> const& exp_costhetas,
+    std::vector<double> const& logEs,
+    Tensor2d const&            front_aeff,
+    Tensor2d const&            back_aeff,
+    Tensor2d const&            src_exposure_cosbins,
+    Tensor2d const&            src_weighted_exposure_cosbins,
+    std::pair<std::vector<double>, std::vector<double>> const& front_LTF, /*[Ne]*/
+    Tensor2d const&                                            exposure   /*[Ne, Nsrc]*/
+    ) -> std::tuple<Tensor3d, Tensor3d>
+{
+    // auto const separations   = Fermi::PSF::separations();
+    auto const front_kings   = Fermi::PSF::king(psf_irf.front);
+    auto const back_kings    = Fermi::PSF::king(psf_irf.back);
+    auto const front_psf_val = Fermi::PSF::bilerp(exp_costhetas,
+                                                  logEs,
+                                                  psf_irf.front.rpsf.cosths,
+                                                  psf_irf.front.rpsf.logEs,
+                                                  front_kings);
+    auto const back_psf_val  = Fermi::PSF::bilerp(exp_costhetas,
+                                                 logEs,
+                                                 psf_irf.back.rpsf.cosths,
+                                                 psf_irf.back.rpsf.logEs,
+                                                 back_kings);
+    auto const front_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(front_psf_val,
+                                             front_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             front_LTF);
+    auto const back_corr_exp_psf
+        = Fermi::PSF::corrected_exposure_psf(back_psf_val,
+                                             back_aeff,
+                                             src_exposure_cosbins,
+                                             src_weighted_exposure_cosbins,
+                                             /*Stays front for now.*/ front_LTF);
+
+    Tensor3d uPsf
+        = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
+    // auto uPeak   = Fermi::PSF::peak_psf(MDuPsf);
+    auto [part_psf_integ, psf_integ] = Fermi::PSF::partial_total_integral(uPsf);
+
+    Fermi::PSF::normalize(uPsf, psf_integ);
+
+    return { uPsf, part_psf_integ };
+}

@@ -8,134 +8,46 @@ namespace Fermi::Genz
 {
 
 auto
-fullsym(Tensor2d const& c, Tensor2d const& l2, Tensor2d const& l4, Tensor2d const& l5)
-    -> Tensor3d
-{
-    // {c, l2, l4, l5} shape = [2];
-    // points shape = [2, 17]
-    // k0
-    long     Nevts = c.dimension(1);
-    Tensor3d points(2, 17, Nevts);
-    points = c.reshape(Idx3 { 2, 1, Nevts }).broadcast(Idx3 { 1, 17, 1 });
-    // k1
-    points.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 1, Nevts })
-        -= l2.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 2, 0 }, Idx3 { 1, 1, Nevts })
-        -= l2.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 3, 0 }, Idx3 { 1, 1, Nevts })
-        += l2.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 4, 0 }, Idx3 { 1, 1, Nevts })
-        += l2.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-
-    points.slice(Idx3 { 0, 5, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 6, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 7, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 8, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    // k2
-    points.slice(Idx3 { 0, 9, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 9, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 10, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 10, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 11, 0 }, Idx3 { 1, 1, Nevts })
-        -= l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 11, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 12, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 12, 0 }, Idx3 { 1, 1, Nevts })
-        += l4.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    // k3
-    points.slice(Idx3 { 0, 13, 0 }, Idx3 { 1, 1, Nevts })
-        -= l5.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 13, 0 }, Idx3 { 1, 1, Nevts })
-        -= l5.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 14, 0 }, Idx3 { 1, 1, Nevts })
-        -= l5.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 14, 0 }, Idx3 { 1, 1, Nevts })
-        += l5.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 15, 0 }, Idx3 { 1, 1, Nevts })
-        += l5.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 15, 0 }, Idx3 { 1, 1, Nevts })
-        -= l5.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 0, 16, 0 }, Idx3 { 1, 1, Nevts })
-        += l5.slice(Idx2 { 0, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    points.slice(Idx3 { 1, 16, 0 }, Idx3 { 1, 1, Nevts })
-        += l5.slice(Idx2 { 1, 0 }, Idx2 { 1, Nevts }).reshape(Idx3 { 1, 1, Nevts });
-    //
-    return points;
-}
-
-auto
 fullsym(Tensor2d const& c, double const l2, double const l4, double const l5)
     -> Tensor3d
 {
     // {c, l2, l4, l5} shape = [2];
     // points shape = [2, 17]
     // k0
-    long     Nevts = c.dimension(1);
-    Tensor3d points(2, 17, Nevts);
-    points = c.reshape(Idx3 { 2, 1, Nevts }).broadcast(Idx3 { 1, 17, 1 });
+    long const Nevts = c.dimension(1);
+    Idx3 const Ext   = { 1, 1, Nevts }; // Slice Extent
+    Tensor3d   pts(2, 17, Nevts);
+    // k0
+    pts = c.reshape(Idx3 { 2, 1, Nevts }).broadcast(Idx3 { 1, 17, 1 });
     // k1
-    points.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 1, 0 }, Idx3 { 1, 1, Nevts }).constant(l2);
-    points.slice(Idx3 { 1, 2, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 2, 0 }, Idx3 { 1, 1, Nevts }).constant(l2);
-    points.slice(Idx3 { 0, 3, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 3, 0 }, Idx3 { 1, 1, Nevts }).constant(l2);
-    points.slice(Idx3 { 1, 4, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 4, 0 }, Idx3 { 1, 1, Nevts }).constant(l2);
-    points.slice(Idx3 { 0, 5, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 5, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 6, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 6, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 0, 7, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 7, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 8, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 8, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
+    pts.slice(Idx3 { 0, 1, 0 }, Ext) -= pts.slice(Idx3 { 0, 1, 0 }, Ext).constant(l2);
+    pts.slice(Idx3 { 1, 2, 0 }, Ext) -= pts.slice(Idx3 { 1, 2, 0 }, Ext).constant(l2);
+    pts.slice(Idx3 { 0, 3, 0 }, Ext) += pts.slice(Idx3 { 0, 3, 0 }, Ext).constant(l2);
+    pts.slice(Idx3 { 1, 4, 0 }, Ext) += pts.slice(Idx3 { 1, 4, 0 }, Ext).constant(l2);
+    pts.slice(Idx3 { 0, 5, 0 }, Ext) -= pts.slice(Idx3 { 0, 5, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 6, 0 }, Ext) -= pts.slice(Idx3 { 1, 6, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 0, 7, 0 }, Ext) += pts.slice(Idx3 { 0, 7, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 8, 0 }, Ext) += pts.slice(Idx3 { 1, 8, 0 }, Ext).constant(l4);
     // k2
-    points.slice(Idx3 { 0, 9, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 9, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 9, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 9, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 0, 10, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 10, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 10, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 10, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 0, 11, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 11, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 11, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 11, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 0, 12, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 12, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
-    points.slice(Idx3 { 1, 12, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 12, 0 }, Idx3 { 1, 1, Nevts }).constant(l4);
+    pts.slice(Idx3 { 0, 9, 0 }, Ext) -= pts.slice(Idx3 { 0, 9, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 9, 0 }, Ext) -= pts.slice(Idx3 { 1, 9, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 0, 10, 0 }, Ext) += pts.slice(Idx3 { 0, 10, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 10, 0 }, Ext) -= pts.slice(Idx3 { 1, 10, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 0, 11, 0 }, Ext) -= pts.slice(Idx3 { 0, 11, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 11, 0 }, Ext) += pts.slice(Idx3 { 1, 11, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 0, 12, 0 }, Ext) += pts.slice(Idx3 { 0, 12, 0 }, Ext).constant(l4);
+    pts.slice(Idx3 { 1, 12, 0 }, Ext) += pts.slice(Idx3 { 1, 12, 0 }, Ext).constant(l4);
     // k3
-    points.slice(Idx3 { 0, 13, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 13, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 1, 13, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 13, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 0, 14, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 0, 14, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 1, 14, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 14, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 0, 15, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 15, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 1, 15, 0 }, Idx3 { 1, 1, Nevts })
-        -= points.slice(Idx3 { 1, 15, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 0, 16, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 0, 16, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
-    points.slice(Idx3 { 1, 16, 0 }, Idx3 { 1, 1, Nevts })
-        += points.slice(Idx3 { 1, 16, 0 }, Idx3 { 1, 1, Nevts }).constant(l5);
+    pts.slice(Idx3 { 0, 13, 0 }, Ext) -= pts.slice(Idx3 { 0, 13, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 1, 13, 0 }, Ext) -= pts.slice(Idx3 { 1, 13, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 0, 14, 0 }, Ext) -= pts.slice(Idx3 { 0, 14, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 1, 14, 0 }, Ext) += pts.slice(Idx3 { 1, 14, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 0, 15, 0 }, Ext) += pts.slice(Idx3 { 0, 15, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 1, 15, 0 }, Ext) -= pts.slice(Idx3 { 1, 15, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 0, 16, 0 }, Ext) += pts.slice(Idx3 { 0, 16, 0 }, Ext).constant(l5);
+    pts.slice(Idx3 { 1, 16, 0 }, Ext) += pts.slice(Idx3 { 1, 16, 0 }, Ext).constant(l5);
     //
-    return points;
+    return pts;
 }
 
 
@@ -164,21 +76,14 @@ rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d
     TensorMap<Tensor1d const> const w(genz_malik_weights_17.data(), 17);
     TensorMap<Tensor1d const> const wE(genz_malik_err_weights_17.data(), 17);
 
-    // auto t0         = std::chrono::high_resolution_clock::now();
-
     // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
     Tensor2d result = volume * w.contract(vals, IdxPair1 { { { 0, 0 } } });
-    // auto     t1     = std::chrono::high_resolution_clock::now();
+
     // # [17] . [17,range_dim, ... ] = [range_dim, ... ]
     Tensor2d res5th = volume * wE.contract(vals, IdxPair1 { { { 0, 0 } } });
-    // auto     t2     = std::chrono::high_resolution_clock::now();
-
-    // auto d10        = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
-    // auto d21        = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-    // std::cout << " [" << d10 << " " << d21 << "] " << std::flush;
 
     // err = np.abs(res5th - result)  # [range_dim, ... ]
-    Tensor2d err = (res5th - result).abs(); //  # [range_dim, ... ]
+    Tensor2d err    = (res5th - result).abs(); //  # [range_dim, ... ]
     return { result, err };
 }
 

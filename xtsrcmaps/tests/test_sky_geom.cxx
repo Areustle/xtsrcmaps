@@ -9,10 +9,17 @@
 #include "xtsrcmaps/source_utils.hxx"
 
 auto
-pcmp(std::pair<double, double> const& a, std::pair<double, double> const& b) -> void
+pcmp(Vector2d const& a, Vector2d const& b) -> void
 {
-    CHECK(std::get<0>(a) == doctest::Approx(std::get<0>(b)));
-    CHECK(std::get<1>(a) == doctest::Approx(std::get<1>(b)));
+    CHECK(a(0) == doctest::Approx(b(0)));
+    CHECK(a(1) == doctest::Approx(b(1)));
+}
+
+auto
+pcmp(Vector2d const& a, std::pair<double, double> const& b) -> void
+{
+    CHECK(a(0) == doctest::Approx(std::get<0>(b)));
+    CHECK(a(1) == doctest::Approx(std::get<1>(b)));
 }
 
 TEST_CASE("Fermi Sky Geom")
@@ -27,17 +34,16 @@ TEST_CASE("Fermi Sky Geom")
         false
     };
 
-    Fermi::SkyGeom sg(cc);
-
-    std::pair<double, double> src_sph_0  = { 193.98, -5.82 };
-    auto                      src_dir_0  = sg.sph2dir(src_sph_0);
-    auto                      src_dsph_0 = sg.dir2sph(src_dir_0);
-
-    pcmp(src_sph_0, src_dsph_0);
+    // Vector2d src_sph_0(193.98, -5.82);
+    // Vector3d src_dir_0  = sg.sph2dir(src_sph_0);
+    // Vector2d src_dsph_0 = sg.dir2sph(src_dir_0);
+    //
+    // pcmp(src_sph_0, src_dsph_0);
 
     auto       cfg                = Fermi::XtCfg();
     auto const srcs               = Fermi::parse_src_xml(cfg.srcmdl);
     auto const src_spherical_dirs = Fermi::directions_from_point_sources(srcs);
+    Fermi::SkyGeom sg(cc);
 
     size_t const& Ns              = src_spherical_dirs.size();
 
@@ -46,5 +52,13 @@ TEST_CASE("Fermi Sky Geom")
         auto src_dir  = sg.sph2dir(src_spherical_dirs[s]);
         auto src_dsph = sg.dir2sph(src_dir);
         pcmp(src_dsph, src_spherical_dirs[s]);
+    }
+
+    for (size_t s = 0; s < Ns; ++s)
+    {
+        auto     srcpix = sg.sph2pix(src_spherical_dirs[s]);
+        Vector2d vpix(srcpix.first, srcpix.second);
+        auto     src_psph = sg.pix2sph(vpix);
+        pcmp(src_psph, src_spherical_dirs[s]);
     }
 }

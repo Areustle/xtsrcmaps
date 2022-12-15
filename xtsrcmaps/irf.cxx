@@ -199,7 +199,7 @@ psf3_psf_base_integral(double const    radius,
     double const gcore = pars(4);
     double const gtail = pars(5);
 
-    double sep         = radius * M_PI / 180.;
+    double sep         = radius * deg2rad;
     double rc          = sep / score;
     double uc          = rc * rc / 2.;
 
@@ -208,8 +208,8 @@ psf3_psf_base_integral(double const    radius,
 
     if (gcore < 0. || gtail < 0.) { throw std::runtime_error("gamma < 0"); }
 
-    return (ncore * f(uc, gcore) * 2. * M_PI * score * score
-            + ntail * ncore * f(ut, gtail) * 2. * M_PI * stail * stail);
+    return (ncore * f(uc, gcore) * twopi * score * score
+            + ntail * ncore * f(ut, gtail) * twopi * stail * stail);
 }
 
 auto
@@ -245,11 +245,11 @@ normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void
                           polypars,
                           [&](auto const& v) -> double {
                               double x = evaluate_king(
-                                  v * M_PI / 180,
+                                  v * deg2rad,
                                   sf,
                                   data.params.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 })
                                       .reshape(Idx1 { 6 }));
-                              double y = sin(v * M_PI / 180.) * 2. * M_PI * M_PI / 180.;
+                              double y = sin(v * deg2rad) * twopi * deg2rad;
                               return x * y;
                           })
                       : psf3_psf_base_integral(
