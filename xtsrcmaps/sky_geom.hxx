@@ -21,12 +21,6 @@ class SkyGeom
     bool        m_wcspih_used = false;
 
   public:
-    using coord2     = std::pair<double, double>;
-    using coord3     = std::tuple<double, double, double>;
-    using vec_coord2 = std::vector<std::pair<double, double>>;
-    using vec_coord3 = std::vector<std::tuple<double, double, double>>;
-
-
     SkyGeom(fits::CCubePixels const&);
     ~SkyGeom();
 
@@ -41,34 +35,58 @@ class SkyGeom
     //     = delete;
 
     auto
-    sph2pix(coord2 const&) const -> coord2;
+    sph2pix(Vector2d const&) const -> Vector2d;
 
     auto
-    pix2sph(coord2 const&) const -> coord2;
+    sph2pix(std::pair<double, double> const&) const -> std::pair<double, double>;
 
     auto
-    pix2sph(double const, double const) const -> coord2;
+    pix2sph(Vector2d const&) const -> Vector2d;
 
     auto
-    sph2pix(vec_coord2 const&) const -> vec_coord2;
+    pix2sph(double const, double const) const -> Vector2d;
 
     auto
-    pix2sph(vec_coord2 const&) const -> vec_coord2;
+    sph2pix(vpd const&) const -> vpd;
 
     auto
-    dir2sph(coord3 const&) const -> coord2;
+    pix2sph(Eigen::Matrix2Xd const&) const -> Eigen::Matrix2Xd;
+
+    // auto
+    // pix2sph(Eigen::Matrix2Xd const&) const -> Eigen::Matrix2Xd;
 
     auto
-    pix2dir(coord2 const&) const -> coord3;
+    dir2sph(Vector3d const&) const -> Vector2d;
 
     auto
-    sph2dir(coord2 const&) const -> coord3;
+    pix2dir(Vector2d const&) const -> Vector3d;
 
     auto
-    srcpixoff(coord3 const& src, coord2 const& pix) const -> double;
+    sph2dir(Vector2d const&) const -> Vector3d;
 
     auto
-    srcpixoff(coord3 const& src, coord3 const& pix) const -> double;
+    sph2dir(std::pair<double, double> const&) const -> Vector3d;
+
+    auto
+    srcpixoff(Vector3d const& src, Vector2d const& pix) const -> double;
+
+    auto
+    srcpixoff(Vector3d const& src, Vector3d const& pix) const -> double;
 };
+
+
+inline auto
+dir_diff(Vector3d const& L, Vector3d const& R) -> double
+{
+    return 2. * asin(0.5 * (L - R).norm());
+};
+
+auto
+pix_diff(Vector2d const& L, Vector2d const& R, Fermi::SkyGeom const& skygeom) -> double;
+
+auto
+sph_pix_diff(std::pair<double, double> const& L,
+             Vector2d const&                  R,
+             SkyGeom const&                   skygeom) -> double;
 
 } // namespace Fermi

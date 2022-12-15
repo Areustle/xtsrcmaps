@@ -42,12 +42,17 @@ row_major_file_to_row_major_tensor(std::string const& filename,
     -> Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor>
 {
     static_assert(sizeof...(RMDs) > 0);
-    auto          v = std::vector<T>((... * row_major_dims));
+    using VT = std::
+        conditional_t<std::is_same_v<T, bool>, std::vector<char>, std::vector<T>>;
+    // using VT        = std::is_same_v<T, bool> ? std::vector<char> : std::vector<T>;
+    // if constexpr (std::is_same_v<T, bool>) { using VT = ; }
+    // else { using VT = std::vector<T>; }
+    VT            v = VT((... * row_major_dims));
     std::ifstream ifs(filename, std::ios::in | std::ios::binary);
     ifs.read((char*)(&v[0]), sizeof(T) * (... * row_major_dims));
     ifs.close();
     Eigen::TensorMap<Eigen::Tensor<T, sizeof...(RMDs), Eigen::RowMajor>> RMt(
-        v.data(), row_major_dims...);
+        reinterpret_cast<T*>(v.data()), row_major_dims...);
     return RMt;
 }
 
@@ -167,5 +172,28 @@ row_major_buffer_to_col_major_tensor(T const* buf, RMDs const... row_major_dims)
     // return to_colmajor(rmm);
 }
 
+
+/*************************************************************************************/
+/*                                Should be in Eigen                                 */
+/*************************************************************************************/
+
+// Filter In. Given a Tensor and a boolean mask (tensor1b) Return the Tensor entries
+// corresponding to true values in the mask.
+template <typename T>
+auto
+filter_in(Eigen::Tensor<T, 1> const& A, Tensor1b const& M) -> Eigen::Tensor<T, 1>
+{
+    long const Nt = std::count(M.data(), M.data() + M.size(), true);
+    assert(A.size() == M.size());
+    assert(A.size() >= Nt);
+
+    Eigen::Tensor<T, 1> B(Nt);
+
+    long t = 0;
+    for (long i = 0; i < A.size(); ++i)
+        if (M(i)) B(t++) = A(i);
+
+    return B;
+}
 
 } // namespace Fermi

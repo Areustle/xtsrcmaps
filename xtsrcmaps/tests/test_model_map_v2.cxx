@@ -14,7 +14,7 @@
 
 #include <algorithm>
 
-TEST_CASE("Test Model Map Execution")
+TEST_CASE("Test Model Map pixel mean psf")
 {
 
     auto       cfg       = Fermi::XtCfg();
@@ -31,39 +31,6 @@ TEST_CASE("Test Model Map Execution")
     long const     Nd        = 401;
     long const     Ne        = 38;
 
-    // auto const st_off0 = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_initial_offset.bin", Ns, Nw, Nh);
-    // assert(st_off0.dimension(0) == Nh);
-    // assert(st_off0.dimension(1) == Nw);
-    // assert(st_off0.dimension(2) == Ns);
-    //
-    // auto const st_offi0 = Fermi::row_major_file_to_col_major_tensor<unsigned short>(
-    //     "./xtsrcmaps/tests/expected/src_initial_offset_idx.bin", Ns, Nw, Nh);
-    // assert(st_offi0.dimension(0) == Nh);
-    // assert(st_offi0.dimension(1) == Nw);
-    // assert(st_offi0.dimension(2) == Ns);
-    //
-    // auto const st_offs0 = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_initial_offset_scalar.bin", Ns, Nw, Nh);
-    // assert(st_offs0.dimension(0) == Nh);
-    // assert(st_offs0.dimension(1) == Nw);
-    // assert(st_offs0.dimension(2) == Ns);
-    //
-    // auto const st_nmc = Fermi::row_major_file_to_col_major_tensor<char>(
-    //     "./xtsrcmaps/tests/expected/src_needs_more.bin", Ns, Nw, Nh, Ne);
-    // assert(st_nmc.dimension(0) == Ne);
-    // assert(st_nmc.dimension(1) == Nh);
-    // assert(st_nmc.dimension(2) == Nw);
-    // assert(st_nmc.dimension(3) == Ns);
-    // Eigen::Tensor<bool, 4> st_nm0 = st_nmc.cast<bool>();
-    //
-    // Tensor4d const st_v0          = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_mean_psf_v0.bin", Ns, Nw, Nh, Ne);
-    // assert(st_v0.dimension(0) == Ne);
-    // assert(st_v0.dimension(1) == Nh);
-    // assert(st_v0.dimension(2) == Nw);
-    // assert(st_v0.dimension(3) == Ns);
-
     Tensor4d const st_psfEst = Fermi::row_major_file_to_col_major_tensor(
         "./xtsrcmaps/tests/expected/src_psfEstimate.bin", Ns, Nw, Nh, Ne);
     assert(st_psfEst.dimension(0) == Ne);
@@ -77,42 +44,50 @@ TEST_CASE("Test Model Map Execution")
     assert(uPsf.dimension(1) == Ne);
     assert(uPsf.dimension(2) == Ns);
 
-    // Tensor2d const uPeak = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", Ns, Ne);
-    // assert(uPeak.dimension(0) == Ne);
-    // assert(uPeak.dimension(1) == Ns);
-    //
-    // auto const uPeakRatio = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_peak_ratio.bin", Ns, Nw, Nh, Ne);
-    //
-    // auto const st_upsf_peak = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_mean_psf_peak.bin", Ns, Ne);
-    // assert(st_upsf_peak.dimension(0) == Ne);
-    // assert(st_upsf_peak.dimension(1) == Ns);
-    //
-    // auto const st_upsf_arr = Fermi::row_major_file_to_col_major_tensor(
-    //     "./xtsrcmaps/tests/expected/src_mean_psf_values.bin", Ns, Ne, Nd);
-    // assert(st_upsf_arr.dimension(0) == Nd);
-    // assert(st_upsf_arr.dimension(1) == Ne);
-    // assert(st_upsf_arr.dimension(2) == Ns);
+    Tensor4d psfEst
+        = Fermi::ModelMap::pixel_mean_psf(100, 100, dirs, uPsf, { ccube }, 1e-3);
 
-    Tensor4d psfEst = Fermi::ModelMap::point_src_model_map_wcs(
-        100, 100, dirs, uPsf, { ccube }, 1e-3);
+    SUBCASE("Pixel PSF Integral Estimate")
+    {
 
-    Tensor4d psfreldiff = (psfEst - st_psfEst).abs() / st_psfEst;
+        Tensor4d psfreldiff = (psfEst - st_psfEst).abs() / st_psfEst;
 
-    // size_t count_pixels_more_than_1_pct_diff = 0;
-    // for
-    // psfreldiff
-    long count_pixels_more_than_1_pct_diff
-        = std::count_if(psfreldiff.data(),
-                        psfreldiff.data() + psfreldiff.size(),
-                        [](auto x) -> bool { return x > 1e-2; });
+        long count_pixels_more_than_1_pct_diff
+            = std::count_if(psfreldiff.data(),
+                            psfreldiff.data() + psfreldiff.size(),
+                            [](auto x) -> bool { return x > 1e-2; });
 
-    CHECK_MESSAGE(count_pixels_more_than_1_pct_diff * 100 < psfreldiff.size(),
-                  "Too many pixels differ from Fermitools Psf Estimates.");
+        CHECK_MESSAGE(count_pixels_more_than_1_pct_diff * 100 < psfreldiff.size(),
+                      "Too many pixels differ from Fermitools Psf Estimates.");
 
-    if (count_pixels_more_than_1_pct_diff * 100 > psfreldiff.size())
+        if (count_pixels_more_than_1_pct_diff * 100 > psfreldiff.size())
+        {
+            for (long s = 0; s < Ns; ++s)
+            {
+                for (long w = 0; w < Nw; ++w)
+                {
+                    for (long h = 0; h < Nh; ++h)
+                    {
+                        for (long e = 0; e < Ne; ++e)
+                        {
+                            CHECK_MESSAGE(
+                                doctest::Approx(psfEst(e, h, w, s)).epsilon(1e-2)
+                                    == st_psfEst(e, h, w, s),
+                                e << " " << h << " " << w << " " << s);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Tensor4d const ft_sang = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/ft_mm_solid_angle.bin", Ns, Nw, Nh, Ne);
+
+    Tensor3d const init_points = Fermi::ModelMap::get_init_points(Nh, Nw);
+    Tensor2d       sang        = Fermi::ModelMap::solid_angle(init_points, skygeom);
+
+    SUBCASE("Solid Angle")
     {
         for (long s = 0; s < Ns; ++s)
         {
@@ -122,12 +97,120 @@ TEST_CASE("Test Model Map Execution")
                 {
                     for (long e = 0; e < Ne; ++e)
                     {
-                        CHECK_MESSAGE(doctest::Approx(psfEst(e, h, w, s)).epsilon(1e-2)
-                                          == st_psfEst(e, h, w, s),
-                                      s << " " << h << " " << w << " " << e);
+                        REQUIRE_MESSAGE(doctest::Approx(sang(h, w))
+                                            == ft_sang(e, h, w, s),
+                                        e << " " << h << " " << w << " " << s);
                     }
                 }
             }
         }
     }
+
+    Tensor4d ft_psf_sang = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/ft_mm_psf_sang.bin", Ns, Nw, Nh, Ne);
+
+    Fermi::ModelMap::scale_map_by_solid_angle(psfEst, skygeom);
+
+    SUBCASE("Scaled ModelMap By Solid Angle")
+    {
+        Tensor4d psfreldiff = (psfEst - ft_psf_sang).abs() / ft_psf_sang;
+
+        long count_pixels_more_than_1_pct_diff
+            = std::count_if(psfreldiff.data(),
+                            psfreldiff.data() + psfreldiff.size(),
+                            [](auto x) -> bool { return x > 1e-2; });
+
+        CHECK_MESSAGE(count_pixels_more_than_1_pct_diff * 100 < psfreldiff.size(),
+                      "Too many pixels differ from Fermitools Psf Estimates.");
+
+        if (count_pixels_more_than_1_pct_diff * 100 > psfreldiff.size())
+        {
+            for (long s = 0; s < Ns; ++s)
+            {
+                for (long w = 0; w < Nw; ++w)
+                {
+                    for (long h = 0; h < Nh; ++h)
+                    {
+                        for (long e = 0; e < Ne; ++e)
+                        {
+                            CHECK_MESSAGE(
+                                doctest::Approx(psfEst(e, h, w, s)).epsilon(1e-2)
+                                    == ft_psf_sang(e, h, w, s),
+                                e << " " << h << " " << w << " " << s);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // PSF_boundary_radius
+    //
+
+    auto [full_psf_radius, is_in_fov]
+        = Fermi::ModelMap::psf_boundary_radius(Nh, Nw, dirs, skygeom);
+    Tensor1d psf_radius = Fermi::filter_in(full_psf_radius, is_in_fov);
+
+    long const Nf
+        = std::count(is_in_fov.data(), is_in_fov.data() + is_in_fov.size(), true);
+
+    REQUIRE(Nf == 47);
+    REQUIRE(psf_radius.dimension(0) == Nf);
+    REQUIRE(psf_radius.size() == Nf);
+
+    Tensor1d const ft_psf_brad = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/ft_mm_psf_radius.bin", Ns);
+
+    Tensor1b const ft_in_fov = Fermi::row_major_file_to_col_major_tensor<bool>(
+        "./xtsrcmaps/tests/expected/ft_mm_withinBounds.bin", Ns);
+
+    SUBCASE("PSF_boundary_radius")
+    {
+        for (long s = 0; s < Ns; ++s)
+        {
+            auto xtr = full_psf_radius(s);
+            CHECK_MESSAGE(doctest::Approx(xtr) == ft_psf_brad(s), s);
+            CHECK_MESSAGE(is_in_fov(s) == ft_in_fov(s),
+                          s << " (" << skygeom.sph2pix(dirs[s]).first << ", "
+                            << skygeom.sph2pix(dirs[s]).second << ")");
+        }
+    }
+
+    // map_integral
+    //
+
+    Tensor2d inv_mapinteg
+        = Fermi::ModelMap::map_integral(psfEst, dirs, skygeom, psf_radius, is_in_fov);
+
+    REQUIRE(Ne == inv_mapinteg.dimension(0));
+    REQUIRE(Nf == inv_mapinteg.dimension(1));
+
+    Tensor2d const ft_map_integ = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/ft_mm_mapIntegrals.bin", Nf, Ne);
+
+    REQUIRE(Ne == ft_map_integ.dimension(0));
+    REQUIRE(Nf == ft_map_integ.dimension(1));
+
+    // SUBCASE("Modelmap mapIntegrals")
+    // {
+    //     for (long f = 0; f < Nf; ++f)
+    //     {
+    //         for (long e = 0; e < Ne; ++e)
+    //         {
+    //             CHECK_MESSAGE(doctest::Approx(inv_mapinteg(e, f))
+    //                               == (1. / ft_map_integ(e, f)),
+    //                           e << " " << f);
+    //         }
+    //     }
+    // }
+
+    Tensor2d const exposure = Fermi::row_major_file_to_col_major_tensor(
+        "./xtsrcmaps/tests/expected/exposure.bin", Ns, Ne);
+
+    Fermi::ModelMap::scale_map_by_exposure(psfEst, exposure);
+
+    auto [part_psf_integ, psf_integ] = Fermi::PSF::partial_total_integral(uPsf);
+
+    Fermi::ModelMap::scale_map_by_correction_factors(
+        psfEst, inv_mapinteg, psf_radius, is_in_fov, uPsf, psf_integ);
 }

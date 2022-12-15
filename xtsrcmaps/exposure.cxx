@@ -130,6 +130,7 @@ Fermi::aeff_value(vector<double> const& costhet,
 }
 
 // Compute the exposure by operating on all pre-generated tensors as necessary.
+// [Ne, Nsrc]
 auto
 Fermi::exposure(
     Tensor2d const& src_exposure_cosbins,                 /*[Nsrc, Nc] -> [Nc, Nsrc]*/

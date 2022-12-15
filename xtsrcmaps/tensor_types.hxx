@@ -31,9 +31,6 @@
 // using mdspan4  = std::experimental::mdspan<double, dyext4>;
 
 
-using coord2 = std::pair<double, double>;
-using coord3 = std::tuple<double, double, double>;
-
 
 using vpd    = std::vector<std::pair<double, double>>;
 
@@ -50,6 +47,7 @@ using Eigen::ArrayXd;
 using Eigen::ArrayXXd;
 using Eigen::MatrixXd;
 using Eigen::Vector2d;
+using Eigen::Vector3d;
 using Eigen::VectorXd;
 
 template <typename T>

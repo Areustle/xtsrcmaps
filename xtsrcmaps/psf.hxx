@@ -46,6 +46,9 @@ inverse_separation(double const s) -> double
     return s < 1e-4 ? 1e4 * s : 1. + std::log(s * 1e4) / sep_step;
 }
 
+auto
+fast_separation_lower_index(Tensor1d seps) -> Tensor1i;
+
 // constexpr auto
 // linear_inverse_separation(double const x) -> double
 // {
@@ -81,24 +84,35 @@ corrected_exposure_psf(
     std::pair<std::vector<double>, std::vector<double>> const& front_LTF /*[Ne]*/
     ) -> Tensor3d;
 
+// [Nd, Ne, Ns]
 auto
 mean_psf(                                //
     Tensor3d const& front_corrected_psf, /*[Nd, Nc, Ne]*/
     Tensor3d const& back_corrected_psf,  /*[Nd, Nc, Ne]*/
-    Tensor2d const& exposure /*[Ns, Ne]*/) -> Tensor3d;
+    Tensor2d const& exposure /*[Ne, Nsrc]*/) -> Tensor3d;
 
 auto
-partial_total_integral(Tensor3d const& mean_psf) -> std::pair<Tensor3d, Tensor2d>;
-//
-// auto
-// integral(std::vector<double> deltas,
-//          Tensor3d const&     partial_integrals,
-//          Tensor3d const&     mean_psf) -> Tensor3d;
+partial_total_integral(Tensor3d const& mean_psf /*[Nd, Ne, Ns]*/)
+    -> std::pair<Tensor3d, Tensor2d>; // <[D,E,S], [E,S]>
+
 
 auto
 normalize(Tensor3d& mean_psf, Tensor2d const& total_integrals) -> void;
 
 auto
 peak_psf(Tensor3d const& mean_psf) -> Tensor2d;
+
+auto
+psf_lookup_table_and_partial_integrals(
+    irf::psf::Pass8FB const&   data,
+    std::vector<double> const& costhetas,
+    std::vector<double> const& logEs,
+    Tensor2d const&            front_aeff,
+    Tensor2d const&            back_aeff,
+    Tensor2d const&            src_exposure_cosbins,
+    Tensor2d const&            src_weighted_exposure_cosbins,
+    std::pair<std::vector<double>, std::vector<double>> const& front_LTF, /*[Ne]*/
+    Tensor2d const&                                            exposure   /*[Ne, Nsrc]*/
+    ) -> std::tuple<Tensor3d, Tensor3d>;
 
 } // namespace Fermi::PSF
