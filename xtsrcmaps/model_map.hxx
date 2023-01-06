@@ -48,15 +48,17 @@ scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& skygeom);
 void
 scale_map_by_exposure(Tensor4d& model_map, Tensor2d const& exposure);
 
-void
-scale_map_by_correction_factors(Tensor4d&       model_map,
-                                Tensor2d const& MapInteg,
-                                Tensor1d const& psf_radius,
-                                Tensor1b const& is_in_fov,
-                                Tensor3d const& mean_psf,         /* [D,E,S] */
-                                Tensor3d const& partial_integrals /* [D,E,S] */
+auto
+map_correction_factor(Tensor2d const& MapInteg,
+                      Tensor1d const& psf_radius,
+                      Tensor1b const& is_in_fov,
+                      Tensor3d const& mean_psf,         /* [D,E,S] */
+                      Tensor3d const& partial_integrals /* [D,E,S] */
+                      ) -> Tensor2d;
 
-);
+void
+scale_map_by_correction_factors(Tensor4d&       model_map, /*[E,H,W,S]*/
+                                Tensor2d const& factor /*[E,S]*/);
 
 auto
 psf_boundary_radius(long const     Nh,

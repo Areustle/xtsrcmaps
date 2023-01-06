@@ -32,14 +32,17 @@ Fermi::ModelMap::point_src_model_map_wcs(
     scale_map_by_solid_angle(model_map, skygeom);
     // Compute the sources in the FOV and the PSF boundary radius;
     auto [full_psf_radius, is_in_fov] = psf_boundary_radius(Nh, Nw, dirs, skygeom);
-    Tensor1d psf_radius               = filter_in(full_psf_radius, is_in_fov);
+    Tensor1d const psf_radius         = filter_in(full_psf_radius, is_in_fov);
     // Compute the MapIntegral scalar for each source & energy given source location.
-    Tensor2d inv_mapinteg
+    Tensor2d const inv_mapinteg
         = map_integral(model_map, dirs, skygeom, psf_radius, is_in_fov);
     // Scale each map value by the exposure for this source.
     scale_map_by_exposure(model_map, exposure);
-    scale_map_by_correction_factors(
-        model_map, inv_mapinteg, psf_radius, is_in_fov, uPsf, partial_integrals);
+
+    Tensor2d const correction_factor = map_correction_factor(
+        inv_mapinteg, psf_radius, is_in_fov, uPsf, partial_integrals);
+
+    scale_map_by_correction_factors(model_map, correction_factor);
 
     return model_map;
 }
@@ -519,21 +522,17 @@ Fermi::ModelMap::map_integral(Tensor4d const& model_map,
     return MapIntegral;
 }
 
-void
-Fermi::ModelMap::scale_map_by_correction_factors(
-    Tensor4d&       model_map,
-    Tensor2d const& inv_map_integ, /* [E, S] */
-    Tensor1d const& psf_radius,
-    Tensor1b const& is_in_fov,
-    Tensor3d const& mean_psf,         /* [D,E,S] */
-    Tensor3d const& partial_integrals /* [D,E,S] */
-)
+auto
+Fermi::ModelMap::map_correction_factor(Tensor2d const& inv_map_integ, /* [E, F] */
+                                       Tensor1d const& psf_radius,
+                                       Tensor1b const& is_in_fov,
+                                       Tensor3d const& mean_psf,         /* [D,E,S] */
+                                       Tensor3d const& partial_integrals /* [D,E,S] */
+                                       ) -> Tensor2d
 {
-    long const Ne = model_map.dimension(0);
-    long const Nh = model_map.dimension(1);
-    long const Nw = model_map.dimension(2);
-    long const Ns = model_map.dimension(3);
     long const Nd = mean_psf.dimension(0);
+    long const Ne = mean_psf.dimension(1);
+    long const Ns = mean_psf.dimension(2);
     long const Nf = psf_radius.dimension(0);
 
     Tensor3d filtered_psf(Nd, Ne, Nf);
@@ -552,21 +551,36 @@ Fermi::ModelMap::scale_map_by_correction_factors(
 
     Tensor2d const rad_integ
         = Fermi::ModelMap::integral(psf_radius, filtered_psf, filtered_parint);
-    Tensor2d RadInteg(Ne, Ns);
-    RadInteg.setConstant(1.);
+    Tensor2d cor_fac = rad_integ * inv_map_integ;
+
+    Tensor2d correction_factor(Ne, Ns);
+    correction_factor.setConstant(1.);
 
     f = 0;
     for (long s = 0; s < Ns; ++s)
     {
         if (!is_in_fov(s)) { continue; }
-        RadInteg.slice(Idx2 { 0, s }, Idx2 { Ne, 1 })
-            = rad_integ.slice(Idx2 { 0, f }, Idx2 { Ne, 1 });
+        correction_factor.slice(Idx2 { 0, s }, Idx2 { Ne, 1 })
+            = cor_fac.slice(Idx2 { 0, f }, Idx2 { Ne, 1 });
         ++f;
     }
 
-    model_map *= (RadInteg * inv_map_integ)
-                     .reshape(Idx4 { Ne, 1, 1, Ns })
-                     .broadcast(Idx4 { 1, Nh, Nw, 1 });
+    return correction_factor;
+}
+
+void
+Fermi::ModelMap::scale_map_by_correction_factors(Tensor4d& model_map, /*[E,H,W,S]*/
+                                                 Tensor2d const& factor /*[E,S]*/)
+{
+    long const Ne = model_map.dimension(0);
+    long const Nh = model_map.dimension(1);
+    long const Nw = model_map.dimension(2);
+    long const Ns = model_map.dimension(3);
+
+    assert(Ne == factor.dimension(0));
+    assert(Ns == factor.dimension(1));
+
+    model_map *= factor.reshape(Idx4 { Ne, 1, 1, Ns }).broadcast(Idx4 { 1, Nh, Nw, 1 });;
 }
 
 auto
