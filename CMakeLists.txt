@@ -62,9 +62,11 @@ add_compile_options(
   $<$<CONFIG:DEBUG>:-fno-common>
 )
 add_link_options(
-  $<$<CONFIG:DEBUG>:-fsanitize=address> $<$<CONFIG:DEBUG>:-fsanitize=leak>
+  $<$<CONFIG:DEBUG>:-fsanitize=address>
+  $<$<CONFIG:DEBUG>:-fsanitize=leak>
   $<$<CONFIG:DEBUG>:-fsanitize=undefined>
-  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> $<$<CONFIG:DEBUG>:-fno-common>
+  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
+  $<$<CONFIG:DEBUG>:-fno-common>
 )
 
 add_subdirectory(xtsrcmaps)
