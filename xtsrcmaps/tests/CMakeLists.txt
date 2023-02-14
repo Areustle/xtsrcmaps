@@ -8,10 +8,11 @@ add_executable(
   # test_irf.cxx
   # test_king.cxx
   test_main.cxx #
-  test_model_map_v2.cxx
+  # test_model_map_v2.cxx
   # test_psf.cxx
   # test_sky_geom.cxx
   # test_src_utils.cxx
+  model_map/test_pixel_offsets.cxx
 )
 target_link_libraries(
   tests PRIVATE fmt::fmt PkgConfig::cfitsio doctest::doctest

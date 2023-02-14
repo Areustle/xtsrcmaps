@@ -28,3 +28,7 @@ xtsrcmaps/tests/expected/src_needs_more.bin
 xtsrcmaps/tests/expected/src_peak_ratio.bin
 xtsrcmaps/tests/expected/src_pix_offset.bin
 xtsrcmaps/tests/expected/src_psfEstimate.bin
+xtsrcmaps/tests/expected/ft_mm_psf_sang.bin
+xtsrcmaps/tests/expected/ft_model_map.bin
+
+*.ipynb

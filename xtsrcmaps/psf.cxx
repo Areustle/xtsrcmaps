@@ -270,18 +270,10 @@ Fermi::PSF::normalize(Tensor3d&       mean_psf,       /* [Nd, Ne, Ns] */
 auto
 Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [D, E, S] */) -> Tensor2d
 {
-    // auto Nd = mean_psf.dimension(0);
     long const Ne = mean_psf.dimension(1);
     long const Ns = mean_psf.dimension(2);
     return mean_psf.slice(Idx3 { 0, 0, 0 }, Idx3 { 1, Ne, Ns })
         .reshape(Idx2 { Ne, Ns });
-    // auto const& Ns = mean_psf.extent(0);
-    // auto const& Ne = mean_psf.extent(1);
-    // auto const& Nd = mean_psf.extent(2);
-    // auto v  = vector<double>(Ns * Ne);
-    // for (long i = 0; i < Ns * Ne; ++i) { v[i] = mean_psf.container()[i * Nd]; }
-    //
-    // return mdarray2(v, Ns, Ne);
 }
 
 auto
@@ -335,7 +327,7 @@ Fermi::PSF::psf_lookup_table_and_partial_integrals(
 
     Tensor3d uPsf
         = Fermi::PSF::mean_psf(front_corr_exp_psf, back_corr_exp_psf, exposure);
-    // auto uPeak   = Fermi::PSF::peak_psf(MDuPsf);
+    // auto uPeak                       = Fermi::PSF::peak_psf(uPsf);
     auto [part_psf_integ, psf_integ] = Fermi::PSF::partial_total_integral(uPsf);
 
     Fermi::PSF::normalize(uPsf, psf_integ);

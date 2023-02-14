@@ -37,6 +37,7 @@ FetchContent_MakeAvailable(Eigen fmt)
 
 # find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(OpenMP REQUIRED COMPONENTS CXX)
 
 # Pkg-Config Externals ##
 pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
@@ -45,28 +46,29 @@ pkg_check_modules(wcslib REQUIRED IMPORTED_TARGET GLOBAL wcslib)
 # ##############################################################################
 
 add_compile_options(
-  -Wall
-  -Wextra
-  -Werror # -mbmi2
-  -march=native
-  -Wno-unused-parameter
-  $<$<CONFIG:RELEASE>:-O3>
-  # $<$<CONFIG:RELEASE>:-Og>
-  $<$<CONFIG:DEBUG>:-pedantic>
-  $<$<CONFIG:DEBUG>:-g3>
-  $<$<CONFIG:DEBUG>:-Og>
-  $<$<CONFIG:DEBUG>:-fsanitize=address>
-  $<$<CONFIG:DEBUG>:-fsanitize=leak>
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
-  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
-  $<$<CONFIG:DEBUG>:-fno-common>
+  -Wall #
+  -Wextra #
+  -Werror # -mbmi2 #
+  -march=native #
+  -Wno-unused-parameter #
+  -Wno-deprecated-enum-enum-conversion
+  $<$<CONFIG:RELEASE>:-O3> #
+  # $<$<CONFIG:RELEASE>:-Og> #
+  $<$<CONFIG:DEBUG>:-pedantic> #
+  $<$<CONFIG:DEBUG>:-g3> #
+  $<$<CONFIG:DEBUG>:-Og> #
+  $<$<CONFIG:DEBUG>:-fsanitize=address> #
+  $<$<CONFIG:DEBUG>:-fsanitize=leak> #
+  $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
+  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> #
+  $<$<CONFIG:DEBUG>:-fno-common> #
 )
 add_link_options(
-  $<$<CONFIG:DEBUG>:-fsanitize=address>
-  $<$<CONFIG:DEBUG>:-fsanitize=leak>
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined>
-  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer>
-  $<$<CONFIG:DEBUG>:-fno-common>
+  $<$<CONFIG:DEBUG>:-fsanitize=address> #
+  $<$<CONFIG:DEBUG>:-fsanitize=leak> #
+  $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
+  $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> #
+  $<$<CONFIG:DEBUG>:-fno-common> #
 )
 
 add_subdirectory(xtsrcmaps)

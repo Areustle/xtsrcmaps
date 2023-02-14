@@ -79,3 +79,55 @@ filecomp3(Tensor3d const& computed, std::string const& filebase) -> void
                 REQUIRE_MESSAGE(computed(i, j, k) == doctest::Approx(sp_b(i, j, k)),
                                 i << " " << j << " " << k << " " << filebase);
 }
+
+template <typename T, long N>
+auto
+isfinite(Tensor<T, N> const& x) -> Tensor<bool, N>
+{
+    return x.unaryExpr([](T v) -> bool { return std::isfinite(v); });
+}
+
+template <typename T, long N>
+auto
+relerr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
+{
+    return (x - y).abs() / y.abs();
+}
+
+
+template <typename T, long N>
+auto
+abserr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
+{
+    return (x - y).abs();
+}
+
+template <typename T, long N>
+auto
+within_tol(Tensor<T, N> const& x,
+           Tensor<T, N> const& y,
+           double const        atol,
+           double const        rtol) -> Tensor<bool, N>
+{
+    Tensor<bool, N> r = (abserr<T, N>(x, y) <= atol + rtol * y.abs());
+    return r;
+}
+
+template <typename T, long N>
+auto
+allclose(Tensor<T, N> const& x,
+         Tensor<T, N> const& y,
+         double const        abstol,
+         double const        reltol) -> bool
+{
+    Tensor0b xfin = isfinite<T, N>(x).all();
+    Tensor0b yfin = isfinite<T, N>(y).all();
+    if (xfin(0) && yfin(0))
+    {
+
+        Tensor<bool, N> istol = within_tol<T, N>(x, y, abstol, reltol);
+        Tensor0b        ac    = istol.all();
+        return ac(0);
+    }
+    else { return false; }
+}

@@ -32,12 +32,27 @@ psf_fast_lut(Array3Xd const& points3, ArrayXd const& src_d, Tensor2d const& tuPs
     -> Tensor3d;
 
 auto
-pixel_mean_psf(long const      Nh,
-               long const      Nw,
-               vpd const&      src_dirs,
-               Tensor3d const& psf_lut,
-               SkyGeom const&  skygeom,
-               double const    ftol_threshold = 1e-3) -> Tensor4d;
+pixel_mean_psf_genz(long const      Nh,
+                    long const      Nw,
+                    vpd const&      src_dirs,
+                    Tensor3d const& psf_lut,
+                    SkyGeom const&  skygeom,
+                    double const    ftol_threshold = 1e-3) -> Tensor4d;
+
+auto
+create_offset_map(long const                       Nh,
+                  long const                       Nw,
+                  std::pair<double, double> const& dir,
+                  Fermi::SkyGeom const&            skygeom) -> Tensor2d;
+
+auto
+pixel_mean_psf_riemann(long const      Nh,
+                       long const      Nw,
+                       vpd const&      src_dirs,
+                       Tensor3d const& psf_lut,
+                       Tensor2d const& psf_peak,
+                       SkyGeom const&  skygeom,
+                       double const    ftol_threshold = 1e-3) -> Tensor4d;
 
 auto
 solid_angle(Tensor3d const& points, Fermi::SkyGeom const& skygeom) -> Tensor2d;
