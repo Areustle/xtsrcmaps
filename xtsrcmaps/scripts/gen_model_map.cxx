@@ -40,27 +40,15 @@ main()
         Ns,
         Ne);
 
-    // Tensor4d psfEst = Fermi::ModelMap::pixel_mean_psf_riemann(
-    //     100, 100, dirs, norm_uPsf, peak_uPsf, skygeom, 1e-3);
-    // std::ofstream ofs_pr("xt_psfEstimate.bin",
-    //                      std::ios::out | std::ios::binary | std::ios::ate);
-    // ofs_pr.write(reinterpret_cast<char*>(psfEst.data()),
-    //              sizeof(double) * Ne * 10000 * Ns);
-    // ofs_pr.close();
+    Tensor4d psfEst = Fermi::ModelMap::pixel_mean_psf_riemann(
+        Nh, Nw, dirs, norm_uPsf, peak_uPsf, { ccube }, 1e-3);
+
+    std::ofstream ofs_pr("xt_psfEstimate.bin",
+                         std::ios::out | std::ios::binary | std::ios::ate);
+    ofs_pr.write(reinterpret_cast<char*>(psfEst.data()),
+                 sizeof(double) * Ne * 10000 * Ns);
+    ofs_pr.close();
 
     // Tensor4d st_psfEst = Fermi::row_major_file_to_col_major_tensor(
     //     "./xtsrcmaps/tests/expected/src_psfEstimate.bin", Ns, Nw, Nh, Ne);
-    // std::cout << st_psfEst(0, 99, 64, 86) << std::endl;
-
-    std::ofstream ofs_poff("xt_pixelOffsets.bin",
-                           std::ios::out | std::ios::binary | std::ios::trunc);
-    for (long s = 0; s < Ns; ++s)
-    {
-        Tensor2d pixelOffsets
-            = Fermi::ModelMap::create_offset_map(Nh, Nw, dirs[s], skygeom);
-
-        ofs_poff.write(reinterpret_cast<char*>(pixelOffsets.data()),
-                       sizeof(double) * Nh * Nw);
-    }
-    ofs_poff.close();
 }

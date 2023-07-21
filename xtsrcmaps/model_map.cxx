@@ -66,8 +66,8 @@ Fermi::ModelMap::get_init_points(long const Nh, long const Nw) -> Tensor3d
 }
 
 auto
-Fermi::ModelMap::spherical_direction_of_pixels(Tensor3d const& points,
-                                               SkyGeom const&  skygeom) -> Array3Xd
+Fermi::ModelMap::spherical_direction_of_genz_pixels(Tensor3d const& points,
+                                                    SkyGeom const&  skygeom) -> Array3Xd
 {
     Array3Xd dir_points(3, points.dimension(1) * points.dimension(2));
     for (long j = 0; j < points.dimension(2); ++j)
@@ -188,7 +188,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
 
     // Transform functor for genz_points to spherical 3-points
     auto get_dir_points = [&skygeom](Tensor3d const& p) -> Array3Xd {
-        return spherical_direction_of_pixels(p, skygeom);
+        return spherical_direction_of_genz_pixels(p, skygeom);
     };
 
     Array3Xd const dir_points = get_dir_points(genz_points);
@@ -400,6 +400,40 @@ bilinear_on_grid_slow(double x, double y, Tensor2d const& grid)
 }
 
 auto
+Fermi::ModelMap::create_offset_map(long const                       Nh,
+                                   long const                       Nw,
+                                   std::pair<double, double> const& dir,
+                                   Fermi::SkyGeom const&            skygeom) -> Tensor2d
+{
+    // Get the sources coordinate in 3-direction space.
+    Vector3d src_dir = skygeom.sph2dir(dir); // CLHEP Style 3
+    Vector2d src_pix = skygeom.sph2pix(Vector2d(dir.first, dir.second));
+
+    // Compute the pixel offsets map used for distance scaling computation.
+    // Create Offset Map
+    Tensor2d pixelOffsets(Nh, Nw);
+    for (long w = 0; w < Nw; ++w)
+    {
+        for (long h = 0; h < Nh; ++h)
+        {
+            auto pixpix        = Vector2d(h + 1, w + 1);
+            auto pixdir        = skygeom.pix2dir(pixpix);
+            auto ang_sep       = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
+
+            // auto pix_sep = 0.2
+            //                * std::sqrt(std::pow(src_pix(0) - (h + 1), 2)
+            //                            + std::pow(src_pix(1) - (w + 1), 2));
+            auto pix_sep       = 0.2 * (src_pix - pixpix).norm();
+
+            auto pixelOffset   = ang_sep / pix_sep - 1.0;
+            pixelOffsets(h, w) = pix_sep > 1E-6 ? pixelOffset : 0.0;
+        }
+    }
+    return pixelOffsets;
+}
+
+
+auto
 riemann_slow(Tensor2d const& tuPsf_ED,
              long const      e,
              long const      h,
@@ -431,38 +465,6 @@ riemann_slow(Tensor2d const& tuPsf_ED,
     return psf_value / static_cast<double>(Nsub * Nsub);
 }
 
-auto
-Fermi::ModelMap::create_offset_map(long const                       Nh,
-                                   long const                       Nw,
-                                   std::pair<double, double> const& dir,
-                                   Fermi::SkyGeom const&            skygeom) -> Tensor2d
-{
-    // Get the sources coordinate in 3-direction space.
-    Vector3d src_dir = skygeom.sph2dir(dir); // CLHEP Style 3
-    Vector2d src_pix = skygeom.sph2pix(Vector2d(dir.first, dir.second));
-
-    // Compute the pixel offsets map used for distance scaling computation.
-    // Create Offset Map
-    Tensor2d pixelOffsets(Nh, Nw);
-    for (long w = 0; w < Nw; ++w)
-    {
-        for (long h = 0; h < Nh; ++h)
-        {
-            auto pixpix  = Vector2d(h + 1, w + 1);
-            auto pixdir  = skygeom.pix2dir(pixpix);
-            auto ang_sep = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
-
-            // auto pix_sep       = 0.2 * (src_pix - pixpix).norm();
-            auto pix_sep = 0.2
-                           * std::sqrt(std::pow(src_pix(0) - (h + 1), 2)
-                                       + std::pow(src_pix(1) - (w + 1), 2));
-
-            auto pixelOffset   = ang_sep / pix_sep - 1.0;
-            pixelOffsets(h, w) = pix_sep > 1E-6 ? pixelOffset : 0.0;
-        }
-    }
-    return pixelOffsets;
-}
 
 auto
 Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
@@ -482,89 +484,85 @@ Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
     model_map.setZero();
 
     // #pragma omp parallel for
-    // for (long s = 86; s < 87; ++s)
-    // {
-    long s = 86;
-    // fmt::print("\n{}\n", s);
-    std::cout << "." << std::flush;
-    // long const source_index_offset = s * Ne * Nevts;
-    // A slice of the PSF table just for this source's segment of the table.
-    Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
-                                  .reshape(Idx2 { Nd, Ne })
-                                  .shuffle(Idx2 { 1, 0 });
-
-    // Get the sources coordinate in 3-direction space.
-    Vector3d src_dir      = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
-    Vector2d src_pix      = skygeom.sph2pix(Vector2d(dirs[s].first, dirs[s].second));
-
-    // Compute the pixel offsets map used for distance scaling computation.
-    // Create Offset Map
-    Tensor2d pixelOffsets = create_offset_map(Nh, Nw, dirs[s], skygeom);
-
-    long w                = 64;
-    long h                = 99;
-    // // for (long w = 0; w < Nw; ++w)
-    // // {
-    // double const dw    = w + 0.5;
-    // // for (long h = 0; h < Nh; ++h)
-    // // {
-    // double const dh    = h + 0.5;
-    // Tensor1d rei_u_psf = reimann_integ(dh, dw, src_pix, pixelOffsets, tuPsf_ED, Ne);
-
-
-    //////////////////////////////////////////////////////////////////////////////////
-    ///
-
-    long   e              = 0;
-    auto   pixdir         = skygeom.pix2dir(Vector2d(h + 1, w + 1));
-    double offset         = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
-    double peak_val       = psf_peak(e, s);
-    double v0             = Fermi::psf_lerp_slow(tuPsf_ED, e, offset);
-    double v1             = 0.;
-    double ferr           = 0.;
-    double peak_ratio     = peak_val ? v0 / peak_val : 0.0;
-
-    if (peak_ratio < 1e-6)
+    for (long s = 0; s < 1; ++s)
     {
-        fmt::print("Peak ratio close: v0 {}  peak_val {}  peak_ratio {}\n",
-                   v0,
-                   peak_val,
-                   peak_ratio);
-    }
-    else
-    {
-        long Nsub = 1;
-        while (1)
+        std::cout << "\n" << s << std::flush;
+
+        // Compute the pixel offsets map used for distance scaling computation.
+        // Create Offset Map
+        Tensor2d pixelOffsets   = create_offset_map(Nh, Nw, dirs[s], skygeom);
+
+        // long const source_index_offset = s * Ne * Nevts;
+        // A slice of the PSF table just for this source's segment of the table.
+        Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
+                                      .reshape(Idx2 { Nd, Ne })
+                                      .shuffle(Idx2 { 1, 0 });
+
+        // Get the sources coordinate in 3-direction space.
+        Vector3d src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+        Vector2d src_pix = skygeom.sph2pix(Vector2d(dirs[s].first, dirs[s].second));
+
+
+        for (long w = 0; w < Nw; ++w)
         {
-            Nsub *= 2;
-            v1           = riemann_slow(tuPsf_ED, e, h, w, Nsub, src_pix, pixelOffsets);
-            double vdiff = v1 - v0;
-            if (vdiff == 0.0 || v1 == 0.0) break;
+            std::cout << "." << std::flush;
+            for (long h = 0; h < Nh; ++h)
+            {
+                // Tensor1d rei_u_psf = reimann_integ(dh, dw, src_pix, pixelOffsets,
+                // tuPsf_ED, Ne);
 
-            ferr = std::fabs(vdiff / v1);
-            if (ferr < ftol_threshold || Nsub >= 64) break;
-            v0 = v1;
+
+                //////////////////////////////////////////////////////////////////////////////////
+                ///
+                auto const   pixdir = skygeom.pix2dir(Vector2d(h + 1, w + 1));
+                double const offset = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
+                for (long e = 0; e < Ne; ++e)
+                {
+
+                    double peak_val   = psf_peak(e, s);
+                    double v0         = Fermi::psf_lerp_slow(tuPsf_ED, e, offset);
+                    double v1         = 0.;
+                    double ferr       = 0.;
+                    double peak_ratio = peak_val ? v0 / peak_val : 0.0;
+
+                    if (peak_ratio < 1e-3) { v1 = v0; }
+                    else
+                    {
+                        long Nsub = 1;
+                        while (true)
+                        {
+                            Nsub *= 2;
+                            v1 = riemann_slow(
+                                tuPsf_ED, e, h, w, Nsub, src_pix, pixelOffsets);
+                            double vdiff = v1 - v0;
+                            if (vdiff == 0.0 || v1 == 0.0) { break; }
+
+                            ferr = std::fabs(vdiff / v1);
+                            if (ferr < ftol_threshold || Nsub >= 64) { break; }
+                            v0 = v1;
+                        }
+                        // fmt::print("Integral Value {}\n", v1);
+                    }
+                    model_map(e, h, w, s) = v1;
+                }
+
+                //////////////////////////////////////////////////////////////////////////////////
+
+
+                // std::cout << "Done: " << rei_u_psf << std::endl;
+                //
+                // TensorMap<Tensor1d>(model_map.data() + h * Ne + w * Ne * Nw +
+                // source_index_offset,
+                //                     Ne)
+                //     = rei_u_psf;
+            }
         }
-        fmt::print("Integral Value {}\n", v1);
+
+        /******************************************************************
+         * Psf Energy values for sample points in direction space
+         ******************************************************************/
     }
-
-    //////////////////////////////////////////////////////////////////////////////////
-
-
-    // std::cout << "Done: " << rei_u_psf << std::endl;
-    //
-    // TensorMap<Tensor1d>(model_map.data() + h * Ne + w * Ne * Nw +
-    // source_index_offset,
-    //                     Ne)
-    //     = rei_u_psf;
-    //     }
-    // }
-
-    /******************************************************************
-     * Psf Energy values for sample points in direction space
-     ******************************************************************/
-    // }
-    fmt::print("\n");
+    // fmt::print("\n");
 
     return model_map;
 }
@@ -717,10 +715,12 @@ point_nearest_to_source_on_segment(Vector2d const& p,
 //
 // for (long s = 0; s < Ns; ++s)
 // {
-//     // // Simple geometric trick to determine if the source point is bounded by the
+//     // // Simple geometric trick to determine if the source point is bounded by
+//     the
 //     // // convex hull of our spherically warped field of view.
-//     // Vector2d const S(std::get<0>(src_pts_pix[s]), std::get<1>(src_pts_pix[s]));
-//     Vector2d const S(std::get<0>(src_dirs[s]), std::get<1>(src_dirs[s]));
+//     // Vector2d const S(std::get<0>(src_pts_pix[s]),
+//     std::get<1>(src_pts_pix[s])); Vector2d const S(std::get<0>(src_dirs[s]),
+//     std::get<1>(src_dirs[s]));
 //     // Vector2d const AS     = S - A;
 //     // Vector2d const CS     = S - C;
 //     // double const   AS_AB  = AS.dot(AB);
@@ -740,11 +740,14 @@ point_nearest_to_source_on_segment(Vector2d const& p,
 //     // // Points on boundary of FOV nearest to the source.
 //     // Vector2d pSAB    = point_nearest_to_source_on_segment(AB, A, B, AS_AB,
 //     // lenAB); Vector2d pSAD    = point_nearest_to_source_on_segment(AD, A, D,
-//     // AS_AD, lenAD); Vector2d pSCB    = point_nearest_to_source_on_segment(CB, C,
-//     // B, CS_CB, lenCB); Vector2d pSCD    = point_nearest_to_source_on_segment(CD,
+//     // AS_AD, lenAD); Vector2d pSCB    = point_nearest_to_source_on_segment(CB,
+//     C,
+//     // B, CS_CB, lenCB); Vector2d pSCD    =
+//     point_nearest_to_source_on_segment(CD,
 //     // C, D, CS_CD, lenCD);
 //     //
-//     // // Distance between the source and the boundary lines of the field of view;
+//     // // Distance between the source and the boundary lines of the field of
+//     view;
 //     // double const dAB = sph_diff(S, pSAB.array().round(), skygeom);
 //     // double const dAD = sph_diff(S, pSAD.array().round(), skygeom);
 //     // double const dCB = sph_diff(S, pSCB.array().round(), skygeom);
@@ -755,10 +758,10 @@ point_nearest_to_source_on_segment(Vector2d const& p,
 //     // min_rad          = min_rad < dCD ? min_rad : dCD;
 //     // min_rad *= R2D;
 
-// Compute the psf radius of each source relative to the field of view by computing the
-// minimal distance between the source and each boundary segment. Sources outside
-// the field of view are not included in the radius vector, and are set to false in the
-// boolean vector
+// Compute the psf radius of each source relative to the field of view by computing
+// the minimal distance between the source and each boundary segment. Sources
+// outside the field of view are not included in the radius vector, and are set to
+// false in the boolean vector
 auto
 Fermi::ModelMap::psf_boundary_radius(long const     Nh,
                                      long const     Nw,
@@ -936,7 +939,8 @@ Fermi::ModelMap::integral(Tensor1d const& angles,
     //
     //     if (angle < s_separations.front()) { return 0; }
     //     else if (angle >= s_separations.back()) { return 1; }
-    //     size_t j(std::upper_bound(s_separations.begin(), s_separations.end(), angle)
+    //     size_t j(std::upper_bound(s_separations.begin(), s_separations.end(),
+    //     angle)
     //              - s_separations.begin() - 1);
     //
     // long const Nd = mean_psf.dimension(0);
@@ -1007,8 +1011,8 @@ Fermi::ModelMap::integral(Tensor1d const& angles,
     //
     // Final cleanup in case the angle was beyond the lookup table. In that case the
     // Normalized Partial Integral Maximum was 1., so the Integral = V + PartInt was
-    // greater than one. We use this trick to quickly upper_bound all the values to be
-    // 1.0;
+    // greater than one. We use this trick to quickly upper_bound all the values to
+    // be 1.0;
     Integ          = Integ.cwiseMax(1.0);
 
     return Integ.reshape(Idx2 { Ne, Ns });

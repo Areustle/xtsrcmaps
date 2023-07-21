@@ -24,7 +24,7 @@ auto
 get_init_points(long const Nh, long const Nw) -> Tensor3d;
 
 auto
-spherical_direction_of_pixels(Tensor3d const& points, SkyGeom const& skygeom)
+spherical_direction_of_genz_pixels(Tensor3d const& points, SkyGeom const& skygeom)
     -> Array3Xd;
 
 auto

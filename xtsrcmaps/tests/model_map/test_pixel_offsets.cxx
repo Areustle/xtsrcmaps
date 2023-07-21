@@ -16,7 +16,7 @@
 
 TEST_CASE("Test Model Map pixel mean psf")
 {
-    auto       cfg       = Fermi::XtCfg();
+    auto const cfg       = Fermi::XtCfg();
     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
     auto const dirs      = Fermi::directions_from_point_sources(srcs);
 
@@ -35,26 +35,12 @@ TEST_CASE("Test Model Map pixel mean psf")
     assert(st_pixoff.dimension(1) == Nw);
     assert(st_pixoff.dimension(2) == Ns);
 
-    // st_pixoff = np.fromfile("xtsrcmaps/tests/expected/src_pixelOffset.bin",
-    // count=(263*100*100)).reshape(263,100,100)
-    //
     for (long s = 0; s < Ns; ++s)
     {
-        TensorMap<Tensor2d const> const st_po(st_pixoff.data() + Nw * Nh * s, Nh, Nw);
-        Tensor2d                        pixelOffsets
+        TensorMap<Tensor2d> st_po(st_pixoff.data() + Nw * Nh * s, Nh, Nw);
+        Tensor2d            pixelOffsets
             = Fermi::ModelMap::create_offset_map(Nh, Nw, dirs[s], skygeom);
-
-        Tensor<bool, 2> xfin
-            = pixelOffsets.unaryExpr([](double v) -> bool { return std::isfinite(v); });
-        Tensor<bool, 2> yfin
-            = st_po.unaryExpr([](double v) -> bool { return std::isfinite(v); });
-
-        if (xfin(0) && yfin(0))
-        {
-            Tensor<double, 2> abserr = (pixelOffsets - st_po).abs();
-            Tensor<double, 2> ar_tol  = 1e-5 + 1e-5 * st_po.abs();
-        }
-
-        // REQUIRE(allclose<double, 2>(pixelOffsets, st_po, 1e-5, 1e-5));
+        bool close = allclose(pixelOffsets, st_po, 1e-5, 1e-5);
+        REQUIRE(close);
     }
 }

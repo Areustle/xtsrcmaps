@@ -20,6 +20,13 @@ include(CheckCXXCompilerFlag)
 include(GNUInstallDirs)
 include(FetchContent)
 
+# use ccache
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    message(STATUS "Found ccache in ${CCACHE_PROGRAM}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
+
 # Externals: The dependent packages on which the tool relies. ##
 # FetchContent_Declare( mdspan GIT_REPOSITORY https://github.com/kokkos/mdspan
 # GIT_TAG stable )
@@ -51,6 +58,7 @@ add_compile_options(
   -Werror # -mbmi2 #
   -march=native #
   -Wno-unused-parameter #
+  -Wno-array-bounds #
   -Wno-deprecated-enum-enum-conversion
   $<$<CONFIG:RELEASE>:-O3> #
   # $<$<CONFIG:RELEASE>:-Og> #

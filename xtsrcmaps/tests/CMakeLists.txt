@@ -13,6 +13,7 @@ add_executable(
   # test_sky_geom.cxx
   # test_src_utils.cxx
   model_map/test_pixel_offsets.cxx
+  model_map/test_riemann_slow.cxx
 )
 target_link_libraries(
   tests PRIVATE fmt::fmt PkgConfig::cfitsio doctest::doctest

@@ -80,54 +80,82 @@ filecomp3(Tensor3d const& computed, std::string const& filebase) -> void
                                 i << " " << j << " " << k << " " << filebase);
 }
 
-template <typename T, long N>
+template <typename Derived, int Access>
 auto
-isfinite(Tensor<T, N> const& x) -> Tensor<bool, N>
+all_short_circuit(Eigen::TensorBase<Derived, Access> const& x_) -> bool
 {
-    return x.unaryExpr([](T v) -> bool { return std::isfinite(v); });
-}
-
-template <typename T, long N>
-auto
-relerr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
-{
-    return (x - y).abs() / y.abs();
-}
-
-
-template <typename T, long N>
-auto
-abserr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
-{
-    return (x - y).abs();
-}
-
-template <typename T, long N>
-auto
-within_tol(Tensor<T, N> const& x,
-           Tensor<T, N> const& y,
-           double const        atol,
-           double const        rtol) -> Tensor<bool, N>
-{
-    Tensor<bool, N> r = (abserr<T, N>(x, y) <= atol + rtol * y.abs());
-    return r;
-}
-
-template <typename T, long N>
-auto
-allclose(Tensor<T, N> const& x,
-         Tensor<T, N> const& y,
-         double const        abstol,
-         double const        reltol) -> bool
-{
-    Tensor0b xfin = isfinite<T, N>(x).all();
-    Tensor0b yfin = isfinite<T, N>(y).all();
-    if (xfin(0) && yfin(0))
+    // Derived& tensr = static_cast<Derived&>(tensor)
+    Derived const& x           = static_cast<Derived const&>(x_);
+    bool           is_all_true = true;
+    long           i           = 0;
+    while (i < x.size())
     {
+        is_all_true &= (x.data())[i++];
+        if (!is_all_true) { break; }
+    }
+    return is_all_true;
+}
 
-        Tensor<bool, N> istol = within_tol<T, N>(x, y, abstol, reltol);
-        Tensor0b        ac    = istol.all();
-        return ac(0);
+template <typename Derived, int Access>
+auto
+allfinite(Eigen::TensorBase<Derived, Access> const& x) -> bool
+{
+    Eigen::Tensor<bool, Derived::NumIndices> xfint = x.unaryExpr(
+        [](typename Derived::Scalar v) -> bool { return std::isfinite(v); });
+    bool xfin = all_short_circuit(xfint);
+    return xfin;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+///
+/// Numerically stable error tolerance. Algebraically equivalent to numpy allclose
+/// implementation. Uses no division. Is not symetric: Assumes "y" is the reference
+/// value.
+//////////////////////////////////////////////////////////////////////////////////////
+template <typename Derived1, typename Derived2, int Access1, int Access2>
+auto
+allclose(Eigen::TensorBase<Derived1, Access1> const& x_,
+         Eigen::TensorBase<Derived2, Access2> const& y_,
+         double const                                abstol = 1e-5,
+         double const                                reltol = 1e-5) -> bool
+{
+
+    Derived1 const& x = static_cast<Derived1 const&>(x_);
+    Derived2 const& y = static_cast<Derived2 const&>(y_);
+    static_assert(Derived1::NumIndices == Derived2::NumIndices,
+                  "Tensor parameters must be of same rank.");
+
+    if (allfinite(x) && allfinite(y))
+    {
+        Tensor<bool, Derived1::NumIndices> istol
+            = (x - y).abs() <= abstol + reltol * y.abs();
+        return all_short_circuit(istol);
     }
     else { return false; }
 }
+
+// template <typename T, int N>
+// auto
+// relerr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
+// {
+//     return (x - y).abs() / y.abs();
+// }
+//
+//
+// template <typename T, int N>
+// auto
+// abserr(Tensor<T, N> const& x, Tensor<T, N> const& y) -> Tensor<T, N>
+// {
+//     return (x - y).abs();
+// }
+//
+// template <typename T, int N>
+// auto
+// within_tol(Tensor<T, N> const& x,
+//            Tensor<T, N> const& y,
+//            double const        atol,
+//            double const        rtol) -> Tensor<bool, N>
+// {
+//     Tensor<bool, N> r = ((x - y).abs() <= atol + rtol * y.abs());
+//     return r;
+// }
