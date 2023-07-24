@@ -18,6 +18,7 @@ add_library(
   psf.cxx
   genz_malik.cxx
   model_map.cxx
+  model_map/grid_operations.cxx
 )
 
 add_library(Fermi::xtsrcmaps_lib ALIAS xtsrcmaps_lib)

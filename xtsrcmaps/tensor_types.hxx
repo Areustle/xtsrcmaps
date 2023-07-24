@@ -50,6 +50,8 @@ using Eigen::Vector2d;
 using Eigen::Vector3d;
 using Eigen::VectorXd;
 
+using Matrix23d = Eigen::Matrix<double, 2, 3>;
+
 template <typename T>
 using Map = Eigen::Map<T>;
 template <typename T>

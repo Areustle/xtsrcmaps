@@ -36,7 +36,7 @@ main()
     auto const logEs        = Fermi::log10_v(energies);
 
     auto const srcs         = Fermi::parse_src_xml(cfg.srcmdl);
-    auto const dirs         = Fermi::directions_from_point_sources(srcs);
+    auto const src_sph      = Fermi::spherical_coords_from_point_sources(srcs);
     auto const ccube        = good(opt_ccube, "Cannot read counts cube map file!");
 
     // skipping ROI cuts.
@@ -60,11 +60,12 @@ main()
     auto opt_wexp_map    = Fermi::fits::read_expcube(cfg.expcube, "WEIGHTED_EXPOSURE");
     auto const exp_cube  = good(opt_exp_map, "Cannot read exposure cube map file!");
     auto const wexp_cube = good(opt_wexp_map, "Cannot read exposure cube map file!");
-    auto const exp_costhetas                 = Fermi::exp_costhetas(exp_cube);
-    auto const exp_map                       = Fermi::exp_map(exp_cube);
-    auto const wexp_map                      = Fermi::exp_map(wexp_cube);
-    auto const src_exposure_cosbins          = Fermi::src_exp_cosbins(dirs, exp_map);
-    auto const src_weighted_exposure_cosbins = Fermi::src_exp_cosbins(dirs, wexp_map);
+    auto const exp_costhetas        = Fermi::exp_costhetas(exp_cube);
+    auto const exp_map              = Fermi::exp_map(exp_cube);
+    auto const wexp_map             = Fermi::exp_map(wexp_cube);
+    auto const src_exposure_cosbins = Fermi::src_exp_cosbins(src_sph, exp_map);
+    auto const src_weighted_exposure_cosbins
+        = Fermi::src_exp_cosbins(src_sph, wexp_map);
 
     //********************************************************************************
     // Effective Area Computations.
@@ -145,5 +146,5 @@ main()
         exposure);
 
     auto model_map = Fermi::ModelMap::point_src_model_map_wcs(
-        100, 100, dirs, uPsf, { ccube }, exposure, part_psf_integ, 1e-3);
+        100, 100, src_sph, uPsf, { ccube }, exposure, part_psf_integ, 1e-3);
 }

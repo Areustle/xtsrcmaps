@@ -18,7 +18,7 @@ TEST_CASE("Test Model Map pixel mean psf")
 {
     auto const cfg       = Fermi::XtCfg();
     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
-    auto const dirs      = Fermi::directions_from_point_sources(srcs);
+    auto const src_sph   = Fermi::spherical_coords_from_point_sources(srcs);
 
     auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
     REQUIRE(opt_ccube);
@@ -42,7 +42,7 @@ TEST_CASE("Test Model Map pixel mean psf")
         "./xtsrcmaps/tests/expected/uPsf_peak_SE.bin", 1, Ne);
 
     Tensor4d psfEst = Fermi::ModelMap::pixel_mean_psf_riemann(
-        Nh, Nw, { dirs[0] }, norm_uPsf, peak_uPsf, { ccube }, 1e-3);
+        Nh, Nw, { src_sph[0] }, norm_uPsf, peak_uPsf, { ccube }, 1e-3);
 
     std::cout << psfEst.slice(Idx4 { 0, 0, 0, 0 }, Idx4 { 1, Nh, Nw, 1 }) << "\n";
 

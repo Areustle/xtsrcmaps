@@ -52,7 +52,7 @@ Fermi::exp_costhetas(fits::ExposureCubeData const& data) -> vector<double>
 }
 
 auto
-Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
+Fermi::src_exp_cosbins(vector<pair<double, double>> const& src_sph,
                        ExposureMap const&                  expmap) -> Tensor2d
 {
 
@@ -62,8 +62,8 @@ Fermi::src_exp_cosbins(vector<pair<double, double>> const& dirs,
         return { halfpi - to_radians(p.second), pi_180 * p.first };
     };
 
-    auto theta_phi_dirs = vector<pd_t>(dirs.size(), { 0., 0. });
-    std::transform(dirs.cbegin(), dirs.cend(), theta_phi_dirs.begin(), convert);
+    auto theta_phi_dirs = vector<pd_t>(src_sph.size(), { 0., 0. });
+    std::transform(src_sph.cbegin(), src_sph.cend(), theta_phi_dirs.begin(), convert);
 
     auto const nbins = expmap.nbins;
     auto const pixs  = Fermi::Healpix::ang2pix(theta_phi_dirs, expmap.nside);

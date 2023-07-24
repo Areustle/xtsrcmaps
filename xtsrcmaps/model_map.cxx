@@ -19,7 +19,7 @@ auto
 Fermi::ModelMap::point_src_model_map_wcs(
     long const      Nh,
     long const      Nw,
-    vpd const&      dirs,
+    vpd const&      src_sphcrds,
     Tensor3d const& uPsf,
     SkyGeom const&  skygeom,
     Tensor2d const& exposure,
@@ -29,15 +29,16 @@ Fermi::ModelMap::point_src_model_map_wcs(
     // Use Genz Malik Integration Scheme to compute the per-pixel average PSF value for
     // every source and energy level.
     Tensor4d model_map
-        = pixel_mean_psf_genz(Nh, Nw, dirs, uPsf, skygeom, ftol_threshold);
+        = pixel_mean_psf_genz(Nh, Nw, src_sphcrds, uPsf, skygeom, ftol_threshold);
     // Scale the model_map by the central solid angle of every pixel.
     scale_map_by_solid_angle(model_map, skygeom);
     // Compute the sources in the FOV and the PSF boundary radius;
-    auto [full_psf_radius, is_in_fov] = psf_boundary_radius(Nh, Nw, dirs, skygeom);
-    Tensor1d const psf_radius         = filter_in(full_psf_radius, is_in_fov);
+    auto [full_psf_radius, is_in_fov]
+        = psf_boundary_radius(Nh, Nw, src_sphcrds, skygeom);
+    Tensor1d const psf_radius = filter_in(full_psf_radius, is_in_fov);
     // Compute the MapIntegral scalar for each source & energy given source location.
     Tensor2d const inv_mapinteg
-        = map_integral(model_map, dirs, skygeom, psf_radius, is_in_fov);
+        = map_integral(model_map, src_sphcrds, skygeom, psf_radius, is_in_fov);
     // Scale each map value by the exposure for this source.
     scale_map_by_exposure(model_map, exposure);
 
@@ -161,12 +162,12 @@ Fermi::ModelMap::psf_fast_lut(Array3Xd const& points3,
 auto
 Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
                                      long const      Nw,
-                                     vpd const&      dirs,
+                                     vpd const&      src_sphcrds,
                                      Tensor3d const& psf_lut,
                                      SkyGeom const&  skygeom,
                                      double const    ftol_threshold) -> Tensor4d
 {
-    long const Ns    = dirs.size();
+    long const Ns    = src_sphcrds.size();
     long const Nd    = psf_lut.dimension(0);
     long const Ne    = psf_lut.dimension(1);
     long const Nevts = Nh * Nw;
@@ -201,7 +202,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
                                       .shuffle(Idx2 { 1, 0 });
 
         // Get the sources coordinate in 3-direction space.
-        Vector3d src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
+        Vector3d src_dir = skygeom.sph2dir(src_sphcrds[s]); // CLHEP Style 3
 
         /******************************************************************
          * Psf Energy values for sample points in direction space
@@ -469,13 +470,13 @@ riemann_slow(Tensor2d const& tuPsf_ED,
 auto
 Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
                                         long const      Nw,
-                                        vpd const&      dirs,
+                                        vpd const&      src_sphcrds,
                                         Tensor3d const& psf_lut,
                                         Tensor2d const& psf_peak,
                                         SkyGeom const&  skygeom,
                                         double const    ftol_threshold) -> Tensor4d
 {
-    long const Ns = dirs.size();
+    long const Ns = src_sphcrds.size();
     long const Nd = psf_lut.dimension(0);
     long const Ne = psf_lut.dimension(1);
     // long const Nevts = Nh * Nw;
@@ -490,7 +491,7 @@ Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
 
         // Compute the pixel offsets map used for distance scaling computation.
         // Create Offset Map
-        Tensor2d pixelOffsets   = create_offset_map(Nh, Nw, dirs[s], skygeom);
+        Tensor2d pixelOffsets   = create_offset_map(Nh, Nw, src_sphcrds[s], skygeom);
 
         // long const source_index_offset = s * Ne * Nevts;
         // A slice of the PSF table just for this source's segment of the table.
@@ -499,8 +500,9 @@ Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
                                       .shuffle(Idx2 { 1, 0 });
 
         // Get the sources coordinate in 3-direction space.
-        Vector3d src_dir = skygeom.sph2dir(dirs[s]); // CLHEP Style 3
-        Vector2d src_pix = skygeom.sph2pix(Vector2d(dirs[s].first, dirs[s].second));
+        Vector3d src_dir = skygeom.sph2dir(src_sphcrds[s]); // CLHEP Style 3
+        Vector2d src_pix
+            = skygeom.sph2pix(Vector2d(src_sphcrds[s].first, src_sphcrds[s].second));
 
 
         for (long w = 0; w < Nw; ++w)

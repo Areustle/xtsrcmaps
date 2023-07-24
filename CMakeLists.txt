@@ -59,7 +59,7 @@ add_compile_options(
   -march=native #
   -Wno-unused-parameter #
   -Wno-array-bounds #
-  -Wno-deprecated-enum-enum-conversion
+  -Wno-deprecated-enum-enum-conversion #
   $<$<CONFIG:RELEASE>:-O3> #
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #

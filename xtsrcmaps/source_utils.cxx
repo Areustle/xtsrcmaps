@@ -6,7 +6,7 @@
 #include <vector>
 
 auto
-Fermi::directions_from_point_sources(std::vector<Fermi::Source> const& srcs)
+Fermi::spherical_coords_from_point_sources(std::vector<Fermi::Source> const& srcs)
     -> std::vector<std::pair<double, double>>
 {
     auto dirs = std::vector<std::pair<double, double>>();

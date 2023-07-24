@@ -16,7 +16,7 @@ main()
 
     auto       cfg       = Fermi::XtCfg();
     auto const srcs      = Fermi::parse_src_xml(cfg.srcmdl);
-    auto const dirs      = Fermi::directions_from_point_sources(srcs);
+    auto const src_sph   = Fermi::spherical_coords_from_point_sources(srcs);
 
     auto const opt_ccube = Fermi::fits::ccube_pixels(cfg.cmap);
     auto const ccube     = good(opt_ccube, "Cannot read counts cube map file!");
@@ -24,7 +24,7 @@ main()
     long const Ne        = 38;
     long const Nh        = 100;
     long const Nw        = 100;
-    long const Ns        = dirs.size();
+    long const Ns        = src_sph.size();
     long const Nd        = 401;
 
     Tensor3d norm_uPsf   = Fermi::row_major_file_to_col_major_tensor(
@@ -41,7 +41,7 @@ main()
         Ne);
 
     Tensor4d psfEst = Fermi::ModelMap::pixel_mean_psf_riemann(
-        Nh, Nw, dirs, norm_uPsf, peak_uPsf, { ccube }, 1e-3);
+        Nh, Nw, src_sph, norm_uPsf, peak_uPsf, { ccube }, 1e-3);
 
     std::ofstream ofs_pr("xt_psfEstimate.bin",
                          std::ios::out | std::ios::binary | std::ios::ate);

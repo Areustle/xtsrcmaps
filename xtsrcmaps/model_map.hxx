@@ -13,7 +13,7 @@ namespace Fermi::ModelMap
 auto
 point_src_model_map_wcs(long const      Nh,
                         long const      Nw,
-                        vpd const&      src_dirs,
+                        vpd const&      src_sph,
                         Tensor3d const& uPsf,
                         SkyGeom const&  skygeom,
                         Tensor2d const& exposure,
@@ -34,7 +34,7 @@ psf_fast_lut(Array3Xd const& points3, ArrayXd const& src_d, Tensor2d const& tuPs
 auto
 pixel_mean_psf_genz(long const      Nh,
                     long const      Nw,
-                    vpd const&      src_dirs,
+                    vpd const&      src_sph,
                     Tensor3d const& psf_lut,
                     SkyGeom const&  skygeom,
                     double const    ftol_threshold = 1e-3) -> Tensor4d;
@@ -48,7 +48,7 @@ create_offset_map(long const                       Nh,
 auto
 pixel_mean_psf_riemann(long const      Nh,
                        long const      Nw,
-                       vpd const&      src_dirs,
+                       vpd const&      src_sph,
                        Tensor3d const& psf_lut,
                        Tensor2d const& psf_peak,
                        SkyGeom const&  skygeom,
@@ -78,12 +78,12 @@ scale_map_by_correction_factors(Tensor4d&       model_map, /*[E,H,W,S]*/
 auto
 psf_boundary_radius(long const     Nh,
                     long const     Nw,
-                    vpd const&     src_dirs,
+                    vpd const&     src_sph,
                     SkyGeom const& skygeom) -> std::pair<Tensor1d, Tensor1b>;
 
 auto
 map_integral(Tensor4d const& model_map,
-             vpd const&      src_dirs,
+             vpd const&      src_sph,
              SkyGeom const&  skygeom,
              Tensor1d const& psf_radius,
              Tensor1b const& is_in_fov) -> Tensor2d;
