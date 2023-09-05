@@ -4,10 +4,8 @@
 
 #include <xtsrcmaps/source.hxx>
 
-namespace Fermi
-{
+namespace Fermi {
 
-auto
-parse_src_xml(std::string const& src_file_name) -> std::vector<Source>;
+auto parse_src_xml(std::string const& src_file_name) -> std::vector<Source>;
 
 } // namespace Fermi

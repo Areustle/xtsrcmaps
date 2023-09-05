@@ -484,7 +484,6 @@ Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
     Tensor4d model_map(Ne, Nh, Nw, Ns);
     model_map.setZero();
 
-    // #pragma omp parallel for
     for (long s = 0; s < 1; ++s)
     {
         std::cout << "\n" << s << std::flush;

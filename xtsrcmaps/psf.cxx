@@ -14,8 +14,7 @@
 using std::vector;
 
 inline auto
-king_single(double const sep, Tensor1d const& pars) noexcept -> double
-{
+king_single(double const sep, Tensor1d const& pars) noexcept -> double {
     assert(pars.dimension(0) == 6);
     double const& ncore = pars(0);
     double const& ntail = pars(1);
@@ -39,8 +38,7 @@ king_single(double const sep, Tensor1d const& pars) noexcept -> double
 
 //[Nd, Nc, Ne] -> [Ne, Nc, Nd]
 auto
-Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d
-{
+Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d {
     Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
     assert(psf_grid.params.dimension(0) == 6);                      // 6
     assert(psf_grid.params.dimension(1) == psf_grid.logEs.size());  // Ne
@@ -66,12 +64,9 @@ Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d
     assert(P.dimension(1) == Ne);
     assert(P.dimension(2) == Nc);
 
-    for (long d = 0; d < Nd; ++d)
-    {
-        for (long c = 0; c < Nc; ++c)
-        {
-            for (long e = 0; e < Ne; ++e)
-            {
+    for (long d = 0; d < Nd; ++d) {
+        for (long c = 0; c < Nc; ++c) {
+            for (long e = 0; e < Ne; ++e) {
                 Kings(e, c, d) = king_single(
                     delta(d),
                     P.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 }).reshape(Idx1 { 6 }));
@@ -90,8 +85,7 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
                    Tensor1d const&            par_cosths, // [Mc]
                    Tensor1d const&            par_logEs,  // [Me]
                    Tensor3d const&            kings       /*[Me, Mc, Nd]*/
-                   ) -> Tensor3d
-{
+                   ) -> Tensor3d {
     long const Nd = kings.dimension(2);
     long const Nc = costhetas.size();
     long const Ne = logEs.size();
@@ -108,14 +102,11 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
     auto const elerps = Fermi::lerp_pars(par_logEs, logEs);
 
     // biLerp the [E,C] slice of the Kings lookup table for each psf separation (D)
-    for (long c = 0; c < Bilerps.dimension(2); ++c)
-    {
+    for (long c = 0; c < Bilerps.dimension(2); ++c) {
         auto ct = clerps[c];
-        for (long e = 0; e < Bilerps.dimension(1); ++e)
-        {
+        for (long e = 0; e < Bilerps.dimension(1); ++e) {
             auto et = elerps[e];
-            for (long d = 0; d < Bilerps.dimension(0); ++d)
-            {
+            for (long d = 0; d < Bilerps.dimension(0); ++d) {
 
                 Bilerps(d, e, c) = Fermi::bilerp(
                     et,
@@ -139,8 +130,7 @@ Fermi::PSF::corrected_exposure_psf(
     Tensor2d const& src_exposure_cosbins,          /*[S, C] -> [C, S]*/
     Tensor2d const& src_weighted_exposure_cosbins, /*[S, C] -> [C, S]*/
     std::pair<std::vector<double>, std::vector<double>> const& front_LTF /*[E]*/
-    ) -> Tensor3d
-{
+    ) -> Tensor3d {
     long const Nd = obs_psf.dimension(0);
     long const Ne = obs_psf.dimension(1);
     long const Nc = obs_psf.dimension(2);
@@ -180,8 +170,7 @@ auto
 Fermi::PSF::mean_psf(                    //
     Tensor3d const& front_corrected_psf, /*[Nd, Ne, Nsrc]*/
     Tensor3d const& back_corrected_psf,  /*[Nd, Ne, Nsrc]*/
-    Tensor2d const& exposure /*[Ne, Nsrc]*/) -> Tensor3d
-{
+    Tensor2d const& exposure /*[Ne, Nsrc]*/) -> Tensor3d {
     long const Nd         = front_corrected_psf.dimension(0);
     long const Ne         = front_corrected_psf.dimension(1);
     long const Ns         = front_corrected_psf.dimension(2);
@@ -200,8 +189,7 @@ Fermi::PSF::mean_psf(                    //
 
 auto
 Fermi::PSF::partial_total_integral(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */
-                                   ) -> std::pair<Tensor3d, Tensor2d>
-{
+                                   ) -> std::pair<Tensor3d, Tensor2d> {
     auto   Nd   = mean_psf.dimension(0);
     auto   Ne   = mean_psf.dimension(1);
     auto   Ns   = mean_psf.dimension(2);
@@ -256,8 +244,7 @@ Fermi::PSF::partial_total_integral(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */
 auto
 Fermi::PSF::normalize(Tensor3d&       mean_psf,       /* [Nd, Ne, Ns] */
                       Tensor2d const& total_integrals /*     [Ne, Ns] */
-                      ) -> void
-{
+                      ) -> void {
     long const Nd = mean_psf.dimension(0);
     long const Ne = mean_psf.dimension(1);
     long const Ns = mean_psf.dimension(2);
@@ -268,8 +255,7 @@ Fermi::PSF::normalize(Tensor3d&       mean_psf,       /* [Nd, Ne, Ns] */
 }
 
 auto
-Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [D, E, S] */) -> Tensor2d
-{
+Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [D, E, S] */) -> Tensor2d {
     long const Ne = mean_psf.dimension(1);
     long const Ns = mean_psf.dimension(2);
     return mean_psf.slice(Idx3 { 0, 0, 0 }, Idx3 { 1, Ne, Ns })
@@ -277,8 +263,7 @@ Fermi::PSF::peak_psf(Tensor3d const& mean_psf /* [D, E, S] */) -> Tensor2d
 }
 
 auto
-Fermi::PSF::fast_separation_lower_index(Tensor1d seps) -> Tensor1i
-{
+Fermi::PSF::fast_separation_lower_index(Tensor1d seps) -> Tensor1i {
     seps           = 1e4 * seps;
     Tensor1d Mseps = 1. + (seps.log() / sep_step);
     Tensor1i index = (seps < 1.).select(seps, Mseps).floor().cast<Eigen::DenseIndex>();
@@ -297,8 +282,7 @@ Fermi::PSF::psf_lookup_table_and_partial_integrals(
     Tensor2d const&            src_weighted_exposure_cosbins,
     std::pair<std::vector<double>, std::vector<double>> const& front_LTF, /*[Ne]*/
     Tensor2d const&                                            exposure   /*[Ne, Nsrc]*/
-    ) -> std::tuple<Tensor3d, Tensor3d>
-{
+    ) -> std::tuple<Tensor3d, Tensor3d> {
     // auto const separations   = Fermi::PSF::separations();
     auto const front_kings   = Fermi::PSF::king(psf_irf.front);
     auto const back_kings    = Fermi::PSF::king(psf_irf.back);

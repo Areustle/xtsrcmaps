@@ -34,8 +34,7 @@ using std::vector;
 // column n: Data parameter in linearized (costheta x energy) grid.
 //************************************************************************************
 auto
-prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
-{
+prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
 
     assert(pars.extents.size() >= 5);
     assert(pars.extents[0] > 1);
@@ -126,8 +125,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3
 }
 
 auto
-prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale
-{
+prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale {
     assert(pars.rowdata.dimension(0) == 3);
     assert(pars.rowdata.dimension(1) == 1);
 
@@ -135,8 +133,7 @@ prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale
 }
 
 auto
-prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
-{
+prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic {
 
     assert(pars.extents.size() == 1);
     assert(pars.extents[0] == 6);
@@ -157,8 +154,7 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic
 //
 inline auto
 evaluate_king(double const sep, double const scale_factor, Tensor1d const& pars)
-    -> double
-{
+    -> double {
     auto f = [](double const u, double gamma) -> double {
         // ugly kluge because of sloppy programming in handoff_response
         // when setting boundaries of fit parameters for the PSF.
@@ -184,8 +180,7 @@ evaluate_king(double const sep, double const scale_factor, Tensor1d const& pars)
 inline auto
 psf3_psf_base_integral(double const    radius,
                        double const    scale_factor,
-                       Tensor1d const& pars) -> double
-{
+                       Tensor1d const& pars) -> double {
     auto f = [](double u, double gamma) -> double {
         double arg(1. + u / gamma);
         if (arg < 0) { throw std::runtime_error("neg. arg to pow"); }
@@ -213,8 +208,7 @@ psf3_psf_base_integral(double const    radius,
 }
 
 auto
-normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void
-{
+normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void {
 
     Fermi::IrfData3&       data  = psfdata.rpsf;
     Fermi::IrfScale const& scale = psfdata.psf_scaling_params;
@@ -277,8 +271,8 @@ prepare_psf_data(Fermi::fits::TablePars const& front_rpsf,
                  Fermi::fits::TablePars const& front_fisheye,
                  Fermi::fits::TablePars const& back_rpsf,
                  Fermi::fits::TablePars const& back_scaling,
-                 Fermi::fits::TablePars const& back_fisheye) -> Fermi::irf::psf::Pass8FB
-{
+                 Fermi::fits::TablePars const& back_fisheye)
+    -> Fermi::irf::psf::Pass8FB {
 
     auto front = Fermi::irf::psf::Data { prepare_grid(front_rpsf),
                                          prepare_scale(front_scaling),
@@ -300,8 +294,7 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
                   Fermi::fits::TablePars const& back_eff_area,
                   Fermi::fits::TablePars const& back_phi_dep,
                   Fermi::fits::TablePars const& back_effici)
-    -> Fermi::irf::aeff::Pass8FB
-{
+    -> Fermi::irf::aeff::Pass8FB {
     auto front = Fermi::irf::aeff::Data { prepare_grid(front_eff_area),
                                           prepare_grid(front_phi_dep),
                                           prepare_effic(front_effici) };
@@ -314,8 +307,7 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
 }
 
 auto
-read_opt(auto&& F, std::string const& filename, std::string const& tablename) -> auto
-{
+read_opt(auto&& F, std::string const& filename, std::string const& tablename) -> auto {
     auto opt_irf = F(filename, tablename);
     if (!opt_irf) fmt::print("Cannot read {} table {}!\n", filename, tablename);
     return opt_irf;
@@ -324,8 +316,7 @@ read_opt(auto&& F, std::string const& filename, std::string const& tablename) ->
 //************************************************************************************
 //************************************************************************************
 auto
-Fermi::load_aeff(std::string const& filename) -> std::optional<irf::aeff::Pass8FB>
-{
+Fermi::load_aeff(std::string const& filename) -> std::optional<irf::aeff::Pass8FB> {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "EFFECTIVE AREA_FRONT");
     auto o1f = read_opt(f, filename, "PHI_DEPENDENCE_FRONT");
@@ -334,21 +325,20 @@ Fermi::load_aeff(std::string const& filename) -> std::optional<irf::aeff::Pass8F
     auto o1b = read_opt(f, filename, "PHI_DEPENDENCE_BACK");
     auto o2b = read_opt(f, filename, "EFFICIENCY_PARAMS_BACK");
 
-    if (o0f && o1f && o2f && o0b && o1b && o2b)
-    {
+    if (o0f && o1f && o2f && o0b && o1b && o2b) {
         return { prepare_aeff_data(o0f.value(),
                                    o1f.value(),
                                    o2f.value(),
                                    o0b.value(),
                                    o1b.value(),
                                    o2b.value()) };
+    } else {
+        return std::nullopt;
     }
-    else { return std::nullopt; }
 }
 
 auto
-Fermi::load_psf(std::string const& filename) -> std::optional<irf::psf::Pass8FB>
-{
+Fermi::load_psf(std::string const& filename) -> std::optional<irf::psf::Pass8FB> {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "RPSF_FRONT");
     auto o1f = read_opt(f, filename, "PSF_SCALING_PARAMS_FRONT");
@@ -357,24 +347,23 @@ Fermi::load_psf(std::string const& filename) -> std::optional<irf::psf::Pass8FB>
     auto o1b = read_opt(f, filename, "PSF_SCALING_PARAMS_BACK");
     auto o2b = read_opt(f, filename, "FISHEYE_CORRECTION_BACK");
 
-    if (o0f && o1f && o2f && o0b && o1b && o2b)
-    {
+    if (o0f && o1f && o2f && o0b && o1b && o2b) {
         return { prepare_psf_data(o0f.value(),
                                   o1f.value(),
                                   o2f.value(),
                                   o0b.value(),
                                   o1b.value(),
                                   o2b.value()) };
+    } else {
+        return std::nullopt;
     }
-    else { return std::nullopt; }
 }
 
 auto
 Fermi::lt_effic_factors(vector<double> const& logEs, IrfEffic const& effic)
-    -> pair<vector<double>, vector<double>>
-{
-    auto single_factor = [](auto const& p) -> auto
-    {
+    -> pair<vector<double>, vector<double>> {
+
+    auto single_factor = [](auto const& p) -> auto {
         auto const&  a0     = p.at(0);
         auto const&  b0     = p.at(1);
         auto const&  a1     = p.at(2);

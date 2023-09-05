@@ -44,7 +44,7 @@ FetchContent_MakeAvailable(Eigen fmt)
 
 # find_package(fmt REQUIRED)
 find_package(PkgConfig REQUIRED)
-find_package(OpenMP REQUIRED COMPONENTS CXX)
+# find_package(OpenMP REQUIRED COMPONENTS CXX)
 
 # Pkg-Config Externals ##
 pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)

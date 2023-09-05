@@ -25,7 +25,7 @@ add_library(Fermi::xtsrcmaps_lib ALIAS xtsrcmaps_lib)
 target_link_libraries(
   xtsrcmaps_lib
   PUBLIC PkgConfig::wcslib Eigen3::Eigen
-  PRIVATE fmt::fmt PkgConfig::cfitsio OpenMP::OpenMP_CXX
+  PRIVATE fmt::fmt PkgConfig::cfitsio  #  OpenMP::OpenMP_CXX
 )
 
 add_executable(xtsrcmaps xtsrcmaps.cxx)

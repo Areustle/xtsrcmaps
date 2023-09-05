@@ -21,8 +21,7 @@
 // using std::vector;
 
 int
-main()
-{
+main() {
     // : parse-cli : Parse the command line arguments, parfiles, etc.
     // Just use st_app? hoops? ape?
     // rewrite hoops ape locally?
