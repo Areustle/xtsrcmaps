@@ -1,7 +1,7 @@
 #pragma once
 
 #include "xtsrcmaps/misc.hxx"
-#include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/psf/psf.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
 #include "xtsrcmaps/tensor_types.hxx"
 
@@ -16,7 +16,7 @@ point_src_model_map_wcs(long const      Nh,
                         vpd const&      src_sph,
                         Tensor3d const& uPsf,
                         SkyGeom const&  skygeom,
-                        Tensor2d const& exposure,
+                        Tensor2d const& exposures,
                         Tensor3d const& partial_integrals, /* [D,E,S] */
                         double const    ftol_threshold = 1e-3) -> Tensor4d;
 
@@ -45,14 +45,14 @@ create_offset_map(long const                       Nh,
                   std::pair<double, double> const& dir,
                   Fermi::SkyGeom const&            skygeom) -> Tensor2d;
 
-auto
-pixel_mean_psf_riemann(long const      Nh,
-                       long const      Nw,
-                       vpd const&      src_sph,
-                       Tensor3d const& psf_lut,
-                       Tensor2d const& psf_peak,
-                       SkyGeom const&  skygeom,
-                       double const    ftol_threshold = 1e-3) -> Tensor4d;
+/* auto */
+/* pixel_mean_psf_riemann(long const      Nh, */
+/*                        long const      Nw, */
+/*                        vpd const&      src_sph, */
+/*                        Tensor3d const& psf_lut, */
+/*                        Tensor2d const& psf_peak, */
+/*                        SkyGeom const&  skygeom, */
+/*                        double const    ftol_threshold = 1e-3) -> Tensor4d; */
 
 auto
 solid_angle(Tensor3d const& points, Fermi::SkyGeom const& skygeom) -> Tensor2d;
@@ -61,7 +61,7 @@ void
 scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& skygeom);
 
 void
-scale_map_by_exposure(Tensor4d& model_map, Tensor2d const& exposure);
+scale_map_by_exposure(Tensor4d& model_map, Tensor2d const& exposures);
 
 auto
 map_correction_factor(Tensor2d const& MapInteg,

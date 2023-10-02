@@ -324,7 +324,6 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
     if (status) fmt::print("Failed to get numrows in {}. Status {}", c_tbl, status);
 
     // Populate the rows vectors.
-    // auto rowdata = vector<vector<float>>(nrows, vector<float>(row_width, 0.0f));
     RowTensor2f rowdata(nrows, row_width);
 
     for (unsigned int n = 0; n < nrows; ++n) {

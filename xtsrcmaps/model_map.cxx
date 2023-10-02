@@ -1,13 +1,13 @@
 #include "xtsrcmaps/model_map.hxx"
 
-#include "xtsrcmaps/bilerp.hxx"
 #include "xtsrcmaps/fmt_source.hxx"
 #include "xtsrcmaps/genz_malik.hxx"
 #include "xtsrcmaps/interp.hxx"
 #include "xtsrcmaps/misc.hxx"
-#include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/psf/psf.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
 #include "xtsrcmaps/tensor_ops.hxx"
+#include "xtsrcmaps/utils/bilerp.hxx"
 
 #include <cmath>
 
@@ -22,10 +22,9 @@ Fermi::ModelMap::point_src_model_map_wcs(
     vpd const&      src_sphcrds,
     Tensor3d const& uPsf,
     SkyGeom const&  skygeom,
-    Tensor2d const& exposure,
+    Tensor2d const& exposures,
     Tensor3d const& partial_integrals, /* [D,E,S] */
-    double const    ftol_threshold) -> Tensor4d
-{
+    double const    ftol_threshold) -> Tensor4d {
     // Use Genz Malik Integration Scheme to compute the per-pixel average PSF value for
     // every source and energy level.
     Tensor4d model_map
@@ -40,7 +39,7 @@ Fermi::ModelMap::point_src_model_map_wcs(
     Tensor2d const inv_mapinteg
         = map_integral(model_map, src_sphcrds, skygeom, psf_radius, is_in_fov);
     // Scale each map value by the exposure for this source.
-    scale_map_by_exposure(model_map, exposure);
+    scale_map_by_exposure(model_map, exposures);
 
     Tensor2d const correction_factor = map_correction_factor(
         inv_mapinteg, psf_radius, is_in_fov, uPsf, partial_integrals);
@@ -51,13 +50,10 @@ Fermi::ModelMap::point_src_model_map_wcs(
 }
 
 auto
-Fermi::ModelMap::get_init_points(long const Nh, long const Nw) -> Tensor3d
-{
+Fermi::ModelMap::get_init_points(long const Nh, long const Nw) -> Tensor3d {
     Tensor3d init_points(2, Nh, Nw);
-    for (long w = 0; w < Nw; ++w)
-    {
-        for (long h = 0; h < Nh; ++h)
-        {
+    for (long w = 0; w < Nw; ++w) {
+        for (long h = 0; h < Nh; ++h) {
             init_points(0, h, w) = 1. + h;
             init_points(1, h, w) = 1. + w;
         }
@@ -68,13 +64,11 @@ Fermi::ModelMap::get_init_points(long const Nh, long const Nw) -> Tensor3d
 
 auto
 Fermi::ModelMap::spherical_direction_of_genz_pixels(Tensor3d const& points,
-                                                    SkyGeom const&  skygeom) -> Array3Xd
-{
+                                                    SkyGeom const&  skygeom)
+    -> Array3Xd {
     Array3Xd dir_points(3, points.dimension(1) * points.dimension(2));
-    for (long j = 0; j < points.dimension(2); ++j)
-    {
-        for (long i = 0; i < Genz::Ncnt; ++i)
-        {
+    for (long j = 0; j < points.dimension(2); ++j) {
+        for (long i = 0; i < Genz::Ncnt; ++i) {
             Vector3d p = skygeom.pix2dir({ points(0, i, j), points(1, i, j) });
             dir_points(Eigen::all, i + Genz::Ncnt * j) = p;
         }
@@ -85,8 +79,7 @@ Fermi::ModelMap::spherical_direction_of_genz_pixels(Tensor3d const& points,
 auto
 Fermi::ModelMap::psf_fast_lut(Array3Xd const& points3,
                               ArrayXd const&  src_d,
-                              Tensor2d const& table) -> Tensor3d
-{
+                              Tensor2d const& table) -> Tensor3d {
     // Dimensions
     long const Npts           = points3.cols();
     long const Ne             = table.dimension(0);
@@ -116,8 +109,7 @@ Fermi::ModelMap::psf_fast_lut(Array3Xd const& points3,
 
     // iterate over every point
     long i = 0;
-    while (i < Npts)
-    {
+    while (i < Npts) {
 
         // Lookup table's separation index.
         double const index = std::floor(idxs(i));
@@ -142,8 +134,7 @@ Fermi::ModelMap::psf_fast_lut(Array3Xd const& points3,
 
         // // Write the Energies into the result buffer via a veiw.
         // TensorMap<Tensor2d>(vals.data() + i * Ne, Ne, Nlen) = vv;
-        for (long j = 0; j < Nlen; ++j)
-        {
+        for (long j = 0; j < Nlen; ++j) {
             long evoff = (i + j) / Genz::Ncnt;
             long gzoff = (i + j) % Genz::Ncnt;
 
@@ -165,8 +156,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
                                      vpd const&      src_sphcrds,
                                      Tensor3d const& psf_lut,
                                      SkyGeom const&  skygeom,
-                                     double const    ftol_threshold) -> Tensor4d
-{
+                                     double const    ftol_threshold) -> Tensor4d {
     long const Ns    = src_sphcrds.size();
     long const Nd    = psf_lut.dimension(0);
     long const Ne    = psf_lut.dimension(1);
@@ -194,8 +184,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
 
     Array3Xd const dir_points = get_dir_points(genz_points);
 
-    for (long s = 0; s < Ns; ++s)
-    {
+    for (long s = 0; s < Ns; ++s) {
         // A slice of the PSF table just for this source's segment of the table.
         Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
                                       .reshape(Idx2 { Nd, Ne })
@@ -229,8 +218,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
 }
 
 inline auto
-sph_diff(Eigen::Vector3d const& L, Eigen::Vector3d const& R) -> double
-{
+sph_diff(Eigen::Vector3d const& L, Eigen::Vector3d const& R) -> double {
     return 2. * asin(0.5 * (L - R).norm());
 };
 
@@ -385,8 +373,7 @@ sph_diff(Eigen::Vector3d const& L, Eigen::Vector3d const& R) -> double
 // }
 
 double
-bilinear_on_grid_slow(double x, double y, Tensor2d const& grid)
-{
+bilinear_on_grid_slow(double x, double y, Tensor2d const& grid) {
     long const Nx = grid.dimension(0);
     long const Ny = grid.dimension(1);
 
@@ -404,8 +391,7 @@ auto
 Fermi::ModelMap::create_offset_map(long const                       Nh,
                                    long const                       Nw,
                                    std::pair<double, double> const& dir,
-                                   Fermi::SkyGeom const&            skygeom) -> Tensor2d
-{
+                                   Fermi::SkyGeom const& skygeom) -> Tensor2d {
     // Get the sources coordinate in 3-direction space.
     Vector3d src_dir = skygeom.sph2dir(dir); // CLHEP Style 3
     Vector2d src_pix = skygeom.sph2pix(Vector2d(dir.first, dir.second));
@@ -413,10 +399,8 @@ Fermi::ModelMap::create_offset_map(long const                       Nh,
     // Compute the pixel offsets map used for distance scaling computation.
     // Create Offset Map
     Tensor2d pixelOffsets(Nh, Nw);
-    for (long w = 0; w < Nw; ++w)
-    {
-        for (long h = 0; h < Nh; ++h)
-        {
+    for (long w = 0; w < Nw; ++w) {
+        for (long h = 0; h < Nh; ++h) {
             auto pixpix        = Vector2d(h + 1, w + 1);
             auto pixdir        = skygeom.pix2dir(pixpix);
             auto ang_sep       = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
@@ -434,139 +418,147 @@ Fermi::ModelMap::create_offset_map(long const                       Nh,
 }
 
 
-auto
-riemann_slow(Tensor2d const& tuPsf_ED,
-             long const      e,
-             long const      h,
-             long const      w,
-             long const      Nsub,
-             Vector2d const  src_pix,
-             Tensor2d const& pixelOffsets) -> double
-{
-    double psf_value(0);
-    double dstep(1. / Nsub);
-    for (long i(0); i < Nsub; i++)
-    {
-        double x((h + 1) + i * dstep - 0.5 + 0.5 * dstep);
-        for (long j(0); j < Nsub; j++)
-        {
-            double y((w + 1) + j * dstep - 0.5 + 0.5 * dstep);
-            double pix_offset = 0.2
-                                * std::sqrt(std::pow(src_pix(0) - x, 2)
-                                            + std::pow(src_pix(1) - y, 2));
-            // We have to subtract off 1 to get from the FITS convention to the
-            // array indices
-            // double scale = bilinear_on_grid(y - 1, x - 1, pixelOffsets);
-            double scale = bilinear_on_grid_slow(y - 1, x - 1, pixelOffsets);
-
-            // psf_value += meanPsf(e, pix_offset * (1 + scale));
-            psf_value += Fermi::psf_lerp_slow(tuPsf_ED, e, pix_offset * (1. + scale));
-        }
-    }
-    return psf_value / static_cast<double>(Nsub * Nsub);
-}
-
-
-auto
-Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
-                                        long const      Nw,
-                                        vpd const&      src_sphcrds,
-                                        Tensor3d const& psf_lut,
-                                        Tensor2d const& psf_peak,
-                                        SkyGeom const&  skygeom,
-                                        double const    ftol_threshold) -> Tensor4d
-{
-    long const Ns = src_sphcrds.size();
-    long const Nd = psf_lut.dimension(0);
-    long const Ne = psf_lut.dimension(1);
-    // long const Nevts = Nh * Nw;
-
-    Tensor4d model_map(Ne, Nh, Nw, Ns);
-    model_map.setZero();
-
-    for (long s = 0; s < 1; ++s)
-    {
-        std::cout << "\n" << s << std::flush;
-
-        // Compute the pixel offsets map used for distance scaling computation.
-        // Create Offset Map
-        Tensor2d pixelOffsets   = create_offset_map(Nh, Nw, src_sphcrds[s], skygeom);
-
-        // long const source_index_offset = s * Ne * Nevts;
-        // A slice of the PSF table just for this source's segment of the table.
-        Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
-                                      .reshape(Idx2 { Nd, Ne })
-                                      .shuffle(Idx2 { 1, 0 });
-
-        // Get the sources coordinate in 3-direction space.
-        Vector3d src_dir = skygeom.sph2dir(src_sphcrds[s]); // CLHEP Style 3
-        Vector2d src_pix
-            = skygeom.sph2pix(Vector2d(src_sphcrds[s].first, src_sphcrds[s].second));
+/* auto */
+/* riemann_slow(Tensor2d const& tuPsf_ED, */
+/*              long const      e, */
+/*              long const      h, */
+/*              long const      w, */
+/*              long const      Nsub, */
+/*              Vector2d const  src_pix, */
+/*              Tensor2d const& pixelOffsets) -> double */
+/* { */
+/*     double psf_value(0); */
+/*     double dstep(1. / Nsub); */
+/*     for (long i(0); i < Nsub; i++) */
+/*     { */
+/*         double x((h + 1) + i * dstep - 0.5 + 0.5 * dstep); */
+/*         for (long j(0); j < Nsub; j++) */
+/*         { */
+/*             double y((w + 1) + j * dstep - 0.5 + 0.5 * dstep); */
+/*             double pix_offset = 0.2 */
+/*                                 * std::sqrt(std::pow(src_pix(0) - x, 2) */
+/*                                             + std::pow(src_pix(1) - y, 2)); */
+/*             // We have to subtract off 1 to get from the FITS convention to the */
+/*             // array indices */
+/*             // double scale = bilinear_on_grid(y - 1, x - 1, pixelOffsets); */
+/*             double scale = bilinear_on_grid_slow(y - 1, x - 1, pixelOffsets); */
+/**/
+/*             // psf_value += meanPsf(e, pix_offset * (1 + scale)); */
+/*             psf_value += Fermi::psf_lerp_slow(tuPsf_ED, e, pix_offset * (1. +
+ * scale)); */
+/*         } */
+/*     } */
+/*     return psf_value / static_cast<double>(Nsub * Nsub); */
+/* } */
 
 
-        for (long w = 0; w < Nw; ++w)
-        {
-            std::cout << "." << std::flush;
-            for (long h = 0; h < Nh; ++h)
-            {
-                // Tensor1d rei_u_psf = reimann_integ(dh, dw, src_pix, pixelOffsets,
-                // tuPsf_ED, Ne);
-
-
-                //////////////////////////////////////////////////////////////////////////////////
-                ///
-                auto const   pixdir = skygeom.pix2dir(Vector2d(h + 1, w + 1));
-                double const offset = Fermi::dir_diff(pixdir, src_dir) * rad2deg;
-                for (long e = 0; e < Ne; ++e)
-                {
-
-                    double peak_val   = psf_peak(e, s);
-                    double v0         = Fermi::psf_lerp_slow(tuPsf_ED, e, offset);
-                    double v1         = 0.;
-                    double ferr       = 0.;
-                    double peak_ratio = peak_val ? v0 / peak_val : 0.0;
-
-                    if (peak_ratio < 1e-3) { v1 = v0; }
-                    else
-                    {
-                        long Nsub = 1;
-                        while (true)
-                        {
-                            Nsub *= 2;
-                            v1 = riemann_slow(
-                                tuPsf_ED, e, h, w, Nsub, src_pix, pixelOffsets);
-                            double vdiff = v1 - v0;
-                            if (vdiff == 0.0 || v1 == 0.0) { break; }
-
-                            ferr = std::fabs(vdiff / v1);
-                            if (ferr < ftol_threshold || Nsub >= 64) { break; }
-                            v0 = v1;
-                        }
-                        // fmt::print("Integral Value {}\n", v1);
-                    }
-                    model_map(e, h, w, s) = v1;
-                }
-
-                //////////////////////////////////////////////////////////////////////////////////
-
-
-                // std::cout << "Done: " << rei_u_psf << std::endl;
-                //
-                // TensorMap<Tensor1d>(model_map.data() + h * Ne + w * Ne * Nw +
-                // source_index_offset,
-                //                     Ne)
-                //     = rei_u_psf;
-            }
-        }
-
-        /******************************************************************
-         * Psf Energy values for sample points in direction space
-         ******************************************************************/
-    }
-    // fmt::print("\n");
-
-    return model_map;
-}
+/* auto */
+/* Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh, */
+/*                                         long const      Nw, */
+/*                                         vpd const&      src_sphcrds, */
+/*                                         Tensor3d const& psf_lut, */
+/*                                         Tensor2d const& psf_peak, */
+/*                                         SkyGeom const&  skygeom, */
+/*                                         double const    ftol_threshold) -> Tensor4d
+ */
+/* { */
+/*     long const Ns = src_sphcrds.size(); */
+/*     long const Nd = psf_lut.dimension(0); */
+/*     long const Ne = psf_lut.dimension(1); */
+/*     // long const Nevts = Nh * Nw; */
+/**/
+/*     Tensor4d model_map(Ne, Nh, Nw, Ns); */
+/*     model_map.setZero(); */
+/**/
+/*     for (long s = 0; s < 1; ++s) */
+/*     { */
+/*         std::cout << "\n" << s << std::flush; */
+/**/
+/*         // Compute the pixel offsets map used for distance scaling computation. */
+/*         // Create Offset Map */
+/*         Tensor2d pixelOffsets   = create_offset_map(Nh, Nw, src_sphcrds[s], skygeom);
+ */
+/**/
+/*         // long const source_index_offset = s * Ne * Nevts; */
+/*         // A slice of the PSF table just for this source's segment of the table. */
+/*         Tensor2d const tuPsf_ED = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
+ */
+/*                                       .reshape(Idx2 { Nd, Ne }) */
+/*                                       .shuffle(Idx2 { 1, 0 }); */
+/**/
+/*         // Get the sources coordinate in 3-direction space. */
+/*         Vector3d src_dir = skygeom.sph2dir(src_sphcrds[s]); // CLHEP Style 3 */
+/*         Vector2d src_pix */
+/*             = skygeom.sph2pix(Vector2d(src_sphcrds[s].first, src_sphcrds[s].second));
+ */
+/**/
+/**/
+/*         for (long w = 0; w < Nw; ++w) */
+/*         { */
+/*             std::cout << "." << std::flush; */
+/*             for (long h = 0; h < Nh; ++h) */
+/*             { */
+/*                 // Tensor1d rei_u_psf = reimann_integ(dh, dw, src_pix, pixelOffsets,
+ */
+/*                 // tuPsf_ED, Ne); */
+/**/
+/**/
+/*                 //////////////////////////////////////////////////////////////////////////////////
+ */
+/*                 /// */
+/*                 auto const   pixdir = skygeom.pix2dir(Vector2d(h + 1, w + 1)); */
+/*                 double const offset = Fermi::dir_diff(pixdir, src_dir) * rad2deg; */
+/*                 for (long e = 0; e < Ne; ++e) */
+/*                 { */
+/**/
+/*                     double peak_val   = psf_peak(e, s); */
+/*                     double v0         = Fermi::psf_lerp_slow(tuPsf_ED, e, offset); */
+/*                     double v1         = 0.; */
+/*                     double ferr       = 0.; */
+/*                     double peak_ratio = peak_val ? v0 / peak_val : 0.0; */
+/**/
+/*                     if (peak_ratio < 1e-3) { v1 = v0; } */
+/*                     else */
+/*                     { */
+/*                         long Nsub = 1; */
+/*                         while (true) */
+/*                         { */
+/*                             Nsub *= 2; */
+/*                             v1 = riemann_slow( */
+/*                                 tuPsf_ED, e, h, w, Nsub, src_pix, pixelOffsets); */
+/*                             double vdiff = v1 - v0; */
+/*                             if (vdiff == 0.0 || v1 == 0.0) { break; } */
+/**/
+/*                             ferr = std::fabs(vdiff / v1); */
+/*                             if (ferr < ftol_threshold || Nsub >= 64) { break; } */
+/*                             v0 = v1; */
+/*                         } */
+/*                         // fmt::print("Integral Value {}\n", v1); */
+/*                     } */
+/*                     model_map(e, h, w, s) = v1; */
+/*                 } */
+/**/
+/*                 //////////////////////////////////////////////////////////////////////////////////
+ */
+/**/
+/**/
+/*                 // std::cout << "Done: " << rei_u_psf << std::endl; */
+/*                 // */
+/*                 // TensorMap<Tensor1d>(model_map.data() + h * Ne + w * Ne * Nw + */
+/*                 // source_index_offset, */
+/*                 //                     Ne) */
+/*                 //     = rei_u_psf; */
+/*             } */
+/*         } */
+/**/
+/******************************************************************
+ * Psf Energy values for sample points in direction space
+ ******************************************************************/
+/*     } */
+/*     // fmt::print("\n"); */
+/**/
+/*     return model_map; */
+/* } */
 
 // auto
 // sph_diff(Vector2d const& L, Vector2d const& R, Fermi::SkyGeom const& skygeom) ->
@@ -582,13 +574,10 @@ Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh,
 
 auto
 Fermi::ModelMap::solid_angle(Tensor3d const& points, Fermi::SkyGeom const& skygeom)
-    -> Tensor2d
-{
+    -> Tensor2d {
     Tensor2d phi(points.dimension(1), points.dimension(2));
-    for (int w = 0; w < points.dimension(2); ++w)
-    {
-        for (int h = 0; h < points.dimension(1); ++h)
-        {
+    for (int w = 0; w < points.dimension(2); ++w) {
+        for (int h = 0; h < points.dimension(1); ++h) {
             // Adapted from FermiTools CountsMap.cxx:612 and FitsImage.cxx:108
             Vector3d const A = skygeom.pix2dir({ points(0, h, w), points(1, h, w) });
             Vector3d const B
@@ -610,8 +599,7 @@ Fermi::ModelMap::solid_angle(Tensor3d const& points, Fermi::SkyGeom const& skyge
 }
 
 void
-Fermi::ModelMap::scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& skygeom)
-{
+Fermi::ModelMap::scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& skygeom) {
     long const Ne              = model_map.dimension(0);
     long const Nh              = model_map.dimension(1);
     long const Nw              = model_map.dimension(2);
@@ -625,18 +613,18 @@ Fermi::ModelMap::scale_map_by_solid_angle(Tensor4d& model_map, SkyGeom const& sk
 }
 
 void
-Fermi::ModelMap::scale_map_by_exposure(Tensor4d& model_map, Tensor2d const& exposure)
-{
+Fermi::ModelMap::scale_map_by_exposure(Tensor4d&       model_map,
+                                       Tensor2d const& exposures) {
     long const Ne = model_map.dimension(0);
     long const Nh = model_map.dimension(1);
     long const Nw = model_map.dimension(2);
     long const Ns = model_map.dimension(3);
 
-    assert(Ne == exposure.dimension(0));
-    assert(Ns == exposure.dimension(1));
+    assert(Ne == exposures.dimension(0));
+    assert(Ns == exposures.dimension(1));
 
     model_map
-        *= exposure.reshape(Idx4 { Ne, 1, 1, Ns }).broadcast(Idx4 { 1, Nh, Nw, 1 });
+        *= exposures.reshape(Idx4 { Ne, 1, 1, Ns }).broadcast(Idx4 { 1, Nh, Nw, 1 });
 }
 
 
@@ -645,8 +633,7 @@ point_nearest_to_source_on_segment(Vector2d const& v,
                                    Vector2d const& p0,
                                    Vector2d const& p1,
                                    double const&   c1,
-                                   double const&   c2) -> Eigen::Vector2d
-{
+                                   double const&   c2) -> Eigen::Vector2d {
     // v = p1 - p0
     // if ((w.v)=c1 <= 0) then before P0 return p0
     // if ((v.v)=c2 <= c1) then after P1 return p1
@@ -657,22 +644,19 @@ point_nearest_to_source_on_segment(Vector2d const& v,
 inline auto
 point_nearest_to_source_on_segment(Vector2d const& p,
                                    Vector2d const& p0,
-                                   Vector2d const& p1) -> Vector2d
-{
+                                   Vector2d const& p1) -> Vector2d {
     // v = p1 - p0
     Vector2d const v = p1 - p0;
     // w = p - p0
     Vector2d const w = p - p0;
     // if ((w.v)=c1 <= 0) then before P0 return p0
     double const c1  = w.dot(v);
-    if (c1 <= 0)
-    { /*before P0*/
+    if (c1 <= 0) { /*before P0*/
         return p0;
     }
     // if ((v.v)=c2 <= c1) then after P1 return p1
     double const c2 = v.dot(v);
-    if (c2 <= c1)
-    { /*after P1*/
+    if (c2 <= c1) { /*after P1*/
         return p1;
     }
     // b = c1 / c2
@@ -768,8 +752,7 @@ Fermi::ModelMap::psf_boundary_radius(long const     Nh,
                                      long const     Nw,
                                      vpd const&     src_dirs,
                                      SkyGeom const& skygeom)
-    -> std::pair<Tensor1d, Tensor1b>
-{
+    -> std::pair<Tensor1d, Tensor1b> {
     long const Ns = src_dirs.size();
     // ................
     // ...a ----- d....
@@ -783,23 +766,20 @@ Fermi::ModelMap::psf_boundary_radius(long const     Nh,
     is_in_fov.setConstant(false);
     double const pix_buffer = 3.5;
 
-    for (long s = 0; s < Ns; ++s)
-    {
+    for (long s = 0; s < Ns; ++s) {
         double      min_deg = 360.;
         auto const& ss      = src_dirs[s];
         auto        ps      = skygeom.sph2pix(ss);
         is_in_fov(s)        = ps.first > pix_buffer && ps.first < (Nh - pix_buffer)
                        && ps.second > pix_buffer && ps.second < (Nw - pix_buffer);
 
-        for (long h = 0; h <= Nh; ++h)
-        {
+        for (long h = 0; h <= Nh; ++h) {
             double d = sph_pix_diff(ss, Vector2d(h + 0.5, 0.5), skygeom) * R2D;
             min_deg  = min_deg < d ? min_deg : d;
             d        = sph_pix_diff(ss, Vector2d(h + 0.5, Nw + 0.5), skygeom) * R2D;
             min_deg  = min_deg < d ? min_deg : d;
         }
-        for (long w = 0; w <= Nw; ++w)
-        {
+        for (long w = 0; w <= Nw; ++w) {
             double d = sph_pix_diff(ss, Vector2d(0.5, w + 0.5), skygeom) * R2D;
             min_deg  = min_deg < d ? min_deg : d;
             d        = sph_pix_diff(ss, Vector2d(Nh + 0.5, w + 0.5), skygeom) * R2D;
@@ -816,8 +796,7 @@ Fermi::ModelMap::map_integral(Tensor4d const& model_map,
                               vpd const&      src_dirs,
                               SkyGeom const&  skygeom,
                               Tensor1d const& psf_radius,
-                              Tensor1b const& is_in_fov) -> Tensor2d
-{
+                              Tensor1b const& is_in_fov) -> Tensor2d {
     long const Ne = model_map.dimension(0);
     long const Nh = model_map.dimension(1);
     long const Nw = model_map.dimension(2);
@@ -829,18 +808,14 @@ Fermi::ModelMap::map_integral(Tensor4d const& model_map,
 
     // Annoyingly nested, but hard to declarize because of the skygeom dependency.
     long i = 0;
-    for (long s = 0; s < Ns; ++s)
-    {
+    for (long s = 0; s < Ns; ++s) {
         if (!is_in_fov(s)) { continue; }
 
         double const rad = psf_radius(i);
-        for (long w = 0; w < Nw; ++w)
-        {
-            for (long h = 0; h < Nh; ++h)
-            {
+        for (long w = 0; w < Nw; ++w) {
+            for (long h = 0; h < Nh; ++h) {
                 if (sph_pix_diff(src_dirs[s], Vector2d(h + 1., w + 1.), skygeom) * R2D
-                    <= rad)
-                {
+                    <= rad) {
                     MapIntegral.slice(Idx2 { 0, i }, Idx2 { Ne, 1 })
                         += model_map.slice(Idx4 { 0, h, w, s }, Idx4 { Ne, 1, 1, 1 })
                                .reshape(Idx2 { Ne, 1 });
@@ -863,8 +838,7 @@ Fermi::ModelMap::map_correction_factor(Tensor2d const& inv_map_integ, /* [E, F] 
                                        Tensor1b const& is_in_fov,
                                        Tensor3d const& mean_psf,         /* [D,E,S] */
                                        Tensor3d const& partial_integrals /* [D,E,S] */
-                                       ) -> Tensor2d
-{
+                                       ) -> Tensor2d {
     long const Nd = mean_psf.dimension(0);
     long const Ne = mean_psf.dimension(1);
     long const Ns = mean_psf.dimension(2);
@@ -874,8 +848,7 @@ Fermi::ModelMap::map_correction_factor(Tensor2d const& inv_map_integ, /* [E, F] 
     Tensor3d filtered_parint(Nd, Ne, Nf);
 
     long f = 0;
-    for (long s = 0; s < Ns; ++s)
-    {
+    for (long s = 0; s < Ns; ++s) {
         if (!is_in_fov(s)) { continue; }
         filtered_psf.slice(Idx3 { 0, 0, f }, Idx3 { Nd, Ne, 1 })
             = mean_psf.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 });
@@ -892,8 +865,7 @@ Fermi::ModelMap::map_correction_factor(Tensor2d const& inv_map_integ, /* [E, F] 
     correction_factor.setConstant(1.);
 
     f = 0;
-    for (long s = 0; s < Ns; ++s)
-    {
+    for (long s = 0; s < Ns; ++s) {
         if (!is_in_fov(s)) { continue; }
         correction_factor.slice(Idx2 { 0, s }, Idx2 { Ne, 1 })
             = cor_fac.slice(Idx2 { 0, f }, Idx2 { Ne, 1 });
@@ -905,8 +877,7 @@ Fermi::ModelMap::map_correction_factor(Tensor2d const& inv_map_integ, /* [E, F] 
 
 void
 Fermi::ModelMap::scale_map_by_correction_factors(Tensor4d& model_map, /*[E,H,W,S]*/
-                                                 Tensor2d const& factor /*[E,S]*/)
-{
+                                                 Tensor2d const& factor /*[E,S]*/) {
     long const Ne = model_map.dimension(0);
     long const Nh = model_map.dimension(1);
     long const Nw = model_map.dimension(2);
@@ -923,8 +894,7 @@ auto
 Fermi::ModelMap::integral(Tensor1d const& angles,
                           Tensor3d const& mean_psf,         /* [D,E,S] */
                           Tensor3d const& partial_integrals /* [D,E,S] */
-                          ) -> Tensor2d
-{
+                          ) -> Tensor2d {
     // Apply the same Midpoint rule found in Fermitools, but take advantage of the
     // fact that the energy sample occurs at exactly every energy entry.
     //
@@ -967,8 +937,7 @@ Fermi::ModelMap::integral(Tensor1d const& angles,
     //     size_t index(k * s_separations.size() + j);
     //     double theta1(s_separations[j] * M_PI / 180.);
     //     double theta2(s_separations[j + 1] * M_PI / 180.);
-    for (long i = 0; i < Ns; ++i)
-    {
+    for (long i = 0; i < Ns; ++i) {
         auto ix = sep_idxs(i);
         ix      = ix >= PSF::sep_arr_len - 2
                       ? PSF::sep_arr_len - 2

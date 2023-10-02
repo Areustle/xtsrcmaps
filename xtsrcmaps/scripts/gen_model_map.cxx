@@ -3,7 +3,7 @@
 #include "xtsrcmaps/misc.hxx"
 #include "xtsrcmaps/model_map.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
-#include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/psf/psf.hxx"
 #include "xtsrcmaps/sky_geom.hxx"
 #include "xtsrcmaps/source_utils.hxx"
 #include "xtsrcmaps/tensor_ops.hxx"

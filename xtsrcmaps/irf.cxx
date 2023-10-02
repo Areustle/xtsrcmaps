@@ -53,17 +53,6 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
     long const M_t_base    = extents[2];
     long const M_t         = extents[2] + 2;
 
-
-
-    // vector<double> cosths(M_t, 0.0);
-    // for (long k(0); k < M_t_base; k++)
-    // {
-    //     // Arithmetic mean of cosine bins
-    //     cosths[1 + k] = 0.5 * (row[offsets[2] + k] + row[offsets[3] + k]);
-    // }
-    // // padded cosine bin values.
-    // cosths.front() = -1.0;
-    // cosths.back()  = 1.0;
     long const off_cos0    = offsets[2];
     long const off_cos1    = offsets[3];
     Tensor1d   cosths(M_t);
@@ -77,17 +66,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
     cosths(0)          = -1.;
     cosths(M_t - 1)    = 1.;
 
-    // // scale and pad the energy data
-    // vector<double> logEs(M_e, 0.0);
-    // for (long k(0); k < M_e_base; k++)
-    // {
-    //     // Geometric mean of energy bins
-    //     logEs[1 + k] = std::log10(std::sqrt(row[offsets[0] + k] * row[offsets[1] +
-    //     k]));
-    // }
-    // // padded energy bin values.
-    // logEs.front()   = 0.0;
-    // logEs.back()    = 10.0;
+    // scale and pad the energy data
     long const off_Es0 = offsets[0];
     long const off_Es1 = offsets[1];
     Tensor1d   logEs(M_e);
@@ -108,13 +87,10 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
 
     // Let's assign the data values into the params block structure. Pad by value
     // duplication.
-    for (long p = 0; p < Ngrids; ++p) // params
-    {
-        for (long t = 0; t < M_t; ++t) // costheta
-        {
+    for (long p = 0; p < Ngrids; ++p) /* params */ {
+        for (long t = 0; t < M_t; ++t) /* costheta */ {
             long const t_ = t == 0 ? 0 : t >= M_t_base ? M_t_base - 1 : t - 1;
-            for (long e = 0; e < M_e; ++e) // energy
-            {
+            for (long e = 0; e < M_e; ++e) /* energy */ {
                 long const e_   = e == 0 ? 0 : e >= M_e_base ? M_e_base - 1 : e - 1;
                 params(p, e, t) = pv(e_, t_, p);
             }
@@ -137,9 +113,6 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic {
 
     assert(pars.extents.size() == 1);
     assert(pars.extents[0] == 6);
-    // assert(pars.rowdata.size() == 2);
-    // assert(pars.rowdata[0].size() == 6);
-    // assert(pars.rowdata[1].size() == 6);
     assert(pars.rowdata.dimension(0) == 6);
     assert(pars.rowdata.dimension(1) == 2);
 
@@ -360,7 +333,7 @@ Fermi::load_psf(std::string const& filename) -> std::optional<irf::psf::Pass8FB>
 }
 
 auto
-Fermi::lt_effic_factors(vector<double> const& logEs, IrfEffic const& effic)
+Fermi::livetime_efficiency_factors(vector<double> const& logEs, IrfEffic const& effic)
     -> pair<vector<double>, vector<double>> {
 
     auto single_factor = [](auto const& p) -> auto {

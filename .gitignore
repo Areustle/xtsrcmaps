@@ -32,3 +32,5 @@ xtsrcmaps/tests/expected/ft_mm_psf_sang.bin
 xtsrcmaps/tests/expected/ft_model_map.bin
 
 *.ipynb
+
+docs/doxydoc/

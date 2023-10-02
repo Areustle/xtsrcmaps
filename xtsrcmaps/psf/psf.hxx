@@ -89,7 +89,7 @@ auto
 mean_psf(                                //
     Tensor3d const& front_corrected_psf, /*[Nd, Nc, Ne]*/
     Tensor3d const& back_corrected_psf,  /*[Nd, Nc, Ne]*/
-    Tensor2d const& exposure /*[Ne, Nsrc]*/) -> Tensor3d;
+    Tensor2d const& exposures /*[Ne, Nsrc]*/) -> Tensor3d;
 
 auto
 partial_total_integral(Tensor3d const& mean_psf /*[Nd, Ne, Ns]*/)

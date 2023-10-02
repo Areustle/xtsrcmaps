@@ -1,5 +1,5 @@
 #include "xtsrcmaps/interp.hxx"
-#include "xtsrcmaps/psf.hxx"
+#include "xtsrcmaps/psf/psf.hxx"
 
 #include <algorithm>
 

@@ -4,13 +4,11 @@
 // #include <chrono>
 #include <iostream>
 
-namespace Fermi::Genz
-{
+namespace Fermi::Genz {
 
 auto
 fullsym(Tensor2d const& c, double const l2, double const l4, double const l5)
-    -> Tensor3d
-{
+    -> Tensor3d {
     // {c, l2, l4, l5} shape = [2];
     // points shape = [2, 17]
     // k0
@@ -53,8 +51,7 @@ fullsym(Tensor2d const& c, double const l2, double const l4, double const l5)
 
 auto
 region(Tensor3d const& low, Tensor3d const& high, long const Nevts)
-    -> std::tuple<Tensor2d, Tensor2d, Tensor2d>
-{
+    -> std::tuple<Tensor2d, Tensor2d, Tensor2d> {
     Tensor2d center    = ((high + low) * 0.5).reshape(Idx2 { 2, Nevts });
     Tensor2d halfwidth = ((high - low) * 0.5).reshape(Idx2 { 2, Nevts });
     Tensor2d volume    = (2. * halfwidth).prod(Idx1 { 0 }).reshape(Idx2 { 1, Nevts });
@@ -62,8 +59,7 @@ region(Tensor3d const& low, Tensor3d const& high, long const Nevts)
 }
 
 auto
-pixel_region(Tensor3d const& pixels) -> std::tuple<Tensor2d, double, double>
-{
+pixel_region(Tensor3d const& pixels) -> std::tuple<Tensor2d, double, double> {
     long const Nevts  = pixels.dimension(1) * pixels.dimension(2);
     Tensor2d   center = pixels.reshape(Idx2 { 2, Nevts });
 
@@ -71,8 +67,7 @@ pixel_region(Tensor3d const& pixels) -> std::tuple<Tensor2d, double, double>
 }
 
 auto
-rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d>
-{
+rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d> {
     TensorMap<Tensor1d const> const w(genz_malik_weights_17.data(), 17);
     TensorMap<Tensor1d const> const wE(genz_malik_err_weights_17.data(), 17);
 
@@ -91,21 +86,20 @@ auto
 converged_indices(Tensor2d const& value,
                   Tensor2d const& error,
                   double const    ftol_threshold)
-    -> std::tuple<std::vector<long>, std::vector<long>>
-{
+    -> std::tuple<std::vector<long>, std::vector<long>> {
     // Tensor1d const abserr = error.abs().maximum(Idx1 { 0 });
     Tensor1d const relerr = (error / value.abs()).maximum(Idx1 { 0 });
 
     auto converged        = std::vector<long> {};
     auto not_converged    = std::vector<long> {};
 
-    for (long i = 0; i < relerr.size(); ++i)
-    {
+    for (long i = 0; i < relerr.size(); ++i) {
         if (relerr(i) > ftol_threshold) // && abserr(i) > ftol_threshold)
         {
             not_converged.push_back(i);
+        } else {
+            converged.push_back(i);
         }
-        else { converged.push_back(i); }
     }
 
     return { converged, not_converged };
@@ -117,8 +111,7 @@ dims_to_split(Tensor3d const&          evals,
               Tensor2d const&          error,
               double const             halfwidth,
               double const             volume,
-              std::vector<long> const& not_converged) -> Tensor1byt
-{
+              std::vector<long> const& not_converged) -> Tensor1byt {
     long const Ne    = evals.dimension(1);
     long const Nevts = evals.dimension(2);
     long const Nucnv = not_converged.size();
@@ -187,8 +180,7 @@ region_split(Tensor2d&         center,
              double&           halfwidth,
              double&           volume,
              Tensor1byt const& split_dim,
-             Tensor2d const&   cenUcv) -> void
-{
+             Tensor2d const&   cenUcv) -> void {
     long const Nucnv = split_dim.size();
 
     halfwidth *= 0.5;

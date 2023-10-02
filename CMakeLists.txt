@@ -64,7 +64,7 @@ add_compile_options(
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #
   $<$<CONFIG:DEBUG>:-g3> #
-  $<$<CONFIG:DEBUG>:-Og> #
+  # $<$<CONFIG:DEBUG>:-Og> #
   $<$<CONFIG:DEBUG>:-fsanitize=address> #
   $<$<CONFIG:DEBUG>:-fsanitize=leak> #
   $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
