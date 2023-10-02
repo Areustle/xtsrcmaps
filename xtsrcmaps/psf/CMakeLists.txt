@@ -16,5 +16,5 @@ add_library(Fermi::psf ALIAS psf)
 target_link_libraries(
     psf 
     PUBLIC  Eigen3::Eigen
-    PRIVATE Fermi::utils
+    PRIVATE Fermi::utils fmt::fmt
 )

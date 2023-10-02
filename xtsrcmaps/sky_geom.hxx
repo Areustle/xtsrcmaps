@@ -5,7 +5,11 @@
 #include "xtsrcmaps/fitsfuncs.hxx"
 #include "xtsrcmaps/tensor_types.hxx"
 
+#ifdef __APPLE__
+#include "wcs.h"
+#else
 #include "wcslib/wcs.h"
+#endif
 
 namespace Fermi
 {

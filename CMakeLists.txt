@@ -60,6 +60,7 @@ add_compile_options(
   -Wno-unused-parameter #
   -Wno-array-bounds #
   -Wno-deprecated-enum-enum-conversion #
+  -Wno-unused-but-set-variable #
   $<$<CONFIG:RELEASE>:-O3> #
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #
