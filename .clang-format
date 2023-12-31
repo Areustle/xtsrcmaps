@@ -37,7 +37,7 @@ BreakBeforeBraces: Custom
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeComma
-ColumnLimit: 88
+ColumnLimit: 80
 CommentPragmas:  '^ IWYU pragma:'
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 Cpp11BracedListStyle: false

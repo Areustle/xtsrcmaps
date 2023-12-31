@@ -1,14 +1,9 @@
 #include "xtsrcmaps/psf/psf.hxx"
 
-#include "xtsrcmaps/utils/bilerp.hxx"
-#include "xtsrcmaps/misc.hxx"
-#include "xtsrcmaps/tensor_ops.hxx"
+#include "xtsrcmaps/math/tensor_types.hxx"
 
 #include <fmt/format.h>
 
-#include <algorithm>
-#include <cmath>
-#include <vector>
 
 
 auto

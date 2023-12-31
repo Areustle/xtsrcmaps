@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "xtsrcmaps/irf.hxx"
-#include "xtsrcmaps/tensor_types.hxx"
+#include "xtsrcmaps/irf/irf_types.hxx"
+#include "xtsrcmaps/math/tensor_types.hxx"
 
 namespace Fermi::PSF
 {

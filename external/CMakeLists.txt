@@ -1,0 +1,19 @@
+# Externals: The dependent packages on which the tool relies.
+FetchContent_Declare(
+  Eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen
+  GIT_TAG 3.4)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt
+  GIT_TAG 9.0.0)
+FetchContent_Declare(
+  reflectcpp
+  GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
+  GIT_TAG v0.5.0)
+FetchContent_MakeAvailable(Eigen fmt reflectcpp)
+
+# Pkg-Config Externals ##
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(cfitsio REQUIRED IMPORTED_TARGET GLOBAL cfitsio)
+pkg_check_modules(wcslib REQUIRED IMPORTED_TARGET GLOBAL wcslib)

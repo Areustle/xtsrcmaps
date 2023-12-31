@@ -1,6 +1,6 @@
 #include "xtsrcmaps/psf/psf.hxx"
 
-#include "xtsrcmaps/utils/bilerp.hxx"
+#include "xtsrcmaps/math/bilerp.hxx"
 
 
 auto

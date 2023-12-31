@@ -12,9 +12,5 @@ Fermi::PSF::mean_psf(Tensor3d const& front_corrected_psf, /*[Nd, Ne, Nsrc]*/
 
     Tensor3d psf          = front_corrected_psf + back_corrected_psf;
     Tensor3d inv_exposure = exposures.inverse().reshape(Idx3 { 1, Ne, Ns });
-
-    // inv_exposure = inv_exposure.isnan().select(inv_exposure.constant(0.),
-    // inv_exposure); return Fermi::mul32_1(psf, inv_exposure); [Nd, Ne, Ns]
-
     return psf * inv_exposure.broadcast(Idx3 { Nd, 1, 1 });
 }

@@ -34,3 +34,6 @@ xtsrcmaps/tests/expected/ft_model_map.bin
 *.ipynb
 
 docs/doxydoc/
+
+.python-version
+test.fits

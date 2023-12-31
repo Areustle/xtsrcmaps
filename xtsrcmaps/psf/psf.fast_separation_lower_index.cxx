@@ -1,6 +1,6 @@
 #include "xtsrcmaps/psf/psf.hxx"
 
-#include "xtsrcmaps/tensor_ops.hxx"
+#include "xtsrcmaps/math/tensor_types.hxx"
 
 auto
 Fermi::PSF::fast_separation_lower_index(Tensor1d seps) -> Tensor1i {

@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<source_library title="source library">
+ <source ROI_Center_Distance="20.00" name="4FGL J1135.7-0427" type="PointSource">
+  <spectrum type="LogParabola">
+   <parameter free="0" max="100" min="0" name="norm" scale="1.281836204e-13" value="6.126240958"/>
+   <parameter free="0" max="5" min="0" name="alpha" scale="1" value="2.366432199"/>
+   <parameter free="0" max="10" min="-5" name="beta" scale="0.1" value="3.846291487"/>
+   <parameter free="0" max="1000" min="0.01" name="Eb" scale="1000" value="0.7863300967"/>
+  </spectrum>
+  <spatialModel type="SkyDirFunction">
+   <parameter free="0" max="360.0" min="-360.0" name="RA" scale="1.0" value="173.9425"/>
+   <parameter free="0" max="360.0" min="-360.0" name="DEC" scale="1.0" value="-4.4634"/>
+  </spatialModel>
+ </source>
+</source_library>
