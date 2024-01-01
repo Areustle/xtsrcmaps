@@ -1,6 +1,5 @@
 // An implementation converting an XML file into a vector of Fermi::Source
 // objects.
-#include "xtsrcmaps/config/parse_src_mdl.hxx"
 #include "xtsrcmaps/source/source.hxx"
 
 #include "xtsrcmaps/rapidxml/rapidxml.hxx"
@@ -8,6 +7,7 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 
@@ -27,6 +27,10 @@ Fermi::parse_src_xml(std::string const& src_file_name)
     auto result          = std::vector<Fermi::Source>();
     auto doc             = rapidxml::xml_document<>();
     auto src_file_stream = std::ifstream(src_file_name);
+    if (!src_file_stream.is_open()){
+        std::cerr << "Cannot open " << src_file_name << std::endl;
+        exit(1);
+    }
     auto src_file_buf
         = std::vector(std::istreambuf_iterator { src_file_stream },
                       std::istreambuf_iterator<char>());

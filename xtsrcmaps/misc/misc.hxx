@@ -23,12 +23,12 @@ constexpr double sep_step
     = 0.033731417579011382769913057686378448039204491; // ln(7e5)/399
 
 auto
-good(auto opt, std::string const& msg) -> auto
+good(auto opt, std::string const& msg, int const return_code=1) -> auto
 {
     if (!opt)
     {
-        std::cout << msg << std::endl;
-        abort();
+        std::cerr << msg << std::endl;
+        exit(return_code);
     }
     return opt.value();
 }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "xtsrcmaps/misc/misc.hxx"
-#include "xtsrcmaps/psf/psf.hxx"
 #include "xtsrcmaps/sky_geom/sky_geom.hxx"
 #include "xtsrcmaps/math/tensor_types.hxx"
 

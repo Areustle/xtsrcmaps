@@ -121,4 +121,6 @@ auto names_from_point_sources(std::vector<Source> const&)
     -> std::vector<std::string>;
 
 
+auto parse_src_xml(std::string const& src_file_name) -> std::vector<Source>;
+
 } // namespace Fermi

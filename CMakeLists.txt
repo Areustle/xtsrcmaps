@@ -42,18 +42,18 @@ add_compile_options(
   $<$<CONFIG:RELEASE>:-O3> #
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #
-  $<$<CONFIG:DEBUG>:-g3> #
+  # $<$<CONFIG:DEBUG>:-g3> #
   # $<$<CONFIG:DEBUG>:-Og> #
-  $<$<CONFIG:DEBUG>:-fsanitize=address> #
-  $<$<CONFIG:DEBUG>:-fsanitize=leak> #
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=address> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=leak> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
   $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> #
   $<$<CONFIG:DEBUG>:-fno-common> #
 )
 add_link_options(
-  $<$<CONFIG:DEBUG>:-fsanitize=address> #
-  $<$<CONFIG:DEBUG>:-fsanitize=leak> #
-  $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=address> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=leak> #
+  # $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
   $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> #
   $<$<CONFIG:DEBUG>:-fno-common> #
 )

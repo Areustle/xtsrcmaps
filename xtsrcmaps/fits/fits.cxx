@@ -21,10 +21,11 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
     fitsfile* ifile;
     fits_open_file(&ifile, filename.c_str(), READONLY, &status);
 
-    if (status != 0) {
-        fmt::print("Failed to open {}. Status {}. Returning an empty optional.\n",
-                   filename,
-                   status);
+    if (status) {
+        fmt::print(
+            "Failed to open {}. Status {}. Returning an empty optional.\n",
+            filename,
+            status);
         return std::nullopt;
     }
 
@@ -37,8 +38,16 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
     int anynul    = 0;
     fits_read_col(
         ifile, TDOUBLE, 2, 1, 1, rows, nullptr, &energies[0], &anynul, &status);
-    fits_read_col(
-        ifile, TDOUBLE, 3, rows, 1, 1, nullptr, &energies[rows], &anynul, &status);
+    fits_read_col(ifile,
+                  TDOUBLE,
+                  3,
+                  rows,
+                  1,
+                  1,
+                  nullptr,
+                  &energies[rows],
+                  &anynul,
+                  &status);
 
     fits_close_file(ifile, &status);
 
@@ -57,9 +66,10 @@ Fermi::fits::ccube_pixels(std::string const& filename) noexcept
     fits_open_file(&ifile, filename.c_str(), READONLY, &status);
 
     if (status != 0) {
-        fmt::print("Failed to open {}. Status {}. Returning an empty optional.\n",
-                   filename,
-                   status);
+        fmt::print(
+            "Failed to open {}. Status {}. Returning an empty optional.\n",
+            filename,
+            status);
         return std::nullopt;
     }
 
@@ -160,7 +170,8 @@ Fermi::fits::ccube_pixels(std::string const& filename) noexcept
 }
 
 auto
-Fermi::fits::read_expcube(std::string const& filename, std::string const& tblname)
+Fermi::fits::read_expcube(std::string const& filename,
+                          std::string const& tblname)
     -> std::optional<ExposureCubeData> {
     // Use CFITSIO to open the ltcube and read the values in the header.
     int       status = 0;
@@ -169,9 +180,10 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
 
     // open the file, or return a null optional if it cannot open.
     if (status) {
-        fmt::print("Failed to open {}. Status {}. Returning an empty optional.\n",
-                   filename,
-                   status);
+        fmt::print(
+            "Failed to open {}. Status {}. Returning an empty optional.\n",
+            filename,
+            status);
         return std::nullopt;
     }
 
@@ -181,11 +193,13 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
     tblname.copy(c_tbl, tbsz);
     c_tbl[tbsz] = '\0';
     fits_movnam_hdu(ifile, BINARY_TBL, c_tbl, 0, &status);
-    if (status) fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
+    if (status)
+        fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
     if (status) return std::nullopt;
 
     // HDU keys
-    // fits_read_key (fitsfile *fptr, int datatype, char *keyname, > DTYPE *value,
+    // fits_read_key (fitsfile *fptr, int datatype, char *keyname, > DTYPE
+    // *value,
     //    char *comment, int *status);
     unsigned int nside, nbrbins;
     double       cosmin;
@@ -211,15 +225,16 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
     if (status) return std::nullopt;
 
     if (std::string { ordering } != "NESTED") {
-        fmt::print("LiveTimeCube Healpix Ordering {} is Unsupported. Please use NESTED "
+        fmt::print("LiveTimeCube Healpix Ordering {} is Unsupported. Please "
+                   "use NESTED "
                    "order.\n",
                    ordering);
         return std::nullopt;
     }
     if (std::string { coordsys } != "EQU") {
-        fmt::print(
-            "LiveTimeCube COORDSYS {} is Unsupported. Please use EQU coordinates.\n",
-            ordering);
+        fmt::print("LiveTimeCube COORDSYS {} is Unsupported. Please use EQU "
+                   "coordinates.\n",
+                   ordering);
         return std::nullopt;
     }
 
@@ -229,14 +244,24 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
     auto         ra      = vector<float>(npix, 0.0f);
     auto         dec     = vector<float>(npix, 0.0f);
 
-    fits_read_col(
-        ifile, TFLOAT, 1, 1, 1, nbrbins * npix, nullptr, &cosbins[0], nullptr, &status);
+    fits_read_col(ifile,
+                  TFLOAT,
+                  1,
+                  1,
+                  1,
+                  nbrbins * npix,
+                  nullptr,
+                  &cosbins[0],
+                  nullptr,
+                  &status);
     if (status) fmt::print("Failed to access T1. Status {}\n", status);
     if (status) return std::nullopt;
-    fits_read_col(ifile, TFLOAT, 2, 1, 1, npix, nullptr, &ra[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 2, 1, 1, npix, nullptr, &ra[0], nullptr, &status);
     if (status) fmt::print("Failed to access T2. Status {}\n", status);
     if (status) return std::nullopt;
-    fits_read_col(ifile, TFLOAT, 3, 1, 1, npix, nullptr, &dec[0], nullptr, &status);
+    fits_read_col(
+        ifile, TFLOAT, 3, 1, 1, npix, nullptr, &dec[0], nullptr, &status);
     if (status) fmt::print("Failed to access T3. Status {}\n", status);
     if (status) return std::nullopt;
 
@@ -255,7 +280,8 @@ Fermi::fits::read_expcube(std::string const& filename, std::string const& tblnam
 }
 
 auto
-Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblname)
+Fermi::fits::read_irf_pars(std::string const& filename,
+                           std::string const& tblname)
     -> std::optional<TablePars> {
 
     // Use CFITSIO to open the ccube and read the energies in the header.
@@ -265,9 +291,10 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
 
     // open the file, or return a null optional if it cannot open.
     if (status) {
-        fmt::print("Failed to open {}. Status {}. Returning an empty optional.\n",
-                   filename,
-                   status);
+        fmt::print(
+            "Failed to open {}. Status {}. Returning an empty optional.\n",
+            filename,
+            status);
         return std::nullopt;
     }
 
@@ -276,16 +303,18 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
     tblname.copy(c_tbl, tbsz);
     c_tbl[tbsz] = '\0';
     fits_movnam_hdu(ifile, BINARY_TBL, c_tbl, 0, &status);
-    if (status) fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
+    if (status)
+        fmt::print("Failed to access {} header. Status {}\n", c_tbl, status);
     if (status) return std::nullopt;
 
     // read param count (number of param grids)
     // read num cols.
     int ncols = 0;
     fits_get_num_cols(ifile, &ncols, &status);
-    if (status) fmt::print("Failed to get numcols in {}. Status {}\n", c_tbl, status);
-    // int fits_read_key(fitsfile *fptr, int datatype, char *keyname, void *value, char
-    // *comment, int *status)
+    if (status)
+        fmt::print("Failed to get numcols in {}. Status {}\n", c_tbl, status);
+    // int fits_read_key(fitsfile *fptr, int datatype, char *keyname, void
+    // *value, char *comment, int *status)
 
     // read dimensions
     auto col_repeat = vector<long>(ncols, 0);
@@ -295,33 +324,35 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
         long width    = 0;
         fits_get_coltype(ifile, tf, &typecode, &col_repeat[t], &width, &status);
         if (status) {
-            fmt::print(
-                "Failed reading FITS column size in {} at column {}. Status {}\n",
-                c_tbl,
-                tf,
-                status);
+            fmt::print("Failed reading FITS column size in {} at column {}. "
+                       "Status {}\n",
+                       c_tbl,
+                       tf,
+                       status);
             return std::nullopt;
         }
         if (typecode != TFLOAT) {
-            fmt::print(
-                "In FITS file {}, Expected TFLOAT column but got {} at column {}\n",
-                c_tbl,
-                typecode,
-                tf);
+            fmt::print("In FITS file {}, Expected TFLOAT column but got {} at "
+                       "column {}\n",
+                       c_tbl,
+                       typecode,
+                       tf);
             return std::nullopt;
         }
         assert(4 == width);
     }
 
     // Get full row width.
-    size_t const row_width = std::reduce(col_repeat.cbegin(), col_repeat.cend(), 0);
-    auto         extents   = vector<size_t>(ncols, 0);
+    size_t const row_width
+        = std::reduce(col_repeat.cbegin(), col_repeat.cend(), 0);
+    auto extents = vector<size_t>(ncols, 0);
     std::copy(col_repeat.cbegin(), col_repeat.cend(), extents.begin());
 
     // Get num rows.
     long nrows = 0;
     fits_get_num_rows(ifile, &nrows, &status);
-    if (status) fmt::print("Failed to get numrows in {}. Status {}", c_tbl, status);
+    if (status)
+        fmt::print("Failed to get numrows in {}. Status {}", c_tbl, status);
 
     // Populate the rows vectors.
     RowTensor2f rowdata(nrows, row_width);
@@ -333,10 +364,11 @@ Fermi::fits::read_irf_pars(std::string const& filename, std::string const& tblna
         auto       bytes = vector<uint8_t>(sz, 0);
         fits_read_tblbytes(ifile, nf, 1, sz, &bytes[0], &status);
         if (status) {
-            fmt::print("Failed reading FITS tblbytes in {} at row {}. Status {}\n",
-                       c_tbl,
-                       nf,
-                       status);
+            fmt::print(
+                "Failed reading FITS tblbytes in {} at row {}. Status {}\n",
+                c_tbl,
+                nf,
+                status);
             return std::nullopt;
         }
         // Optionally swap the endianness of the bytes

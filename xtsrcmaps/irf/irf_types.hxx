@@ -4,11 +4,9 @@
 
 #include <array>
 
-namespace Fermi
-{
+namespace Fermi {
 
-struct IrfData3
-{
+struct IrfData3 {
     Tensor1d cosths;
     Tensor1d logEs;
     Tensor3d params;
@@ -18,64 +16,63 @@ struct IrfData3
     // mdspan() -> mdspan3
     // {
     //     return mdspan3(
-    //         params.data(), params.extent(0), params.extent(1), params.extent(2));
+    //         params.data(), params.extent(0), params.extent(1),
+    //         params.extent(2));
     // }
 };
 
-struct IrfScale
-{
+struct IrfScale {
     float scale0;
     float scale1;
     float scale_index;
 };
 
-struct IrfEffic
-{
+struct IrfEffic {
     std::array<float, 6> p0;
     std::array<float, 6> p1;
 };
 
-namespace irf::psf
-{
+namespace irf::psf {
 
-struct Data
-{
+struct Data {
     IrfData3 rpsf;
     IrfScale psf_scaling_params;
     IrfData3 fisheye_correction;
 };
 
-struct Pass8FB
-{
+struct Pass8FB {
     irf::psf::Data front;
     irf::psf::Data back;
 };
 
 } // namespace irf::psf
 
-namespace irf::aeff
-{
+namespace irf::aeff {
 
-struct Data
-{
+struct Data {
     IrfData3 effective_area;
     IrfData3 phi_dependence;
     IrfEffic efficiency_params;
 };
 
-struct Pass8FB
-{
+struct Pass8FB {
     irf::aeff::Data front;
     irf::aeff::Data back;
 };
 } // namespace irf::aeff
 
-struct ExposureMap
-{
+struct ExposureMap {
     std::size_t nside;
     std::size_t nbins;
     Tensor2d    params; // Healpix, CosineBin -> CosineBin, Healpix
 };
+
+
+/* struct InstrumentResponse { */
+/*     irf::aeff::Pass8FB                                  aeff_irf; */
+/*     irf::psf::Pass8FB                                   psf_irf; */
+/*     std::pair<std::vector<double>, std::vector<double>> front_LTF; */
+/* }; */
 
 
 } // namespace Fermi
