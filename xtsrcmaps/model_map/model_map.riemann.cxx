@@ -5,8 +5,8 @@
 // sph_diff(Eigen::Vector3d const& L, Eigen::Vector3d const& R) -> double {
 //     return 2. * asin(0.5 * (L - R).norm());
 // };
-// 
-// 
+//
+//
 // auto
 // reimann_integ(double const    dh,
 //               double const    dw,
@@ -248,7 +248,7 @@ Fermi::ModelMap::create_offset_map(long const                       Nh,
 /* auto */
 /* Fermi::ModelMap::pixel_mean_psf_riemann(long const      Nh, */
 /*                                         long const      Nw, */
-/*                                         vpd const&      src_sphcrds, */
+/*                                       Obs::sphcrd_v_t const& src_sphcrds, */
 /*                                         Tensor3d const& psf_lut, */
 /*                                         Tensor2d const& psf_peak, */
 /*                                         SkyGeom const&  skygeom, */

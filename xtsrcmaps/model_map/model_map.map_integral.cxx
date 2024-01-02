@@ -2,11 +2,11 @@
 #include "xtsrcmaps/misc/misc.hxx"
 
 auto
-Fermi::ModelMap::map_integral(Tensor4d const& model_map,
-                              vpd const&      src_dirs,
-                              SkyGeom const&  skygeom,
-                              Tensor1d const& psf_radius,
-                              Tensor1b const& is_in_fov) -> Tensor2d {
+Fermi::ModelMap::map_integral(Tensor4d const&        model_map,
+                              Obs::sphcrd_v_t const& src_dirs,
+                              SkyGeom const&         skygeom,
+                              Tensor1d const&        psf_radius,
+                              Tensor1b const&        is_in_fov) -> Tensor2d {
     long const Ne = model_map.dimension(0);
     long const Nh = model_map.dimension(1);
     long const Nw = model_map.dimension(2);

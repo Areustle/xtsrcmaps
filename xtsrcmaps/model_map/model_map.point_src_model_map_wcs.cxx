@@ -8,14 +8,14 @@
 
 auto
 Fermi::ModelMap::point_src_model_map_wcs(
-    long const      Nh,
-    long const      Nw,
-    vpd const&      src_sphcrds,
-    Tensor3d const& uPsf,
-    SkyGeom const&  skygeom,
-    Tensor2d const& exposures,
-    Tensor3d const& partial_integrals, /* [D,E,S] */
-    double const    ftol_threshold) -> Tensor4f {
+    long const             Nh,
+    long const             Nw,
+    Obs::sphcrd_v_t const& src_sphcrds,
+    Tensor3d const&        uPsf,
+    SkyGeom const&         skygeom,
+    Tensor2d const&        exposures,
+    Tensor3d const&        partial_integrals, /* [D,E,S] */
+    double const           ftol_threshold) -> Tensor4f {
 
     // Use Genz Malik Integration Scheme to compute the per-pixel average PSF
     // value for every source and energy level.
@@ -46,4 +46,3 @@ Fermi::ModelMap::point_src_model_map_wcs(
 
     return model_map.cast<float>();
 }
-

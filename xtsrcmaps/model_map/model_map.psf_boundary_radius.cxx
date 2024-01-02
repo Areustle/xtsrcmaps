@@ -6,10 +6,10 @@
 // Sources outside the field of view are not included in the radius vector, and
 // are set to false in the boolean vector
 auto
-Fermi::ModelMap::psf_boundary_radius(long const     Nh,
-                                     long const     Nw,
-                                     vpd const&     src_dirs,
-                                     SkyGeom const& skygeom)
+Fermi::ModelMap::psf_boundary_radius(long const             Nh,
+                                     long const             Nw,
+                                     Obs::sphcrd_v_t const& src_dirs,
+                                     SkyGeom const&         skygeom)
     -> std::pair<Tensor1d, Tensor1b> {
     long const Ns = src_dirs.size();
     // ................
@@ -63,7 +63,7 @@ Fermi::ModelMap::psf_boundary_radius(long const     Nh,
 //     // pb = p0+b*v
 //     return c1 <= 0. ? p0 : c2 <= c1 ? p1 : (p0 + (c1 / c2) * v);
 // }
-// 
+//
 // inline auto
 // point_nearest_to_source_on_segment(Vector2d const& p,
 //                                    Vector2d const& p0,

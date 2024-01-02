@@ -44,7 +44,7 @@ class SkyGeom {
 
     auto pix2sph(double const, double const) const -> Vector2d;
 
-    auto sph2pix(vpd const&) const -> vpd;
+    auto sph2pix(Obs::sphcrd_v_t const&) const -> Obs::sphcrd_v_t;
 
     auto pix2sph(Eigen::Matrix2Xd const&) const -> Eigen::Matrix2Xd;
 

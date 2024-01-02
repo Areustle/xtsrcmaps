@@ -33,13 +33,13 @@ add_compile_options(
   -Wall #
   -Wextra #
   -Werror # -mbmi2 #
-  -march=native #
+  $<$<CONFIG:RELEASE>:-march=native> #
+  $<$<CONFIG:RELEASE>:-Ofast> #
   -Wno-unused-parameter #
   -Wno-array-bounds #
   -Wno-deprecated-enum-enum-conversion #
   -Wno-unused-but-set-variable #
   # -Wno-class-memaccess #
-  $<$<CONFIG:RELEASE>:-O3> #
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #
   # $<$<CONFIG:DEBUG>:-g3> #

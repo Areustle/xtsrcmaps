@@ -7,7 +7,14 @@
 #include "xtsrcmaps/math/tensor_types.hxx"
 #include "xtsrcmaps/observation/obs_types.hxx"
 
-namespace Fermi::PSF {
+namespace Fermi {
+
+
+struct XtPsf {
+    Tensor3d uPsf;
+    Tensor3d partial_psf_integral;
+};
+namespace PSF {
 
 // ln(7e5)/399
 constexpr double sep_step = 0.033731417579011382769913057686378448039204491;
@@ -108,14 +115,8 @@ auto psf_lookup_table_and_partial_integrals(
     Tensor2d const& exposure   /*[Ne, Nsrc]*/
     ) -> std::tuple<Tensor3d, Tensor3d>;
 
-
-struct XtPsf {
-    Tensor3d uPsf;
-    Tensor3d partial_psf_integral;
-};
-
 auto
 compute_psf_data(XtObs const& obs, XtIrf const& irf, XtExp const exp) -> XtPsf;
 
-
-} // namespace Fermi::PSF
+} // namespace PSF
+} // namespace Fermi

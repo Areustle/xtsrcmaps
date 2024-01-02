@@ -2,8 +2,6 @@
 
 #include "unsupported/Eigen/CXX11/Tensor"
 
-using vpd    = std::vector<std::pair<double, double>>;
-
 using Eigen::Index;
 using Eigen::Sizes;
 using Eigen::Tensor;

@@ -1,6 +1,7 @@
 target_sources(
   xtsrcmaps
-  PRIVATE model_map.cxx
+  PRIVATE model_map.compute_src_maps.cxx
+          model_map.point_src_model_map_wcs.cxx
           model_map.integral.cxx
           model_map.get_init_points.cxx
           model_map.integral.cxx

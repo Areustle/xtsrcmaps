@@ -145,7 +145,7 @@ Fermi::SkyGeom::pix2sph(double const first, double const second) const
 }
 
 auto
-Fermi::SkyGeom::sph2pix(vpd const& ss) const -> vpd {
+Fermi::SkyGeom::sph2pix(Obs::sphcrd_v_t const& ss) const -> Obs::sphcrd_v_t {
     auto v = std::vector<std::pair<double, double>>(ss.size());
     std::transform(ss.begin(), ss.end(), v.begin(), [&](auto const& x) {
         return sph2pix(x);

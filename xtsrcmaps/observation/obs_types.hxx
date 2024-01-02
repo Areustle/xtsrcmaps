@@ -14,8 +14,9 @@ using sphcrd_v_t = std::vector<sphcrd_t>;
 using src_v_t    = std::vector<Fermi::Source>;
 
 
+
 struct CCubePixels {
-    std::array<size_t, 3> naxes;
+    std::array<long, 3>   naxes;
     std::array<double, 3> crpix;
     std::array<double, 3> crval;
     std::array<double, 3> cdelt;
@@ -43,11 +44,13 @@ struct ExposureCubeData {
 struct XtObs {
     std::vector<double>        energies;
     std::vector<double>        logEs;
-    Obs::CCubePixels                ccube;
+    Obs::CCubePixels           ccube;
     std::vector<Fermi::Source> srcs;
-    Obs::sphcrd_v_t                 src_sph;
+    Obs::sphcrd_v_t            src_sph;
     Obs::ExposureCubeData      exp_cube;
     Obs::ExposureCubeData      weighted_exp_cube;
+    long                       Nh;
+    long                       Nw;
 };
 
 } // namespace Fermi

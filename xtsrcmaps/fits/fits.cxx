@@ -90,16 +90,16 @@ Fermi::fits::ccube_pixels(std::string const& filename) noexcept
         return std::nullopt;
     }
 
-    unsigned long cols = 0;
-    fits_read_key(ifile, TULONG, "NAXIS1", &cols, nullptr, &status);
+    long cols = 0;
+    fits_read_key(ifile, TLONG, "NAXIS1", &cols, nullptr, &status);
     if (status) fmt::print("Failed to read NAXIS1. Status {}.\n", status);
     if (status) return std::nullopt;
-    unsigned long rows = 0;
-    fits_read_key(ifile, TULONG, "NAXIS2", &rows, nullptr, &status);
+    long rows = 0;
+    fits_read_key(ifile, TLONG, "NAXIS2", &rows, nullptr, &status);
     if (status) fmt::print("Failed to read NAXIS2. Status {}.\n", status);
     if (status) return std::nullopt;
-    unsigned long channels = 0;
-    fits_read_key(ifile, TULONG, "NAXIS3", &channels, nullptr, &status);
+    long channels = 0;
+    fits_read_key(ifile, TLONG, "NAXIS3", &channels, nullptr, &status);
     if (status) fmt::print("Failed to read NAXIS3. Status {}.\n", status);
     if (status) return std::nullopt;
 

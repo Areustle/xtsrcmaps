@@ -33,5 +33,7 @@ Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
         .src_sph           = Fermi::spherical_coords_from_point_sources(srcs),
         .exp_cube          = exp_cube,
         .weighted_exp_cube = wexp_cube,
+        .Nh                = ccube.naxes[0],
+        .Nw                = ccube.naxes[1],
     };
 };

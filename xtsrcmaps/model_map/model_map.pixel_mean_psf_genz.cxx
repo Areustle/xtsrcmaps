@@ -17,11 +17,11 @@ Fermi::ModelMap::spherical_direction_of_genz_pixels(Tensor3d const& points,
 
 
 auto
-Fermi::ModelMap::pixel_mean_psf_genz(long const      Nh,
-                                     long const      Nw,
-                                     vpd const&      src_sphcrds,
-                                     Tensor3d const& psf_lut,
-                                     SkyGeom const&  skygeom,
+Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
+                                     long const             Nw,
+                                     Obs::sphcrd_v_t const& src_sphcrds,
+                                     Tensor3d const&        psf_lut,
+                                     SkyGeom const&         skygeom,
                                      double const ftol_threshold) -> Tensor4d {
     long const Ns    = src_sphcrds.size();
     long const Nd    = psf_lut.dimension(0);

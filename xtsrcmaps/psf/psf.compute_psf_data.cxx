@@ -7,7 +7,7 @@
 auto
 Fermi::PSF::compute_psf_data(XtObs const& obs,
                              XtIrf const& irf,
-                             XtExp const  exp) -> PSF::XtPsf {
+                             XtExp const  exp) -> XtPsf {
 
     //**************************************************************************
     // Mean PSF Computations
