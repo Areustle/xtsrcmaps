@@ -4,7 +4,7 @@
 #include "xtsrcmaps/math/tensor_types.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 
-#include <fmt/format.h>
+#include "fmt/color.h"
 
 #include <algorithm>
 #include <utility>
@@ -127,6 +127,9 @@ auto
 Fermi::compute_exposure_data(XtCfg const& cfg,
                              XtObs const& obs,
                              XtIrf const& irf) -> XtExp {
+
+    fmt::print(fg(fmt::color::magenta), "Computing Exposure.\n");
+
     //**************************************************************************
     // Exposure Cube Obsdata transformations
     //**************************************************************************

@@ -42,15 +42,16 @@ struct ExposureCubeData {
 } // namespace Obs
 //
 struct XtObs {
-    std::vector<double>        energies;
-    std::vector<double>        logEs;
-    Obs::CCubePixels           ccube;
-    std::vector<Fermi::Source> srcs;
-    Obs::sphcrd_v_t            src_sph;
-    Obs::ExposureCubeData      exp_cube;
-    Obs::ExposureCubeData      weighted_exp_cube;
-    long                       Nh;
-    long                       Nw;
+    std::vector<double>      energies;
+    std::vector<double>      logEs;
+    Obs::CCubePixels         ccube;
+    Obs::src_v_t             srcs;
+    Obs::sphcrd_v_t          src_sph;
+    std::vector<std::string> src_names;
+    Obs::ExposureCubeData    exp_cube;
+    Obs::ExposureCubeData    weighted_exp_cube;
+    long                     Nh;
+    long                     Nw;
 };
 
 } // namespace Fermi

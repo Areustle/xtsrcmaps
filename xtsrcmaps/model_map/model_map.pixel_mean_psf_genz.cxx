@@ -1,15 +1,17 @@
 #include "xtsrcmaps/model_map/model_map.hxx"
 #include "xtsrcmaps/math/genz_malik.hxx"
 
+#include "indicators/block_progress_bar.hpp"
+/* #include "fmt/color.h" */
+
 auto
-Fermi::ModelMap::spherical_direction_of_genz_pixels(Tensor3d const& points,
-                                                    SkyGeom const&  skygeom)
-    -> Array3Xd {
+spherical_direction_of_genz_pixels(Tensor3d const&       points,
+                                   Fermi::SkyGeom const& skygeom) -> Array3Xd {
     Array3Xd dir_points(3, points.dimension(1) * points.dimension(2));
     for (long j = 0; j < points.dimension(2); ++j) {
-        for (long i = 0; i < Genz::Ncnt; ++i) {
+        for (long i = 0; i < Fermi::Genz::Ncnt; ++i) {
             Vector3d p = skygeom.pix2dir({ points(0, i, j), points(1, i, j) });
-            dir_points(Eigen::all, i + Genz::Ncnt * j) = p;
+            dir_points(Eigen::all, i + Fermi::Genz::Ncnt * j) = p;
         }
     }
     return dir_points;
@@ -20,13 +22,26 @@ auto
 Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
                                      long const             Nw,
                                      Obs::sphcrd_v_t const& src_sphcrds,
-                                     Tensor3d const&        psf_lut,
-                                     SkyGeom const&         skygeom,
+                                     std::vector<std::string> const& src_names,
+                                     Tensor3d const&                 psf_lut,
+                                     SkyGeom const&                  skygeom,
                                      double const ftol_threshold) -> Tensor4d {
     long const Ns    = src_sphcrds.size();
     long const Nd    = psf_lut.dimension(0);
     long const Ne    = psf_lut.dimension(1);
     long const Nevts = Nh * Nw;
+
+    indicators::BlockProgressBar bar {
+        indicators::option::BarWidth { 60 },
+        indicators::option::PrefixText { "Convolving Pixels with Source PSF " },
+        indicators::option::ForegroundColor { 
+            indicators::Color::magenta
+        },
+        /* indicators::option::ShowRemainingTime { true }, */
+        /* indicators::option::FontStyles { std::vector<indicators::FontStyle> { */
+        /*     indicators::FontStyle::bold } }, */
+        indicators::option::MaxProgress { Ns },
+    };
 
     Tensor4d model_map(Ne, Nh, Nw, Ns);
     model_map.setZero();
@@ -51,6 +66,9 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
     Array3Xd const dir_points = get_dir_points(genz_points);
 
     for (long s = 0; s < Ns; ++s) {
+        // Update the progress bar source name
+        bar.set_option(indicators::option::PostfixText { src_names[s] });
+
         // A slice of the PSF table just for this source's segment of the table.
         Tensor2d const tuPsf_ED
             = psf_lut.slice(Idx3 { 0, 0, s }, Idx3 { Nd, Ne, 1 })
@@ -80,7 +98,12 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
                                volume,
                                dir_points,
                                ftol_threshold);
+
+        // Tick the bar
+        bar.tick();
     }
+
+    bar.mark_as_completed();
 
     return model_map;
 }

@@ -17,5 +17,5 @@ main(int const argc, char** argv) {
     auto const psf       = Fermi::PSF::compute_psf_data(obs, irf, exp);
     auto const model_map = Fermi::ModelMap::compute_srcmaps(obs, exp, psf);
 
-    Fermi::fits::write_src_model(cfg.outfile, model_map, obs.srcs);
+    Fermi::fits::write_src_model(cfg.outfile, model_map, obs.src_names);
 }

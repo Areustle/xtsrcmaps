@@ -6,7 +6,8 @@
 #include <vector>
 
 auto
-Fermi::spherical_coords_from_point_sources(std::vector<Fermi::Source> const& srcs)
+Fermi::spherical_coords_from_point_sources(
+    std::vector<Fermi::Source> const& srcs)
     -> std::vector<std::pair<double, double>> {
     auto dirs = std::vector<std::pair<double, double>>();
     std::transform(srcs.cbegin(),
@@ -17,15 +18,17 @@ Fermi::spherical_coords_from_point_sources(std::vector<Fermi::Source> const& src
                                          std::get<PointSource>(s).spatial_model)
                                          .params;
 
-                       auto ra_it = std::find_if(
-                           params.cbegin(), params.cend(), [](auto const& p) -> bool {
-                               return p.name == "RA";
-                           });
+                       auto ra_it  = std::find_if(params.cbegin(),
+                                                 params.cend(),
+                                                 [](auto const& p) -> bool {
+                                                     return p.name == "RA";
+                                                 });
 
-                       auto dec_it = std::find_if(
-                           params.cbegin(), params.cend(), [](auto const& p) -> bool {
-                               return p.name == "DEC";
-                           });
+                       auto dec_it = std::find_if(params.cbegin(),
+                                                  params.cend(),
+                                                  [](auto const& p) -> bool {
+                                                      return p.name == "DEC";
+                                                  });
 
                        return { ra_it->value, dec_it->value };
                    });

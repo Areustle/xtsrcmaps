@@ -7,7 +7,7 @@
 #include <cmath>
 #include <utility>
 
-#include <fmt/format.h>
+#include "fmt/color.h"
 
 using std::pair;
 using std::sin;
@@ -17,6 +17,10 @@ using std::vector;
 
 auto
 Fermi::collect_irf_data(XtCfg const& cfg, XtObs const& obs) -> XtIrf {
+
+    fmt::print(fg(fmt::color::magenta),
+               "Collecting Instrument Response Functions.\n");
+
     //**************************************************************************
     // Read IRF Fits Files.
     //**************************************************************************

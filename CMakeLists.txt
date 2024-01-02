@@ -34,7 +34,7 @@ add_compile_options(
   -Wextra #
   -Werror # -mbmi2 #
   $<$<CONFIG:RELEASE>:-march=native> #
-  $<$<CONFIG:RELEASE>:-Ofast> #
+  $<$<CONFIG:RELEASE>:-O3> #
   -Wno-unused-parameter #
   -Wno-array-bounds #
   -Wno-deprecated-enum-enum-conversion #

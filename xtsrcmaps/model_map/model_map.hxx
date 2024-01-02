@@ -13,29 +13,32 @@ namespace Fermi::ModelMap {
 auto compute_srcmaps(XtObs const& obs, XtExp const& exp, XtPsf const& psf)
     -> Tensor4f;
 
-auto point_src_model_map_wcs(long const             Nh,
-                             long const             Nw,
-                             Obs::sphcrd_v_t const& src_sph,
-                             Tensor3d const&        uPsf,
-                             SkyGeom const&         skygeom,
-                             Tensor2d const&        exposures,
+auto point_src_model_map_wcs(long const                      Nh,
+                             long const                      Nw,
+                             Obs::sphcrd_v_t const&          src_sph,
+                             std::vector<std::string> const& src_names,
+                             Tensor3d const&                 uPsf,
+                             SkyGeom const&                  skygeom,
+                             Tensor2d const&                 exposures,
                              Tensor3d const& partial_integrals, /* [D,E,S] */
                              double const    ftol_threshold = 1e-3) -> Tensor4f;
 
 auto get_init_points(long const Nh, long const Nw) -> Tensor3d;
 
-auto spherical_direction_of_genz_pixels(Tensor3d const& points,
-                                        SkyGeom const&  skygeom) -> Array3Xd;
+/* auto spherical_direction_of_genz_pixels(Tensor3d const& points, */
+/*                                         SkyGeom const&  skygeom) -> Array3Xd;
+ */
 
 auto psf_fast_lut(Array3Xd const& points3,
                   ArrayXd const&  src_d,
                   Tensor2d const& tuPsf_ED) -> Tensor3d;
 
-auto pixel_mean_psf_genz(long const             Nh,
-                         long const             Nw,
-                         Obs::sphcrd_v_t const& src_sph,
-                         Tensor3d const&        psf_lut,
-                         SkyGeom const&         skygeom,
+auto pixel_mean_psf_genz(long const                      Nh,
+                         long const                      Nw,
+                         Obs::sphcrd_v_t const&          src_sph,
+                         std::vector<std::string> const& src_names,
+                         Tensor3d const&                 psf_lut,
+                         SkyGeom const&                  skygeom,
                          double const ftol_threshold = 1e-3) -> Tensor4d;
 
 auto create_offset_map(long const                       Nh,

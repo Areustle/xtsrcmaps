@@ -1,14 +1,18 @@
 #include "xtsrcmaps/fits/fits.hxx"
-#include "xtsrcmaps/source/source.hxx"
 
 #include "fitsio.h"
+#include "fmt/color.h"
 
 #include <functional>
 
 auto
-Fermi::fits::write_src_model(std::string const&                filename,
-                             Tensor4f const&                   model_map,
-                             std::vector<Fermi::Source> const& srcs) -> void {
+Fermi::fits::write_src_model(std::string const&              filename,
+                             Tensor4f const&                 model_map,
+                             std::vector<std::string> const& src_names)
+    -> void {
+
+    fmt::print(fg(fmt::color::magenta),
+               "Writing Source Maps to file: " + filename + "\n");
 
     // create the file
     int       status = 0;
@@ -22,12 +26,11 @@ Fermi::fits::write_src_model(std::string const&                filename,
     fits_update_key(fp, TSTRING, key_name, primary, 0, &status);
 
     // Prepare to write the sources
-    auto const names = Fermi::names_from_point_sources(srcs);
 
-    long const Ne    = model_map.dimension(0);
-    long const Nh    = model_map.dimension(1);
-    long const Nw    = model_map.dimension(2);
-    long const Ns    = model_map.dimension(3);
+    long const Ne = model_map.dimension(0);
+    long const Nh = model_map.dimension(1);
+    long const Nw = model_map.dimension(2);
+    long const Ns = model_map.dimension(3);
 
     // Loop over sources
     for (long s = 0; s < Ns; ++s) {
@@ -42,7 +45,7 @@ Fermi::fits::write_src_model(std::string const&                filename,
         fits_update_key(fp,
                         TSTRING,
                         key_name,
-                        const_cast<char*>(names[s].c_str()),
+                        const_cast<char*>(src_names[s].c_str()),
                         0,
                         &status);
 

@@ -2,7 +2,6 @@
 
 #include "xtsrcmaps/math/tensor_types.hxx"
 #include "xtsrcmaps/observation/obs_types.hxx"
-#include "xtsrcmaps/source/source.hxx"
 
 #include <optional>
 #include <string>
@@ -31,9 +30,9 @@ struct TablePars {
 auto read_irf_pars(std::string const&, std::string const&)
     -> std::optional<TablePars>;
 
-auto write_src_model(std::string const&                filename,
-                     Tensor4f const&                   model_map,
-                     std::vector<Fermi::Source> const& srcs) -> void;
+auto write_src_model(std::string const&              filename,
+                     Tensor4f const&                 model_map,
+                     std::vector<std::string> const& srcs) -> void;
 
 
 } // namespace fits

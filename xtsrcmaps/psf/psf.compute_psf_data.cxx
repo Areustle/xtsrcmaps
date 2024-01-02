@@ -4,11 +4,14 @@
 #include "xtsrcmaps/irf/irf_types.hxx"
 #include "xtsrcmaps/observation/obs_types.hxx"
 
+#include "fmt/color.h"
+
 auto
 Fermi::PSF::compute_psf_data(XtObs const& obs,
                              XtIrf const& irf,
                              XtExp const  exp) -> XtPsf {
 
+    fmt::print(fg(fmt::color::magenta), "Computing Point Spread Function.\n");
     //**************************************************************************
     // Mean PSF Computations
     //**************************************************************************

@@ -1,13 +1,15 @@
 #include "xtsrcmaps/observation/observation.hxx"
-#include "xtsrcmaps/observation/obs_types.hxx"
-
 #include "xtsrcmaps/config/config.hxx"
 #include "xtsrcmaps/fits/fits.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 #include "xtsrcmaps/source/source.hxx"
 
+#include "fmt/color.h"
+
 auto
 Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
+
+    fmt::print(fg(fmt::color::magenta), "Collecting Observation Data.\n");
 
     auto const energies = good(Fermi::fits::ccube_energies(cfg.cmap),
                                "Cannot read ccube_energies file!");
@@ -31,6 +33,7 @@ Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
         .ccube             = ccube,
         .srcs              = srcs,
         .src_sph           = Fermi::spherical_coords_from_point_sources(srcs),
+        .src_names         = Fermi::names_from_point_sources(srcs),
         .exp_cube          = exp_cube,
         .weighted_exp_cube = wexp_cube,
         .Nh                = ccube.naxes[0],
