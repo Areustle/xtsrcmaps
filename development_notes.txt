@@ -1,4 +1,3 @@
-Week of 2022-12-05:
 
  - Updated the genz_malik and model_map modules to implement fastest numerical integral
    variant yet tested.
@@ -10,30 +9,21 @@ Week of 2022-12-05:
  - Added correct scaling factor to functions for solid_angle, pixel_exposure and
    psf_map_integral_correction_factor.
 
-Week of  2022-12-12:
-
-Goals for Week of 2022-12-12:
+Goals:
 
 [.] Write tests for all model_map scaling factor functions.
   [x] PSF solid angle
   [x] PSF radius and fov
-  [!] map_integral
-  [-] exposure
-  [] correction_factors
-  [] final model_map
-[] setSpectralValues.
-[] Write unit tests for setSpectralValues.
-[] computeNpredArray.
-[] Write unit tests for computeNpredArray.
-[] Detector Response Matrix.
-[] Write unit tests for Detector Response Matrix.
-[] Output data to fitsfile.
+  [x] map_integral
+  [x] exposure
+  [x] correction_factors
+  [x] final model_map
+[x] Output data to fitsfile.
 
 Longer Term Goals:
-[] User Input Configuration File support
-[] CALDB IRF support
+[.] User Input Configuration parfile support
+[.] CALDB IRF support
 [] Edisp Bins support
 [] Diffuse source support
 [] Extended source support
 [] Composite source support
-[] pfiles

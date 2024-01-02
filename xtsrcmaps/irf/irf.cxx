@@ -14,14 +14,31 @@ using std::sin;
 using std::string;
 using std::vector;
 
+
+auto
+Fermi::collect_irf_data(XtCfg const& cfg, XtObs const& obs) -> XtIrf {
+    //**************************************************************************
+    // Read IRF Fits Files.
+    //**************************************************************************
+    auto opt_aeff  = Fermi::load_aeff(cfg.aeff_file);
+    auto opt_psf   = Fermi::load_psf(cfg.psf_file);
+    auto aeff_irf  = good(opt_aeff, "Cannot read AEFF Irf FITS file!");
+    auto psf_irf   = good(opt_psf, "Cannot read PSF Irf FITS file!");
+
+    auto front_LTF = Fermi::livetime_efficiency_factors(
+        obs.logEs, aeff_irf.front.efficiency_params);
+
+    return { .aeff_irf = aeff_irf, .psf_irf = psf_irf, .front_LTF = front_LTF };
+}
+
 //************************************************************************************
-// Convert the raw arrays read in from an IRF FITS file into a useable set of
-// gridded data tensors for future sampling.
+// Convert the raw arrays read in from an IRF FITS file into a useable set
+// of gridded data tensors for future sampling.
 //
-// The format of an IRF grid is a single FITS row with 5 or more columns. The
-// first 4 columns are the low and high columns of the energy and costheta range
-// vectors. Every subsequent column is a data entry for 1 paramater entry in a
-// linearized grid.
+// The format of an IRF grid is a single FITS row with 5 or more columns.
+// The first 4 columns are the low and high columns of the energy and
+// costheta range vectors. Every subsequent column is a data entry for 1
+// paramater entry in a linearized grid.
 //
 // column 0: energy low
 // column 1: energy high

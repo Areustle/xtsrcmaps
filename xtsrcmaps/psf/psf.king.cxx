@@ -21,9 +21,10 @@ king_single(double const sep, Tensor1d const& pars) noexcept -> double {
 
     // scaled king function
     return (ncore * (1. - 1. / gcore) * std::pow(1. + uc / gcore, -gcore)
-            + ntail * ncore * (1. - 1. / gtail) * std::pow(1. + ut / gtail, -gtail));
-    // If perfomance is limited by this function call it may be improved by computing
-    // x ^ -g as exp(-g * ln(x)) with SIMD log and exp.
+            + ntail * ncore * (1. - 1. / gtail)
+                  * std::pow(1. + ut / gtail, -gtail));
+    // If perfomance is limited by this function call it may be improved by
+    // computing x ^ -g as exp(-g * ln(x)) with SIMD log and exp.
 }
 
 //[Nd, Nc, Ne] -> [Ne, Nc, Nd]
@@ -57,9 +58,10 @@ Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor3d {
     for (long d = 0; d < Nd; ++d) {
         for (long c = 0; c < Nc; ++c) {
             for (long e = 0; e < Ne; ++e) {
-                Kings(e, c, d) = king_single(
-                    delta(d),
-                    P.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 }).reshape(Idx1 { 6 }));
+                Kings(e, c, d)
+                    = king_single(delta(d),
+                                  P.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 })
+                                      .reshape(Idx1 { 6 }));
             }
         }
     }

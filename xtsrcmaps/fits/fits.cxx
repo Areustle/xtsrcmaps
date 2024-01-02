@@ -59,7 +59,7 @@ Fermi::fits::ccube_energies(std::string const& filename) noexcept
 /// Read the header keyword values from the counts cube.
 auto
 Fermi::fits::ccube_pixels(std::string const& filename) noexcept
-    -> std::optional<CCubePixels> {
+    -> std::optional<Obs::CCubePixels> {
     // Use CFITSIO to open the ccube and read the energies in the header.
     int       status = 0;
     fitsfile* ifile;
@@ -172,7 +172,7 @@ Fermi::fits::ccube_pixels(std::string const& filename) noexcept
 auto
 Fermi::fits::read_expcube(std::string const& filename,
                           std::string const& tblname)
-    -> std::optional<ExposureCubeData> {
+    -> std::optional<Obs::ExposureCubeData> {
     // Use CFITSIO to open the ltcube and read the values in the header.
     int       status = 0;
     fitsfile* ifile;

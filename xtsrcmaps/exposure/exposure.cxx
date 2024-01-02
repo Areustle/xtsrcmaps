@@ -1,15 +1,12 @@
 #include "xtsrcmaps/exposure/exposure.hxx"
 
 #include "xtsrcmaps/healpix/healpix.hxx"
-#include "xtsrcmaps/math/bilerp.hxx"
 #include "xtsrcmaps/math/tensor_types.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 
 #include <fmt/format.h>
 
 #include <algorithm>
-#include <cmath>
-#include <functional>
 #include <utility>
 #include <vector>
 
@@ -17,25 +14,21 @@ using std::pair;
 using std::vector;
 
 auto
-Fermi::exp_map(fits::ExposureCubeData const& data) -> ExposureMap {
+Fermi::exp_map(Obs::ExposureCubeData const& data) -> ExposureMap {
     size_t const& nside = data.nside;
     size_t const  npix  = 12 * nside * nside;
     size_t const  nbins = data.nbrbins;
 
     assert(data.cosbins.size() == npix * nbins);
 
-    // auto          v     = vector<double>(data.cosbins.size());
-    // std::copy(data.cosbins.begin(), data.cosbins.end(), v.begin());
-
     Eigen::Tensor<double, 2, Eigen::RowMajor> rm_cosbins(npix, nbins);
     std::copy(data.cosbins.begin(), data.cosbins.end(), &rm_cosbins(0, 0));
-    // return { nside, nbins, mdarray2(v, npix, nbins) };
 
     return { nside, nbins, rm_cosbins.swap_layout() };
 }
 
 auto
-Fermi::exp_costhetas(fits::ExposureCubeData const& data) -> vector<double> {
+Fermi::exp_costhetas(Obs::ExposureCubeData const& data) -> vector<double> {
     auto v = std::vector<double>(data.nbrbins);
     std::iota(v.begin(), v.end(), 0.0);
     std::transform(v.begin(), v.end(), v.begin(), [&](auto x) {
@@ -64,9 +57,7 @@ Fermi::src_exp_cosbins(vector<pair<double, double>> const& src_sph,
 
     auto const nbins = expmap.nbins;
     auto const pixs  = Fermi::Healpix::ang2pix(theta_phi_dirs, expmap.nside);
-    // auto       data  = vector<double>(theta_phi_dirs.size() * nbins, 0.0);
-    // auto       A     = mdarray2(data, theta_phi_dirs.size(), nbins);
-    Tensor2d A(nbins, theta_phi_dirs.size());
+    Tensor2d   A(nbins, theta_phi_dirs.size());
 
     for (size_t i = 0; i < pixs.size(); ++i) {
         auto const& pix = pixs[i];
@@ -76,50 +67,6 @@ Fermi::src_exp_cosbins(vector<pair<double, double>> const& src_sph,
     return A;
 }
 
-inline void
-co_aeff_value_base(Tensor2d&       R,
-                   auto const&     C,
-                   auto const&     E,
-                   auto const&     IC,
-                   auto const&     IE,
-                   Tensor2d const& IP,
-                   double const    minCosTheta) noexcept {
-    auto elerps = Fermi::lerp_pars(IE, E);
-    auto clerps = Fermi::lerp_pars(IC, C, minCosTheta);
-
-    /* assert(long(elerps.size()) == R.dimension(0)); */
-    /* assert(long(clerps.size()) == R.dimension(1)); */
-
-    for (long e = 0; e < R.dimension(0); ++e) {
-        for (long c = 0; c < R.dimension(1); ++c) {
-            R(e, c) = 1e4 * Fermi::bilerp(elerps[e], clerps[c], IP);
-        }
-    }
-}
-
-auto
-Fermi::aeff_value(vector<double> const& costhet,
-                  vector<double> const& logEs,
-                  IrfData3 const&       AeffData) -> Tensor2d {
-    // auto        aeff = vector<double>(costhet.size() * logEs.size(), 0.0);
-    // auto        R    = mdspan(aeff.data(), costhet.size(), logEs.size());
-    Tensor2d R(logEs.size(), costhet.size());
-    R.setZero();
-    auto const& C  = costhet;
-    auto const& E  = logEs;
-    auto const& IC = AeffData.cosths;
-    auto const& IE = AeffData.logEs;
-
-    assert(AeffData.params.dimension(0) == 1);
-    TensorMap<Tensor2d const> IP(AeffData.params.data(),
-                                 AeffData.params.dimension(1),
-                                 AeffData.params.dimension(2));
-
-    co_aeff_value_base(R, C, E, IC, IE, IP, AeffData.minCosTheta);
-
-    // [E,C]
-    return R;
-}
 
 // Compute the exposure by operating on all pre-generated tensors as necessary.
 // [Ne, Nsrc]
@@ -175,3 +122,48 @@ Fermi::exposure(
     // [Ne, Nsrc]
     return exposure;
 };
+
+auto
+Fermi::compute_exposure_data(XtCfg const& cfg,
+                             XtObs const& obs,
+                             XtIrf const& irf) -> XtExp {
+    //**************************************************************************
+    // Exposure Cube Obsdata transformations
+    //**************************************************************************
+    auto const exp_costhetas = Fermi::exp_costhetas(obs.exp_cube);
+    auto const exp_map       = Fermi::exp_map(obs.exp_cube);
+    auto const wexp_map      = Fermi::exp_map(obs.weighted_exp_cube);
+    auto const src_exposure_cosbins
+        = Fermi::src_exp_cosbins(obs.src_sph, exp_map);
+    auto const src_weighted_exposure_cosbins
+        = Fermi::src_exp_cosbins(obs.src_sph, wexp_map);
+
+    //**************************************************************************
+    // Effective Area Computations.
+    //**************************************************************************
+    auto const front_aeff = Fermi::aeff_value(
+        exp_costhetas, obs.logEs, irf.aeff_irf.front.effective_area);
+    auto const back_aeff = Fermi::aeff_value(
+        exp_costhetas, obs.logEs, irf.aeff_irf.back.effective_area);
+
+
+    //**************************************************************************
+    // Exposure
+    //**************************************************************************
+    auto const exposures = Fermi::exposure(src_exposure_cosbins,
+                                           src_weighted_exposure_cosbins,
+                                           front_aeff,
+                                           back_aeff,
+                                           irf.front_LTF);
+
+    return {
+        .exp_costhetas                 = exp_costhetas,
+        .exp_map                       = exp_map,
+        .wexp_map                      = wexp_map,
+        .front_aeff                    = front_aeff,
+        .back_aeff                     = back_aeff,
+        .src_exposure_cosbins          = src_exposure_cosbins,
+        .src_weighted_exposure_cosbins = src_weighted_exposure_cosbins,
+        .exposure                      = exposures,
+    };
+}

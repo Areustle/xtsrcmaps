@@ -1,7 +1,6 @@
 #pragma once
 
-#include <xtsrcmaps/source/source.hxx>
-#include <xtsrcmaps/math/tensor_types.hxx>
+#include "xtsrcmaps/source/source.hxx"
 
 #include <fmt/format.h>
 

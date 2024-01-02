@@ -1,6 +1,7 @@
 target_sources(
   xtsrcmaps
   PRIVATE psf.bilerp.cxx
+          psf.compute_psf_data.cxx
           psf.corrected_exposure_psf.cxx
           psf.fast_separation_lower_index.cxx
           psf.king.cxx

@@ -11,14 +11,6 @@ struct IrfData3 {
     Tensor1d logEs;
     Tensor3d params;
     double   minCosTheta;
-
-    // auto
-    // mdspan() -> mdspan3
-    // {
-    //     return mdspan3(
-    //         params.data(), params.extent(0), params.extent(1),
-    //         params.extent(2));
-    // }
 };
 
 struct IrfScale {
@@ -44,7 +36,6 @@ struct Pass8FB {
     irf::psf::Data front;
     irf::psf::Data back;
 };
-
 } // namespace irf::psf
 
 namespace irf::aeff {
@@ -61,18 +52,11 @@ struct Pass8FB {
 };
 } // namespace irf::aeff
 
-struct ExposureMap {
-    std::size_t nside;
-    std::size_t nbins;
-    Tensor2d    params; // Healpix, CosineBin -> CosineBin, Healpix
+struct XtIrf {
+    irf::aeff::Pass8FB                                  aeff_irf;
+    irf::psf::Pass8FB                                   psf_irf;
+    std::pair<std::vector<double>, std::vector<double>> front_LTF;
 };
-
-
-/* struct InstrumentResponse { */
-/*     irf::aeff::Pass8FB                                  aeff_irf; */
-/*     irf::psf::Pass8FB                                   psf_irf; */
-/*     std::pair<std::vector<double>, std::vector<double>> front_LTF; */
-/* }; */
 
 
 } // namespace Fermi

@@ -23,10 +23,8 @@ constexpr double sep_step
     = 0.033731417579011382769913057686378448039204491; // ln(7e5)/399
 
 auto
-good(auto opt, std::string const& msg, int const return_code=1) -> auto
-{
-    if (!opt)
-    {
+good(auto opt, std::string const& msg, int const return_code = 1) -> auto {
+    if (!opt) {
         std::cerr << msg << std::endl;
         exit(return_code);
     }
@@ -43,48 +41,46 @@ good(auto opt, std::string const& msg, int const return_code=1) -> auto
  * {
  *     std::vector<std::shared_ptr<Node>> nodes;
  *
- *     auto raw_nodes = to<std::vector<Node*>>(std::views::transform(nodes, [] (auto&
- * node) { return node.get();
+ *     auto raw_nodes = to<std::vector<Node*>>(std::views::transform(nodes, []
+ * (auto& node) { return node.get();
  *     }));
  * }
  */
 template <typename ContainerT, typename RangeT>
 ContainerT
-to(RangeT&& range)
-{
+to(RangeT&& range) {
     return ContainerT(begin(range), end(range));
 }
 
 /*
  * User defined literal for uint64_t
  */
-constexpr uint64_t operator"" _u64(unsigned long long int const x)
-{
+constexpr uint64_t
+operator"" _u64(unsigned long long int const x) {
     return uint64_t(x);
 }
 
 inline constexpr double
-to_radians(double const x)
-{
+to_radians(double const x) {
     return x * deg2rad;
 }
 inline constexpr double
-to_degrees(double const x)
-{
+to_degrees(double const x) {
     return x * rad2deg;
 }
 
 /*
  * User defined literal to make converting degrees to radians simpler.
  */
-constexpr double operator"" _deg(long double deg) { return to_radians(deg); }
+constexpr double
+operator"" _deg(long double deg) {
+    return to_radians(deg);
+}
 
-namespace Fermi
-{
+namespace Fermi {
 template <typename T>
 auto
-log10_v(std::vector<T> const& v) -> std::vector<T>
-{
+log10_v(std::vector<T> const& v) -> std::vector<T> {
     auto logEs = std::vector<double>(v.size(), 0.0);
     std::transform(v.cbegin(), v.cend(), logEs.begin(), [](auto const& x) {
         return std::log10(x);

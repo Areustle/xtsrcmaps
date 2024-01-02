@@ -6,8 +6,7 @@
 #include <string.h>
 
 
-Fermi::SkyGeom::SkyGeom(fits::CCubePixels const& pars)
-{
+Fermi::SkyGeom::SkyGeom(Obs::CCubePixels const& pars) {
     // Mostly copied from SkyProj.cxx in Sciencetools Likelihood.
 
     m_wcs         = new (m_wcs_struct.data()) wcsprm;
@@ -21,8 +20,7 @@ Fermi::SkyGeom::SkyGeom(fits::CCubePixels const& pars)
     std::string lon_type = (pars.is_galactic ? "GLON" : "RA"),
                 lat_type = (pars.is_galactic ? "GLAT" : "DEC");
 
-    if (pars.proj_name.compare("") != 0)
-    {
+    if (pars.proj_name.compare("") != 0) {
         lon_type += (pars.is_galactic ? "-" : "---") + pars.proj_name;
         lat_type += (pars.is_galactic ? "-" : "--") + pars.proj_name;
     }
@@ -57,8 +55,7 @@ Fermi::SkyGeom::~SkyGeom() { wcsfree(m_wcs); }
 
 
 auto
-Fermi::SkyGeom::sph2pix(Vector2d const& ss) const -> Vector2d
-{
+Fermi::SkyGeom::sph2pix(Vector2d const& ss) const -> Vector2d {
     double    s1 = ss(0), s2 = ss(1);
     int const ncoords = 1;
     int const nelem   = 2;
@@ -70,14 +67,12 @@ Fermi::SkyGeom::sph2pix(Vector2d const& ss) const -> Vector2d
     // and in the range of [-90,90] for the lat and [-180,180] for the lon.
     // So correct for this effect.
     bool wrap_pos = false;
-    if (s1 > 180)
-    {
+    if (s1 > 180) {
         s1 -= 360.;
         wrap_pos = false;
     }
     bool wrap_neg = false;
-    if (s1 < -180)
-    {
+    if (s1 < -180) {
         s1 += 360.;
         wrap_neg = false;
     }
@@ -90,8 +85,7 @@ Fermi::SkyGeom::sph2pix(Vector2d const& ss) const -> Vector2d
 
 auto
 Fermi::SkyGeom::sph2pix(std::pair<double, double> const& ss) const
-    -> std::pair<double, double>
-{
+    -> std::pair<double, double> {
     auto [s1, s2]     = ss;
     int const ncoords = 1;
     int const nelem   = 2;
@@ -103,14 +97,12 @@ Fermi::SkyGeom::sph2pix(std::pair<double, double> const& ss) const
     // and in the range of [-90,90] for the lat and [-180,180] for the lon.
     // So correct for this effect.
     bool wrap_pos = false;
-    if (s1 > 180)
-    {
+    if (s1 > 180) {
         s1 -= 360.;
         wrap_pos = false;
     }
     bool wrap_neg = false;
-    if (s1 < -180)
-    {
+    if (s1 < -180) {
         s1 += 360.;
         wrap_neg = false;
     }
@@ -122,8 +114,7 @@ Fermi::SkyGeom::sph2pix(std::pair<double, double> const& ss) const
 }
 
 auto
-Fermi::SkyGeom::pix2sph(Vector2d const& px) const -> Vector2d
-{
+Fermi::SkyGeom::pix2sph(Vector2d const& px) const -> Vector2d {
     int    ncoords = 1;
     int    nelem   = 2;
     double worldcrd[2], imgcrd[2];
@@ -138,8 +129,8 @@ Fermi::SkyGeom::pix2sph(Vector2d const& px) const -> Vector2d
 }
 
 auto
-Fermi::SkyGeom::pix2sph(double const first, double const second) const -> Vector2d
-{
+Fermi::SkyGeom::pix2sph(double const first, double const second) const
+    -> Vector2d {
     int    ncoords = 1;
     int    nelem   = 2;
     double worldcrd[2], imgcrd[2];
@@ -154,8 +145,7 @@ Fermi::SkyGeom::pix2sph(double const first, double const second) const -> Vector
 }
 
 auto
-Fermi::SkyGeom::sph2pix(vpd const& ss) const -> vpd
-{
+Fermi::SkyGeom::sph2pix(vpd const& ss) const -> vpd {
     auto v = std::vector<std::pair<double, double>>(ss.size());
     std::transform(ss.begin(), ss.end(), v.begin(), [&](auto const& x) {
         return sph2pix(x);
@@ -164,16 +154,14 @@ Fermi::SkyGeom::sph2pix(vpd const& ss) const -> vpd
 }
 
 auto
-Fermi::SkyGeom::pix2sph(Eigen::Matrix2Xd const& px) const -> Eigen::Matrix2Xd
-{
+Fermi::SkyGeom::pix2sph(Eigen::Matrix2Xd const& px) const -> Eigen::Matrix2Xd {
     // auto v = std::vector<std::pair<double, double>>(px.size());
     // std::transform(px.begin(), px.end(), v.begin(), [&](auto const& x) {
     //     return pix2sph(x);
     // });
     // return v;
     Eigen::Matrix2Xd S(2, px.cols());
-    for (long i = 0; i < px.cols(); ++i)
-    {
+    for (long i = 0; i < px.cols(); ++i) {
         Vector2d v       = px(Eigen::all, i);
         S(Eigen::all, i) = pix2sph(v);
     }
@@ -182,8 +170,7 @@ Fermi::SkyGeom::pix2sph(Eigen::Matrix2Xd const& px) const -> Eigen::Matrix2Xd
 
 
 auto
-Fermi::SkyGeom::dir2sph(Vector3d const& dir) const -> Vector2d
-{
+Fermi::SkyGeom::dir2sph(Vector3d const& dir) const -> Vector2d {
     double ra = atan2(dir(1), dir(0)) * rad2deg;
     // fold RA into the range (0,360)
     while (ra < 0) ra += 360.;
@@ -193,8 +180,7 @@ Fermi::SkyGeom::dir2sph(Vector3d const& dir) const -> Vector2d
 }
 
 auto
-Fermi::SkyGeom::pix2dir(Vector2d const& px) const -> Vector3d
-{
+Fermi::SkyGeom::pix2dir(Vector2d const& px) const -> Vector3d {
     auto   s       = pix2sph(px);
     double cos_ra  = cos(s(0) * deg2rad);
     double cos_dec = cos(s(1) * deg2rad);
@@ -203,12 +189,12 @@ Fermi::SkyGeom::pix2dir(Vector2d const& px) const -> Vector3d
     return Vector3d(cos_ra * cos_dec, sin_ra * cos_dec, sin_dec);
     // auto ra_rad  = s(0) * deg2rad;
     // auto dec_rad = s(1) * deg2rad;
-    // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad), sin(dec_rad) };
+    // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad),
+    // sin(dec_rad) };
 }
 
 auto
-Fermi::SkyGeom::sph2dir(Vector2d const& s) const -> Vector3d
-{
+Fermi::SkyGeom::sph2dir(Vector2d const& s) const -> Vector3d {
     // auto ra_rad  = s(0) * deg2rad;
     // auto dec_rad = s(1) * deg2rad;
     double cos_ra  = cos(s(0) * deg2rad);
@@ -219,8 +205,7 @@ Fermi::SkyGeom::sph2dir(Vector2d const& s) const -> Vector3d
 }
 
 auto
-Fermi::SkyGeom::sph2dir(std::pair<double, double> const& s) const -> Vector3d
-{
+Fermi::SkyGeom::sph2dir(std::pair<double, double> const& s) const -> Vector3d {
     double cos_ra  = cos(s.first * deg2rad);
     double cos_dec = cos(s.second * deg2rad);
     double sin_ra  = sin(s.first * deg2rad);
@@ -229,36 +214,34 @@ Fermi::SkyGeom::sph2dir(std::pair<double, double> const& s) const -> Vector3d
     // return { cos_ra * cos_dec, sin_ra * cos_dec, sin_dec };
     // auto ra_rad  = s.first * deg2rad;
     // auto dec_rad = s.second * deg2rad;
-    // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad), sin(dec_rad) };
+    // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad),
+    // sin(dec_rad) };
 }
 
 auto
 Fermi::SkyGeom::srcpixoff(Vector3d const& src_dir_coord,
-                          Vector2d const& delta_pix) const -> double
-{
+                          Vector2d const& delta_pix) const -> double {
     auto const dpx = pix2dir(delta_pix);
     return srcpixoff(src_dir_coord, dpx);
 }
 
 
 auto
-Fermi::pix_diff(Vector2d const& L, Vector2d const& R, SkyGeom const& skygeom) -> double
-{
+Fermi::pix_diff(Vector2d const& L, Vector2d const& R, SkyGeom const& skygeom)
+    -> double {
     return dir_diff(skygeom.pix2dir(L), skygeom.pix2dir(R));
 };
 
 auto
 Fermi::sph_pix_diff(std::pair<double, double> const& L,
                     Vector2d const&                  R,
-                    SkyGeom const&                   skygeom) -> double
-{
+                    SkyGeom const&                   skygeom) -> double {
     return dir_diff(skygeom.sph2dir(L), skygeom.pix2dir(R));
 };
 
 auto
-Fermi::SkyGeom::srcpixoff(Vector3d const& src_dir_coord, Vector3d const& pix) const
-    -> double
-{
+Fermi::SkyGeom::srcpixoff(Vector3d const& src_dir_coord,
+                          Vector3d const& pix) const -> double {
     // src = sph
     // dpix = pix
     // auto  src  = sph2dir(src_sph_coord);

@@ -19,11 +19,13 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
     Tensor3d Bilerps(Nd, Ne, Nc);
     Bilerps.setZero();
 
-    // Sample the Look Up Table's axes parameters with the supplied sample points
+    // Sample the Look Up Table's axes parameters with the supplied sample
+    // points
     auto const clerps = Fermi::lerp_pars(par_cosths, costhetas);
     auto const elerps = Fermi::lerp_pars(par_logEs, logEs);
 
-    // biLerp the [E,C] slice of the Kings lookup table for each psf separation (D)
+    // biLerp the [E,C] slice of the Kings lookup table for each psf separation
+    // (D)
     for (long c = 0; c < Bilerps.dimension(2); ++c) {
         auto ct = clerps[c];
         for (long e = 0; e < Bilerps.dimension(1); ++e) {
@@ -34,9 +36,11 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
                     et,
                     ct,
                     kings
-                        .slice(Idx3 { 0, 0, d },
-                               Idx3 { kings.dimension(0), kings.dimension(1), 1 })
-                        .reshape(Idx2 { kings.dimension(0), kings.dimension(1) }));
+                        .slice(
+                            Idx3 { 0, 0, d },
+                            Idx3 { kings.dimension(0), kings.dimension(1), 1 })
+                        .reshape(
+                            Idx2 { kings.dimension(0), kings.dimension(1) }));
             }
         }
     }

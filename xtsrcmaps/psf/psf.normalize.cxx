@@ -9,5 +9,6 @@ Fermi::PSF::normalize(Tensor3d&       upsf,           /* [Nd, Ne, Ns] */
     long const Ns = upsf.dimension(2);
     assert(total_integrals.dimension(0) == Ne);
     assert(total_integrals.dimension(1) == Ns);
-    upsf /= total_integrals.reshape(Idx3 { 1, Ne, Ns }).broadcast(Idx3 { Nd, 1, 1 });
+    upsf /= total_integrals.reshape(Idx3 { 1, Ne, Ns })
+                .broadcast(Idx3 { Nd, 1, 1 });
 }

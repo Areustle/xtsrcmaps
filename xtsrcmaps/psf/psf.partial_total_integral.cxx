@@ -29,8 +29,8 @@ Fermi::PSF::partial_total_integral(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */
     Idx3 const i6 = { Nd - 1, Ne, Ns };
     // Idx3 const i7 = { Nd, Ne, Ns };
 
-    // Use Midpoint Rule to compute approximate sum of psf from each separation entry
-    // over the lookup table.
+    // Use Midpoint Rule to compute approximate sum of psf from each separation
+    // entry over the lookup table.
 
     // [Nd, 1, 1]
     Tensor3d X    = delta.slice(Idx1 { 0 }, Idx1 { Nd }).reshape(i4);
@@ -38,13 +38,15 @@ Fermi::PSF::partial_total_integral(Tensor3d const& mean_psf /* [Nd, Ne, Ns] */
     Tensor3d DX   = X.slice(i1, i3) - X.slice(i0, i3);
     Tensor3d SX   = X.slice(i1, i3) + X.slice(i0, i3);
     // [Nd, Ne, Ns]
-    Tensor3d Y = X.unaryExpr([](double t) { return twopi * std::sin(t); }).broadcast(i5)
+    Tensor3d Y    = X.unaryExpr([](double t) {
+                      return twopi * std::sin(t);
+                  }).broadcast(i5)
                  * mean_psf;
     // [Nd-1, Ne, Ns]
     // Tensor3d DY          = Y.slice(i1, i6) - Y.slice(i0, i6);
-    Tensor3d M           = (Y.slice(i1, i6) - Y.slice(i0, i6)) / DX.broadcast(i5);
-    Tensor3d B           = Y.slice(i0, i6) - (M * X.slice(i0, i3).broadcast(i5));
-    Tensor3d V           = (0.5 * M * SX.broadcast(i5) + B) * DX.broadcast(i5);
+    Tensor3d M = (Y.slice(i1, i6) - Y.slice(i0, i6)) / DX.broadcast(i5);
+    Tensor3d B = Y.slice(i0, i6) - (M * X.slice(i0, i3).broadcast(i5));
+    Tensor3d V = (0.5 * M * SX.broadcast(i5) + B) * DX.broadcast(i5);
     // [Nd, Ne, Ns]
     parint.slice(i1, i6) = V.cumsum(0);
     //

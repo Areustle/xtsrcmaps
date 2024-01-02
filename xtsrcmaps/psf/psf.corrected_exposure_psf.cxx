@@ -19,23 +19,28 @@ Fermi::PSF::corrected_exposure_psf(
     TensorMap<Tensor3d const> fLTR1(front_LTF.first.data(), 1, Ne, 1);
     TensorMap<Tensor3d const> fLTR2(front_LTF.second.data(), 1, Ne, 1);
 
-    // auto psf_aeff     = Fermi::mul322(obs_psf, obs_aeff); // [D, E, C] . [E, C]
-    // [D, E, C]
+    // auto psf_aeff     = Fermi::mul322(obs_psf, obs_aeff); // [D, E, C] . [E,
+    // C] [D, E, C]
     Tensor3d psf_aeff
-        = obs_psf * obs_aeff.reshape(Idx3 { 1, Ne, Nc }).broadcast(Idx3 { Nd, 1, 1 });
+        = obs_psf
+          * obs_aeff.reshape(Idx3 { 1, Ne, Nc }).broadcast(Idx3 { Nd, 1, 1 });
 
     // [D, E, S] = SUM_c ([D, E, C] * [C, S])
     // auto exposure_psf = Fermi::contract3210(psf_aeff, src_exposure_cosbins);
     Tensor3d exposure_psf
         = psf_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 2, 0 } } });
-    // auto wexp_psf = Fermi::contract3210(psf_aeff, src_weighted_exposure_cosbins);
-    Tensor3d wexp_psf
-        = psf_aeff.contract(src_weighted_exposure_cosbins, IdxPair1 { { { 2, 0 } } });
+    // auto wexp_psf = Fermi::contract3210(psf_aeff,
+    // src_weighted_exposure_cosbins);
+    Tensor3d wexp_psf = psf_aeff.contract(src_weighted_exposure_cosbins,
+                                          IdxPair1 { { { 2, 0 } } });
 
     // [D, E, S]
-    // auto corrected_exp_psf          = Fermi::mul310(exposure_psf, front_LTF.first);
-    Tensor3d corrected_exp_psf = exposure_psf * fLTR1.broadcast(Idx3 { Nd, 1, Ns });
-    // auto corrected_weighted_exp_psf = Fermi::mul310(wexp_psf, front_LTF.second);
+    // auto corrected_exp_psf          = Fermi::mul310(exposure_psf,
+    // front_LTF.first);
+    Tensor3d corrected_exp_psf
+        = exposure_psf * fLTR1.broadcast(Idx3 { Nd, 1, Ns });
+    // auto corrected_weighted_exp_psf = Fermi::mul310(wexp_psf,
+    // front_LTF.second);
     Tensor3d corrected_weighted_exp_psf
         = wexp_psf * fLTR2.broadcast(Idx3 { Nd, 1, Ns });
 
