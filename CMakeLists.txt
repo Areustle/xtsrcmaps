@@ -43,7 +43,7 @@ add_compile_options(
   # $<$<CONFIG:RELEASE>:-Og> #
   $<$<CONFIG:DEBUG>:-pedantic> #
   # $<$<CONFIG:DEBUG>:-g3> #
-  # $<$<CONFIG:DEBUG>:-Og> #
+  $<$<CONFIG:DEBUG>:-Og> #
   # $<$<CONFIG:DEBUG>:-fsanitize=address> #
   # $<$<CONFIG:DEBUG>:-fsanitize=leak> #
   # $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
@@ -56,6 +56,7 @@ add_link_options(
   # $<$<CONFIG:DEBUG>:-fsanitize=undefined> #
   $<$<CONFIG:DEBUG>:-fno-omit-frame-pointer> #
   $<$<CONFIG:DEBUG>:-fno-common> #
+  $<$<CONFIG:DEBUG>:-Og> #
 )
 
 add_subdirectory(xtsrcmaps)

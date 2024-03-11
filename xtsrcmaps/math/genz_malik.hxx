@@ -1,9 +1,10 @@
-// Multi-dimensional Integration over an N-dimensional rectangular region. Algorithm
-// from A.C. Genz, A.A. Malik, An adaptive algorithm for numerical integration over an
-// N-dimensional rectangular region, J. Comput. Appl. Math. 6 (1980) 295-302.
+// Multi-dimensional Integration over an N-dimensional rectangular region.
+// Algorithm from A.C. Genz, A.A. Malik, An adaptive algorithm for numerical
+// integration over an N-dimensional rectangular region, J. Comput. Appl. Math.
+// 6 (1980) 295-302.
 //
-// Updated by Bernstein, Espelid, Genz in "An Adaptive Algorithm for the Approximate
-// Calculation of Multiple Integrals"
+// Updated by Bernstein, Espelid, Genz in "An Adaptive Algorithm for the
+// Approximate Calculation of Multiple Integrals"
 
 #pragma once
 
@@ -11,8 +12,7 @@
 
 #include "unsupported/Eigen/CXX11/Tensor"
 
-namespace Fermi::Genz
-{
+namespace Fermi::Genz {
 
 // The number of sample points within a 2D region in a Genz_Malik rule.
 constexpr long Ncnt = 17;
@@ -85,47 +85,44 @@ alignas(64) constexpr std::array<double, 17> genz_malik_err_weights_17 = {
 };
 
 
-auto
-fullsym(Tensor2d const& c, Tensor2d const& l2, Tensor2d const& l4, Tensor2d const& l5)
-    -> Tensor3d;
+auto fullsym(Tensor2d const& c,
+             Tensor2d const& l2,
+             Tensor2d const& l4,
+             Tensor2d const& l5) -> Tensor3d;
 auto
 fullsym(Tensor2d const& c, double const l2, double const l4, double const l5)
     -> Tensor3d;
 
-auto
-region(Tensor3d const& low, Tensor3d const& high, long const Nevts)
+auto region(Tensor3d const& low, Tensor3d const& high, long const Nevts)
     -> std::tuple<Tensor2d, Tensor2d, Tensor2d>;
 
 auto
 pixel_region(Tensor3d const& points) -> std::tuple<Tensor2d, double, double>;
 
 
-auto
-converged_indices(Tensor2d const& value,
-                  Tensor2d const& error,
-                  double const    ftol_threshold)
+auto converged_indices(Tensor2d const& value,
+                       Tensor2d const& error,
+                       double const    ftol_threshold)
     -> std::tuple<std::vector<long>, std::vector<long>>;
 
-auto
-dims_to_split(Tensor3d const&          evals,
-              Tensor2d const&          err,
-              double const             halfwidth,
-              double const             volume,
-              std::vector<long> const& not_converged) -> Tensor1byt;
+auto dims_to_split(Tensor3d const&          evals,
+                   Tensor2d const&          err,
+                   double const             halfwidth,
+                   double const             volume,
+                   std::vector<long> const& not_converged) -> Tensor1byt;
 
-auto
-region_split(Tensor2d&         center,
-             double&           halfwidth,
-             double&           volume,
-             Tensor1byt const& split_dim,
-             Tensor2d const&   cenUcv) -> void;
+auto region_split(Tensor2d&         center,
+                  double&           halfwidth,
+                  double&           volume,
+                  Tensor1byt const& split_dim,
+                  Tensor2d const&   cenUcv) -> void;
 
 // [7, 5] FS rule weights from Genz, Malik: "An adaptive algorithm for numerical
 // integration Over an N-dimensional rectangular region", updated by Bernstein,
 // Espelid, Genz in "An Adaptive Algorithm for the Approximate Calculation of
 // Multiple Integrals"
-auto
-rule(Tensor3d const& vals, double const volume) -> std::tuple<Tensor2d, Tensor2d>;
+auto rule(Tensor3d const& vals, double const volume)
+    -> std::tuple<Tensor2d, Tensor2d>;
 
 template <typename F, typename G>
 auto
@@ -137,8 +134,7 @@ integrate_region(F&&                  integrand,
                  double               volume,
                  Array3Xd             dir_points,
                  double const         ftol_threshold,
-                 size_t const         max_iteration_depth = 6) -> void
-{
+                 size_t const         max_iteration_depth = 6) -> void {
 
     long const Nevts       = dir_points.cols() / Genz::Ncnt;
     // Index of events.
@@ -153,15 +149,15 @@ integrate_region(F&&                  integrand,
     auto [value, error]    = rule(evals, volume);
 
     size_t iteration_depth = 1;
-    while (iteration_depth <= max_iteration_depth)
-    {
+    while (iteration_depth <= max_iteration_depth) {
         // Determine which regions are converged
         auto [converged, not_converged]
             = converged_indices(value, error, ftol_threshold);
 
         // Accumulate converged region results into correct event
         Map<MatrixXd> valM(value.data(), Nrange, value.dimension(1));
-        result_value(Eigen::all, evtidx(converged)) += valM(Eigen::all, converged);
+        result_value(Eigen::all, evtidx(converged))
+            += valM(Eigen::all, converged);
 
         long const Nucnv = not_converged.size();
         if (Nucnv == 0) { break; }
@@ -174,8 +170,8 @@ integrate_region(F&&                  integrand,
 
         Tensor2d centerUcnv(2, Nucnv);
 
-        Map<MatrixXd>(centerUcnv.data(), 2, Nucnv)
-            = Map<MatrixXd>(centers.data(), 2, Nevts)(Eigen::all, not_converged);
+        Map<MatrixXd>(centerUcnv.data(), 2, Nucnv) = Map<MatrixXd>(
+            centers.data(), 2, Nevts)(Eigen::all, not_converged);
 
         centers.resize(2, Nucnv * 2);
 
@@ -184,8 +180,10 @@ integrate_region(F&&                  integrand,
         region_split(centers, halfwidth, volume, split_dim, centerUcnv);
 
         // Pixel points in observation relative Spherical shell direction space.
-        Tensor3d genz_points = fullsym(
-            centers, halfwidth * alpha2, halfwidth * alpha4, halfwidth * alpha5);
+        Tensor3d genz_points   = fullsym(centers,
+                                       halfwidth * alpha2,
+                                       halfwidth * alpha4,
+                                       halfwidth * alpha5);
 
         // The next integrand evaluation.
         dir_points             = dir_pix_f(genz_points);

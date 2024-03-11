@@ -34,11 +34,10 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
     indicators::BlockProgressBar bar {
         indicators::option::BarWidth { 60 },
         indicators::option::PrefixText { "Convolving Pixels with Source PSF " },
-        indicators::option::ForegroundColor { 
-            indicators::Color::magenta
-        },
+        indicators::option::ForegroundColor { indicators::Color::magenta },
         /* indicators::option::ShowRemainingTime { true }, */
-        /* indicators::option::FontStyles { std::vector<indicators::FontStyle> { */
+        /* indicators::option::FontStyles { std::vector<indicators::FontStyle> {
+         */
         /*     indicators::FontStyle::bold } }, */
         indicators::option::MaxProgress { Ns },
     };
@@ -46,8 +45,8 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
     Tensor4d model_map(Ne, Nh, Nw, Ns);
     model_map.setZero();
 
-    // Compute initial (lon,lat) pairs of pixel center points.
-    Tensor3d const init_points              = get_init_points(Nh, Nw);
+    // Compute initial (H,W) pairs of pixel center points.
+    Tensor3d const init_points              = get_init_centers(Nh, Nw);
 
     // Pixel centers, and doubles halfwidth, volume
     auto const [centers, halfwidth, volume] = Genz::pixel_region(init_points);

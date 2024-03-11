@@ -1,9 +1,6 @@
 #include "xtsrcmaps/math/genz_malik.hxx"
 #include "xtsrcmaps/math/tensor_types.hxx"
 
-// #include <chrono>
-#include <iostream>
-
 namespace Fermi::Genz {
 
 auto

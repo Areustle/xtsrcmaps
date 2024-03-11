@@ -23,7 +23,7 @@ auto point_src_model_map_wcs(long const                      Nh,
                              Tensor3d const& partial_integrals, /* [D,E,S] */
                              double const    ftol_threshold = 1e-3) -> Tensor4f;
 
-auto get_init_points(long const Nh, long const Nw) -> Tensor3d;
+auto get_init_centers(long const Nh, long const Nw) -> Tensor3d;
 
 /* auto spherical_direction_of_genz_pixels(Tensor3d const& points, */
 /*                                         SkyGeom const&  skygeom) -> Array3Xd;

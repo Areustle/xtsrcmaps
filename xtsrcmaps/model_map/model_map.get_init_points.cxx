@@ -2,7 +2,7 @@
 
 
 auto
-Fermi::ModelMap::get_init_points(long const Nh, long const Nw) -> Tensor3d {
+Fermi::ModelMap::get_init_centers(long const Nh, long const Nw) -> Tensor3d {
     Tensor3d init_points(2, Nh, Nw);
     for (long w = 0; w < Nw; ++w) {
         for (long h = 0; h < Nh; ++h) {

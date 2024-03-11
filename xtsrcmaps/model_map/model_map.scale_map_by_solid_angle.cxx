@@ -40,7 +40,7 @@ Fermi::ModelMap::scale_map_by_solid_angle(Tensor4d&      model_map,
     long const Nw              = model_map.dimension(2);
     long const Ns              = model_map.dimension(3);
 
-    Tensor3d const init_points = get_init_points(Nh, Nw);
+    Tensor3d const init_points = get_init_centers(Nh, Nw);
     // Compute solid angle for the pixel center points and scale PSF by it.
     model_map *= solid_angle(init_points, skygeom)
                      .reshape(Idx4 { 1, Nh, Nw, 1 })
