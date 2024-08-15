@@ -39,6 +39,8 @@ reorder_tensor(Tensor<T, R> const&                       tensor,
 
     // Fill the new tensor with reordered data
     std::size_t total_elements = tensor.total_size();
+
+#pragma omp parallel for schedule(static, 16)
     for (std::size_t lidx = 0; lidx < total_elements; ++lidx) {
 
         ExtentsType indices;

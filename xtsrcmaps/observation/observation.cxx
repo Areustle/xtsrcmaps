@@ -9,13 +9,26 @@
 auto
 Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
 
-    fmt::print(fg(fmt::color::magenta), "Collecting Observation Data.\n");
+    fmt::print(fg(fmt::color::light_pink), "Collecting Observation Data.\n");
 
     auto const energies = good(Fermi::fits::ccube_energies(cfg.cmap),
                                "Cannot read ccube_energies file!");
-    auto const ccube    = good(Fermi::fits::ccube_pixels(cfg.cmap),
+
+    fmt::print(fg(fmt::color::light_green),
+               "\t{} Energy Bins\n",
+               energies.size());
+
+    auto const ccube = good(Fermi::fits::ccube_pixels(cfg.cmap),
                             "Cannot read counts cube map file!");
-    auto const srcs     = Fermi::parse_src_xml(cfg.srcmdl);
+
+    fmt::print(fg(fmt::color::light_green),
+               "\t{} x {} pixel grid\n",
+               ccube.naxes[0],
+               ccube.naxes[1]);
+
+    auto const srcs = Fermi::parse_src_xml(cfg.srcmdl);
+
+    fmt::print(fg(fmt::color::light_green), "\t{} Sources\n", srcs.size());
 
     //**************************************************************************
     // Read Exposure Cube Fits File.

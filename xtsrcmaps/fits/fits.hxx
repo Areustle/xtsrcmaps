@@ -30,9 +30,8 @@ struct TablePars {
 
 auto read_irf_pars(std::string const&, std::string) -> std::optional<TablePars>;
 
-auto write_src_model(std::string const& filename,
-                     /* Tensor4f const&                 model_map, */
-                     Tensor<float, 4> const&         model_map,
+auto write_src_model(std::string const&              filename,
+                     Tensor<float, 4> &         model_map,
                      std::vector<std::string> const& srcs) -> void;
 
 

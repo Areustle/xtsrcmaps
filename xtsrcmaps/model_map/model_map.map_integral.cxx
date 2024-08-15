@@ -17,20 +17,21 @@ Fermi::ModelMap::map_integral(Tensor<float, 4> const&  model_map,
     Tensor<float, 2> MapIntegral(Ns, Ne);
     MapIntegral.clear();
 
+
+#pragma omp parallel for schedule(static, 16)
     for (size_t s = 0; s < Ns; ++s) {
         if (!is_in_fov[s]) { continue; }
 
-        auto const ss = std::array<double, 2> { src_sph[s, 0], src_sph[s, 1] };
-        double const rad = psf_radius[s];
-        for (size_t w = 0; w < Nw; ++w) {
-            for (size_t h = 0; h < Nh; ++h) {
-                if (R2D
-                        * SkyGeom<float>::dir_diff(
-                            skygeom.sph2dir(ss),
-                            skygeom.pix2dir({ h + 1.0f, w + 1.0f }))
-                    <= rad) {
+        auto const ss = skygeom.sph2dir({ src_sph[s, 0], src_sph[s, 1] });
+        for (size_t h = 0; h < Nh; ++h) {
+            for (size_t w = 0; w < Nw; ++w) {
+
+                double const rad = SkyGeom<float>::dir_diff(
+                    ss, skygeom.pix2dir({ h + 1.0f, w + 1.0f }));
+
+                if (rad <= deg2rad * psf_radius[s]) {
                     for (size_t e = 0; e < Ne; ++e) {
-                        MapIntegral[s, e] += model_map[s, h, w, 0];
+                        MapIntegral[s, e] += model_map[s, h, w, e];
                     }
                 }
             }

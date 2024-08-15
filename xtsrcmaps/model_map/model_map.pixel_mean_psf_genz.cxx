@@ -34,7 +34,7 @@ Fermi::ModelMap::pixel_mean_psf_genz(long const             Nh,
     indicators::BlockProgressBar bar {
         indicators::option::BarWidth { 60 },
         indicators::option::PrefixText { "Convolving Pixels with Source PSF " },
-        indicators::option::ForegroundColor { indicators::Color::magenta },
+        indicators::option::ForegroundColor { indicators::Color::light_pink },
         /* indicators::option::ShowRemainingTime { true }, */
         /* indicators::option::FontStyles { std::vector<indicators::FontStyle> {
          */

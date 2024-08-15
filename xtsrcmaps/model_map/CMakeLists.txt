@@ -15,4 +15,3 @@ target_sources(
           model_map.scale_map_by_exposure.cxx
           model_map.scale_map_by_solid_angle.cxx
 )
-# target_link_libraries(xtsrcmaps PUBLIC "-framework Accelerate")

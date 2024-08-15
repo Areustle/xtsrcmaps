@@ -51,12 +51,6 @@ solid_angle(Fermi::Tensor<float, 3> const& points,
             auto const D
                 = skygeom.pix2dir({ points[h, w, 0] + 1.f, points[h, w, 1] });
 
-
-            /* float dOmega1 */
-            /*     = dir_diff(A, B) * dir_diff(A, D) */
-            /*       * (A - B).normalized().cross((A - D).normalized()).norm();
-             */
-
             float dOmega1
                 = dir_diff(A, B) * dir_diff(A, D)
                   * norm(cross(normalize(std::array<float, 3> {
@@ -64,10 +58,6 @@ solid_angle(Fermi::Tensor<float, 3> const& points,
                                normalize(std::array<float, 3> {
                                    A[0] - D[0], A[1] - D[1], A[2] - D[2] })));
 
-            /* float dOmega2 */
-            /*     = dir_diff(C, B) * dir_diff(C, D) */
-            /*       * (C - B).normalized().cross((C - D).normalized()).norm();
-             */
             float dOmega2
                 = dir_diff(C, B) * dir_diff(C, D)
                   * norm(cross(normalize(std::array<float, 3> {

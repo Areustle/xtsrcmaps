@@ -21,7 +21,7 @@ using std::vector;
 auto
 Fermi::collect_irf_data(XtCfg const& cfg, XtObs const& obs) -> XtIrf {
 
-    fmt::print(fg(fmt::color::magenta),
+    fmt::print(fg(fmt::color::light_pink),
                "Collecting Instrument Response Functions.\n");
 
     //**************************************************************************
