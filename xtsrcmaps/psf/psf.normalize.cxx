@@ -1,14 +1,23 @@
 #include "xtsrcmaps/psf/psf.hxx"
 
+using Tensor2f = Fermi::Tensor<float, 2>;
+using Tensor3f = Fermi::Tensor<float, 3>;
+
 auto
-Fermi::PSF::normalize(Tensor3d&       upsf,           /* [Nd, Ne, Ns] */
-                      Tensor2d const& total_integrals /*     [Ne, Ns] */
+Fermi::PSF::normalize(Tensor3f&       uPsf,           /* [Ns, Nd, Ne] */
+                      Tensor2f const& total_integrals /*     [Ns, Ne] */
                       ) -> void {
-    long const Nd = upsf.dimension(0);
-    long const Ne = upsf.dimension(1);
-    long const Ns = upsf.dimension(2);
-    assert(total_integrals.dimension(0) == Ne);
-    assert(total_integrals.dimension(1) == Ns);
-    upsf /= total_integrals.reshape(Idx3 { 1, Ne, Ns })
-                .broadcast(Idx3 { Nd, 1, 1 });
+    size_t const Ns = uPsf.extent(0);
+    size_t const Nd = uPsf.extent(1);
+    size_t const Ne = uPsf.extent(2);
+    assert(total_integrals.extent(1) == Ne);
+    assert(total_integrals.extent(0) == Ns);
+
+    for (size_t s = 0; s < Ns; ++s) {
+        for (size_t e = 0; e < Ne; ++e) {
+            for (size_t d = 0; d < Nd; ++d) {
+                uPsf[s, d, e] /= total_integrals[s, e];
+            }
+        }
+    }
 }

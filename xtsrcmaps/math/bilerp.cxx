@@ -1,10 +1,7 @@
 #include "xtsrcmaps/math/bilerp.hxx"
 
-// #include "xtsrcmaps/psf.hxx"
-
 #include <algorithm>
 #include <cassert>
-#include <fmt/format.h>
 
 auto
 Fermi::lerp_pars(std::span<double const, std::dynamic_extent> const sp,
@@ -30,8 +27,8 @@ Fermi::lerp_pars(std::span<double const, std::dynamic_extent> const sp,
 }
 
 auto
-Fermi::lerp_pars(std::vector<double> const& rng, double const v)
-    -> std::tuple<double, double, size_t> {
+Fermi::lerp_pars(std::vector<double> const& rng,
+                 double const v) -> std::tuple<double, double, size_t> {
     return lerp_pars(std::span(rng), v, rng[1]);
 }
 
@@ -52,11 +49,11 @@ Fermi::lerp_pars(std::vector<double> const&  rng,
 }
 
 auto
-Fermi::lerp_pars(Tensor1d const&             rng,
+Fermi::lerp_pars(Tensor<double, 1> const&    rng,
                  std::vector<double> const&  vals,
                  std::optional<double> const zero_lower_bound)
     -> std::vector<std::tuple<double, double, size_t>> {
-    auto sp    = std::span(rng.data(), rng.size());
+    auto sp    = std::span(rng.data(), rng.extent(0));
     auto lerps = std::vector<std::tuple<double, double, size_t>>(vals.size());
     std::transform(vals.cbegin(),
                    vals.cend(),

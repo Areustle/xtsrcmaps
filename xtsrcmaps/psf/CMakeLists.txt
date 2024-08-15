@@ -8,5 +8,4 @@ target_sources(
           psf.mean_psf.cxx
           psf.normalize.cxx
           psf.partial_total_integral.cxx
-          psf.peak_psf.cxx
           psf.psf_lookup_table_and_partial_integrals.cxx)

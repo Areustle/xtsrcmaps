@@ -1,17 +1,18 @@
 #include "xtsrcmaps/model_map/model_map.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 
+
 // Compute the psf radius of each source relative to the field of view by
 // computing the minimal distance between the source and each boundary segment.
 // Sources outside the field of view are not included in the radius vector, and
 // are set to false in the boolean vector
 auto
-Fermi::ModelMap::psf_boundary_radius(long const             Nh,
-                                     long const             Nw,
-                                     Obs::sphcrd_v_t const& src_dirs,
-                                     SkyGeom const&         skygeom)
-    -> std::pair<Tensor1d, Tensor1b> {
-    long const Ns = src_dirs.size();
+Fermi::ModelMap::psf_boundary_radius(size_t const             Nh,
+                                     size_t const             Nw,
+                                     Tensor<double, 2> const& src_sph,
+                                     SkyGeom<float> const&    skygeom)
+    -> std::pair<Tensor<double, 1>, std::vector<bool>> {
+    size_t const Ns = src_sph.extent(0);
     // ................
     // ...a ----- d....
     // ...|ooooooo|....
@@ -19,33 +20,44 @@ Fermi::ModelMap::psf_boundary_radius(long const             Nh,
     // ...b ----- c....
     // ................
 
-    Tensor1d radius(Ns);
-    Tensor1b is_in_fov(Ns);
-    is_in_fov.setConstant(false);
-    double const pix_buffer = 3.5;
+    Tensor<double, 1> radius(Ns);
+    std::vector<bool> is_in_fov(Ns, false);
+    double const      pix_buffer = 3.5;
 
-    for (long s = 0; s < Ns; ++s) {
-        double      min_deg = 360.;
-        auto const& ss      = src_dirs[s];
-        auto        ps      = skygeom.sph2pix(ss);
-        is_in_fov(s) = ps.first > pix_buffer && ps.first < (Nh - pix_buffer)
+    for (size_t s = 0; s < Ns; ++s) {
+        double     min_deg = 360.;
+        auto const ss = std::array<double, 2> { src_sph[s, 0], src_sph[s, 1] };
+        auto       ps = skygeom.sph2pix(ss);
+        is_in_fov[s]  = ps.first > pix_buffer && ps.first < (Nh - pix_buffer)
                        && ps.second > pix_buffer
                        && ps.second < (Nw - pix_buffer);
 
-        for (long h = 0; h <= Nh; ++h) {
-            double d = sph_pix_diff(ss, Vector2d(h + 0.5, 0.5), skygeom) * R2D;
-            min_deg  = min_deg < d ? min_deg : d;
-            d = sph_pix_diff(ss, Vector2d(h + 0.5, Nw + 0.5), skygeom) * R2D;
+        for (size_t h = 0; h <= Nh; ++h) {
+            double d
+                = R2D
+                  * SkyGeom<float>::dir_diff(
+                      skygeom.sph2dir(ss), skygeom.pix2dir({ h + 0.5f, 0.5f }));
+            min_deg = min_deg < d ? min_deg : d;
+            d       = R2D
+                * SkyGeom<float>::dir_diff(
+                    skygeom.sph2dir(ss),
+                    skygeom.pix2dir({ h + 0.5f, Nw + 0.5f }));
             min_deg = min_deg < d ? min_deg : d;
         }
-        for (long w = 0; w <= Nw; ++w) {
-            double d = sph_pix_diff(ss, Vector2d(0.5, w + 0.5), skygeom) * R2D;
-            min_deg  = min_deg < d ? min_deg : d;
-            d = sph_pix_diff(ss, Vector2d(Nh + 0.5, w + 0.5), skygeom) * R2D;
+        for (size_t w = 0; w <= Nw; ++w) {
+            double d
+                = R2D
+                  * SkyGeom<float>::dir_diff(
+                      skygeom.sph2dir(ss), skygeom.pix2dir({ 0.5f, w + 0.5f }));
+            min_deg = min_deg < d ? min_deg : d;
+            d       = R2D
+                * SkyGeom<float>::dir_diff(
+                    skygeom.sph2dir(ss),
+                    skygeom.pix2dir({ Nh + 0.5f, w + 0.5f }));
             min_deg = min_deg < d ? min_deg : d;
         }
 
-        radius(s) = min_deg;
+        radius[s] = min_deg;
     }
     return { radius, is_in_fov };
 }

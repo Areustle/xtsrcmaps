@@ -1,17 +1,13 @@
 # Externals: The dependent packages on which the tool relies.
 FetchContent_Declare(
-  Eigen
-  GIT_REPOSITORY https://gitlab.com/libeigen/eigen
-  GIT_TAG 3.4)
-FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt
   GIT_TAG 10.2.0)
-FetchContent_Declare(
-  indicators
-  GIT_REPOSITORY https://github.com/p-ranav/indicators
-  GIT_TAG v2.3)
-FetchContent_MakeAvailable(Eigen fmt indicators)
+# FetchContent_Declare(
+#   indicators
+#   GIT_REPOSITORY https://github.com/p-ranav/indicators
+#   GIT_TAG v2.3)
+FetchContent_MakeAvailable(fmt)
 
 # Pkg-Config Externals ##
 find_package(PkgConfig REQUIRED)

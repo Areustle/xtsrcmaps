@@ -6,18 +6,17 @@
 auto
 Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
                    std::vector<double> const& logEs,      // [Ne]
-                   Tensor1d const&            par_cosths, // [Mc]
-                   Tensor1d const&            par_logEs,  // [Me]
-                   Tensor3d const&            kings       /*[Me, Mc, Nd]*/
-                   ) -> Tensor3d {
-    long const Nd = kings.dimension(2);
-    long const Nc = costhetas.size();
-    long const Ne = logEs.size();
-    assert(par_logEs.size() == kings.dimension(0));
-    assert(par_cosths.size() == kings.dimension(1));
+                   Tensor<double, 1> const&   par_cosths, // [Mc]
+                   Tensor<double, 1> const&   par_logEs,  // [Me]
+                   Tensor<double, 3> const&   kings       /*[Mc, Me, Nd]*/
+                   ) -> Tensor<double, 3> /* [C, D, E] */ {
+    size_t const Nc = costhetas.size();
+    size_t const Nd = kings.extent(2);
+    size_t const Ne = logEs.size();
+    assert(par_cosths.extent(0) == kings.extent(0));
+    assert(par_logEs.extent(0) == kings.extent(1));
 
-    Tensor3d Bilerps(Nd, Ne, Nc);
-    Bilerps.setZero();
+    Tensor<double, 3> Bilerps(Nc, Nd, Ne);
 
     // Sample the Look Up Table's axes parameters with the supplied sample
     // points
@@ -26,21 +25,16 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
 
     // biLerp the [E,C] slice of the Kings lookup table for each psf separation
     // (D)
-    for (long c = 0; c < Bilerps.dimension(2); ++c) {
-        auto ct = clerps[c];
-        for (long e = 0; e < Bilerps.dimension(1); ++e) {
-            auto et = elerps[e];
-            for (long d = 0; d < Bilerps.dimension(0); ++d) {
-
-                Bilerps(d, e, c) = Fermi::bilerp(
-                    et,
-                    ct,
-                    kings
-                        .slice(
-                            Idx3 { 0, 0, d },
-                            Idx3 { kings.dimension(0), kings.dimension(1), 1 })
-                        .reshape(
-                            Idx2 { kings.dimension(0), kings.dimension(1) }));
+    for (size_t c = 0; c < Bilerps.extent(0); ++c) {
+        auto const& [c_wgt, c_cmplm, c_index] = clerps[c];
+        for (size_t e = 0; e < Bilerps.extent(2); ++e) {
+            auto const& [e_wgt, e_cmplm, e_index] = elerps[e];
+            for (size_t d = 0; d < Bilerps.extent(1); ++d) {
+                Bilerps[c, d, e]
+                    = c_cmplm * e_cmplm * kings[c_index - 1, e_index - 1, d]
+                      + c_cmplm * e_wgt * kings[c_index, e_index - 1, d]
+                      + c_wgt * e_cmplm * kings[c_index - 1, e_index, d]
+                      + c_wgt * e_wgt * kings[c_index, e_index, d];
             }
         }
     }

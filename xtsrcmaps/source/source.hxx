@@ -1,5 +1,7 @@
 #pragma once
 
+#include "xtsrcmaps/tensor/tensor.hpp"
+
 #include <string>
 #include <variant>
 #include <vector>
@@ -115,7 +117,7 @@ using Source
 
 
 auto spherical_coords_from_point_sources(std::vector<Source> const&)
-    -> std::vector<std::pair<double, double>>;
+    -> Fermi::Tensor<double, 2>; // std::vector<std::pair<double, double>>;
 
 auto names_from_point_sources(std::vector<Source> const&)
     -> std::vector<std::string>;

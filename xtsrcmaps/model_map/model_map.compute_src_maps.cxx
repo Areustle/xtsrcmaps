@@ -4,7 +4,7 @@
 auto
 Fermi::ModelMap::compute_srcmaps(XtObs const& obs,
                                  XtExp const& exp,
-                                 XtPsf const& psf) -> Tensor4f {
+                                 XtPsf const& psf) -> Tensor<float, 4> {
 
     // If wcs
     return Fermi::ModelMap::point_src_model_map_wcs(obs.Nh,
@@ -14,6 +14,5 @@ Fermi::ModelMap::compute_srcmaps(XtObs const& obs,
                                                     psf.uPsf,
                                                     { obs.ccube },
                                                     exp.exposure,
-                                                    psf.partial_psf_integral,
-                                                    1e-3);
+                                                    psf.partial_psf_integral);
 }

@@ -1,17 +1,23 @@
 #include "xtsrcmaps/exposure/exposure.hxx"
 
 #include "xtsrcmaps/healpix/healpix.hxx"
-#include "xtsrcmaps/math/tensor_types.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 
 #include "fmt/color.h"
 
 #include <algorithm>
-#include <utility>
+#include <cassert>
+#include <span>
 #include <vector>
 
-using std::pair;
+#ifdef __APPLE__
+#include <Accelerate/Accelerate.h>
+#else
+#include <cblas.h>
+#endif
+
 using std::vector;
+using Tensor2d = Fermi::Tensor<double, 2>;
 
 auto
 Fermi::exp_map(Obs::ExposureCubeData const& data) -> ExposureMap {
@@ -21,106 +27,224 @@ Fermi::exp_map(Obs::ExposureCubeData const& data) -> ExposureMap {
 
     assert(data.cosbins.size() == npix * nbins);
 
-    Eigen::Tensor<double, 2, Eigen::RowMajor> rm_cosbins(npix, nbins);
-    std::copy(data.cosbins.begin(), data.cosbins.end(), &rm_cosbins(0, 0));
+    /* Eigen::Tensor<double, 2, Eigen::RowMajor> rm_cosbins(npix, nbins); */
+    Tensor<double, 2> rm_cosbins(npix, nbins);
+    std::copy(data.cosbins.begin(), data.cosbins.end(), rm_cosbins.data());
 
-    return { nside, nbins, rm_cosbins.swap_layout() };
+    return { nside, nbins, rm_cosbins }; // swap_layout() };
 }
 
 auto
-Fermi::exp_costhetas(Obs::ExposureCubeData const& data) -> vector<double> {
+Fermi::exp_costhetas(Obs::ExposureCubeData const& data)
+    -> vector<double> /*[Nbins]*/ {
     auto v = std::vector<double>(data.nbrbins);
     std::iota(v.begin(), v.end(), 0.0);
-    std::transform(v.begin(), v.end(), v.begin(), [&](auto x) {
-        double const f = (x + 0.5) / data.nbrbins;
-        return data.thetabin ? f * f : f;
-    });
-    std::transform(v.begin(), v.end(), v.begin(), [&](auto f) {
+    std::transform(v.begin(), v.end(), v.begin(), [&](auto& x) {
+        double f = (x + 0.5) / data.nbrbins;
+        f        = data.thetabin ? f * f : f;
         return 1. - f * (1. - data.cosmin);
     });
     return v;
 }
 
 auto
-Fermi::src_exp_cosbins(vector<pair<double, double>> const& src_sph,
-                       ExposureMap const&                  expmap) -> Tensor2d {
+Fermi::src_exp_cosbins(Tensor<double, 2> const& src_sph, // [Nsrc, 2]
+                       ExposureMap const&       expmap   //
+                       ) -> Tensor<double, 2> /*[Nsrc, Nc]*/ {
 
-    using pd_t   = std::pair<double, double>;
-    // get theta, phi (radians) in appropriate coordinate system
-    auto convert = [](pd_t const p) -> pd_t {
-        return { halfpi - to_radians(p.second), pi_180 * p.first };
-    };
+    size_t const Nsrc = src_sph.extent(0);
+    /*[Nsrc, nbins]*/
+    Tensor<double, 2> A(Nsrc, expmap.nbins);
 
-    auto theta_phi_dirs = vector<pd_t>(src_sph.size(), { 0., 0. });
-    std::transform(
-        src_sph.cbegin(), src_sph.cend(), theta_phi_dirs.begin(), convert);
-
-    auto const nbins = expmap.nbins;
-    auto const pixs  = Fermi::Healpix::ang2pix(theta_phi_dirs, expmap.nside);
-    Tensor2d   A(nbins, theta_phi_dirs.size());
-
-    for (size_t i = 0; i < pixs.size(); ++i) {
-        auto const& pix = pixs[i];
-        std::copy(&expmap.params(0, pix), &expmap.params(nbins, pix), &A(0, i));
+    for (size_t s = 0UZ; s < Nsrc; ++s) {
+        // get theta, phi (radians) in appropriate coordinate system
+        double theta = halfpi - to_radians(src_sph[s, 1]);
+        double phi   = pi_180 * src_sph[s, 0];
+        // compute resulting healpix pixel
+        uint64_t pix = Fermi::Healpix::ang2pix(theta, phi, expmap.nside);
+        std::copy(expmap.params.begin_at(pix, 0),
+                  expmap.params.end_at(pix, expmap.nbins),
+                  A.begin_at(s, 0));
     }
 
     return A;
 }
 
+// Double check order of rank. Now row major.
 
 // Compute the exposure by operating on all pre-generated tensors as necessary.
 // [Ne, Nsrc]
 auto
-Fermi::exposure(
-    Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc] -> [Nc, Nsrc]*/
-    Tensor2d const& src_weighted_exposure_cosbins, /*[Nsrc, Nc] -> [Nc, Nsrc]*/
-    Tensor2d const& front_aeff,                    /*[Nc, Ne] -> [Ne, Nc]*/
-    Tensor2d const& back_aeff,                     /*[Nc, Ne] -> [Ne, Nc]*/
-    pair<vector<double>, vector<double>> const& front_LTF /*[Ne]*/
-    ) -> Tensor2d {
+Fermi::exposure(Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
+                Tensor2d const& src_weighted_exposure_cosbins, /*[Nsrc, Nc]*/
+                Tensor2d const& front_aeff,                    /*[Nc, Ne]*/
+                Tensor2d const& back_aeff,                     /*[Nc, Ne]*/
+                Tensor2d const& front_LTF                      /*[2, Ne]*/
+                ) -> Tensor<double, 2> /* [Nsrc, Ne] */ {
 
     // Nsrc
-    assert(src_exposure_cosbins.dimension(1)
-           == src_weighted_exposure_cosbins.dimension(1));
-    long const Nsrc = src_exposure_cosbins.dimension(1);
+    assert(src_exposure_cosbins.extent(0)
+           == src_weighted_exposure_cosbins.extent(0));
+    size_t const Nsrc = src_exposure_cosbins.extent(0);
+
     // Nc
-    assert(src_exposure_cosbins.dimension(0)
-           == src_weighted_exposure_cosbins.dimension(0));
-    assert(src_exposure_cosbins.dimension(0) == front_aeff.dimension(1));
-    assert(src_exposure_cosbins.dimension(0) == back_aeff.dimension(1));
+    assert(src_exposure_cosbins.extent(1)
+           == src_weighted_exposure_cosbins.extent(1));
+    assert(src_exposure_cosbins.extent(1) == front_aeff.extent(0));
+    assert(src_exposure_cosbins.extent(1) == back_aeff.extent(0));
+    size_t const Nc = front_aeff.extent(0);
+
     // Ne
-    assert(front_aeff.dimension(0) == long(front_LTF.first.size()));
-    assert(front_aeff.dimension(0) == long(front_LTF.second.size()));
-    long const Ne = front_LTF.first.size();
+    assert(front_aeff.extent(1) == front_LTF.extent(1));
+    size_t const Ne    = front_LTF.extent(1);
 
-    // [Ne]
-    TensorMap<Tensor2d const> LTFe(front_LTF.first.data(), Ne, 1);
-    TensorMap<Tensor2d const> LTFw(front_LTF.second.data(), Ne, 1);
+    // xxxxxxxx[Ne, Nsrc]
+    // [Nsrc, Ne]
+    /* ===========================================================
+     * Tensor Contractions as DGEMM Matrix Multiplies
+     */
+    const double alpha = 1.0;
+    const double beta  = 0.0;
+    // ExpC[s, e] = Sum_c (ECB[s, c] * Aeff[c, e])
+    Tensor2d exp_aeff_f(Nsrc, Ne);
 
-    // [Ne, Nsrc]
-    // ExpC[s, e] = Sum_c (ECB[c, s] * Aeff[e, c])
-    Tensor2d const exp_aeff_f
-        = front_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
-    Tensor2d const wexp_aeff_f = front_aeff.contract(
-        src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans,
+                CblasNoTrans,
+                Nsrc,
+                Ne,
+                Nc,
+                alpha,
+                src_exposure_cosbins.data(),
+                Nc,
+                front_aeff.data(),
+                Ne,
+                beta,
+                exp_aeff_f.data(),
+                Ne);
+    /* Tensor2d const exp_aeff_f */
+    /*     = front_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } }
+     * }); */
 
-    Tensor2d const exp_aeff_b
-        = back_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
-    Tensor2d const wexp_aeff_b = back_aeff.contract(
-        src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } });
+    Tensor2d wexp_aeff_f(Nsrc, Ne);
+
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans,
+                CblasNoTrans,
+                Nsrc,
+                Ne,
+                Nc,
+                alpha,
+                src_weighted_exposure_cosbins.data(),
+                Nc,
+                front_aeff.data(),
+                Ne,
+                beta,
+                wexp_aeff_f.data(),
+                Ne);
+    /* Tensor2d const wexp_aeff_f = front_aeff.contract( */
+    /*     src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } }); */
+
+    Tensor2d exp_aeff_b(Nsrc, Ne);
+
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans,
+                CblasNoTrans,
+                Nsrc,
+                Ne,
+                Nc,
+                alpha,
+                src_exposure_cosbins.data(),
+                Nc,
+                back_aeff.data(),
+                Ne,
+                beta,
+                exp_aeff_b.data(),
+                Ne);
+    /* Tensor2d const exp_aeff_b */
+    /*     = back_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } }
+     * }); */
+
+    Tensor2d wexp_aeff_b(Nsrc, Ne);
+
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans,
+                CblasNoTrans,
+                Nsrc,
+                Ne,
+                Nc,
+                alpha,
+                src_weighted_exposure_cosbins.data(),
+                Nc,
+                back_aeff.data(),
+                Ne,
+                beta,
+                wexp_aeff_b.data(),
+                Ne);
+    /* Tensor2d const wexp_aeff_b = back_aeff.contract( */
+    /*     src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } }); */
+
+    auto const LTFe = std::span { &front_LTF[0, 0], Ne };
+    auto const LTFw = std::span { &front_LTF[1, 0], Ne };
+    /* TensorMap<Tensor2d const> LTFe(front_LTF.first.data(), Ne, 1); */
+    /* TensorMap<Tensor2d const> LTFw(front_LTF.second.data(), Ne, 1); */
 
     // [Ne, Nsrc]
     // Response_front = (LTF1 * ExpC) + (LTF2 * WexpC)
-    Tensor2d const lef        = exp_aeff_f * LTFe.broadcast(Idx2 { 1, Nsrc });
-    Tensor2d const lwf        = wexp_aeff_f * LTFw.broadcast(Idx2 { 1, Nsrc });
-    Tensor2d const leb        = exp_aeff_b * LTFe.broadcast(Idx2 { 1, Nsrc });
-    Tensor2d const lwb        = wexp_aeff_b * LTFw.broadcast(Idx2 { 1, Nsrc });
-    Tensor2d const response_f = lef + lwf;
-    Tensor2d const response_b = leb + lwb;
-    Tensor2d       exposure   = response_f + response_b;
+    /* Tensor2d const lef = exp_aeff_f * LTFe.broadcast(Idx2 { 1, Nsrc }); */
+    for (size_t j = 0; j < exp_aeff_f.extent(0); /*Nsrc*/ ++j) {
+        std::transform(exp_aeff_f.begin_at(j, 0),
+                       exp_aeff_f.end_at(j, Ne),
+                       LTFe.begin(),
+                       exp_aeff_f.begin_at(j, 0),
+                       std::multiplies {});
+    }
+    /* Tensor2d const lwf = wexp_aeff_f * LTFw.broadcast(Idx2 { 1, Nsrc }); */
+    for (size_t j = 0; j < wexp_aeff_f.extent(0); /*Nsrc*/ ++j) {
+        std::transform(wexp_aeff_f.begin_at(j, 0),
+                       wexp_aeff_f.end_at(j, Ne),
+                       LTFw.begin(),
+                       wexp_aeff_f.begin_at(j, 0),
+                       std::multiplies {});
+    }
+    /* Tensor2d const leb = exp_aeff_b * LTFe.broadcast(Idx2 { 1, Nsrc }); */
+    for (size_t j = 0; j < exp_aeff_b.extent(0); /*Nsrc*/ ++j) {
+        std::transform(exp_aeff_b.begin_at(j, 0),
+                       exp_aeff_b.end_at(j, Ne),
+                       LTFe.begin(),
+                       exp_aeff_b.begin_at(j, 0),
+                       std::multiplies {});
+    }
+    /* Tensor2d const lwb = wexp_aeff_b * LTFw.broadcast(Idx2 { 1, Nsrc }); */
+    for (size_t j = 0; j < wexp_aeff_b.extent(0); /*Nsrc*/ ++j) {
+        std::transform(wexp_aeff_b.begin_at(j, 0),
+                       wexp_aeff_b.end_at(j, Ne),
+                       LTFw.begin(),
+                       wexp_aeff_b.begin_at(j, 0),
+                       std::multiplies {});
+    }
+    /* Tensor2d const response_f = lef + lwf; */
+    /* Tensor2d const response_b = leb + lwb; */
+    /* Tensor2d       exposure   = response_f + response_b; */
+    /* Tensor2d exposure (Nsrc, Ne); */
+    std::transform(exp_aeff_f.begin(),
+                   exp_aeff_f.end(),
+                   exp_aeff_b.begin(),
+                   exp_aeff_f.begin(),
+                   std::plus {});
+    std::transform(exp_aeff_f.begin(),
+                   exp_aeff_f.end(),
+                   wexp_aeff_f.begin(),
+                   exp_aeff_f.begin(),
+                   std::plus {});
+    std::transform(exp_aeff_f.begin(),
+                   exp_aeff_f.end(),
+                   wexp_aeff_b.begin(),
+                   exp_aeff_f.begin(),
+                   std::plus {});
 
-    // [Ne, Nsrc]
-    return exposure;
+    // [Nsrc, Ne]
+    return exp_aeff_f;
 };
 
 auto

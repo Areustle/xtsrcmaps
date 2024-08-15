@@ -11,7 +11,7 @@ Fermi::parse_cli_to_cfg(int const argc, char** argv) -> Fermi::XtCfg {
 
     fmt::print(fg(fmt::color::magenta), "Parsing Configuration.\n");
 
-    cxxopts::Options options("YourProgram", "Description");
+    cxxopts::Options options("xtsrcmaps", "Experimental Fermi source maps");
     options.add_options()("help", "Print help")(
         "parfile,p", "Input parfile", cxxopts::value<string>())(
         "sctable", "", cxxopts::value<string>())(

@@ -2,36 +2,43 @@
 
 #include <algorithm>
 #include <string>
-#include <utility>
 #include <vector>
 
 auto
 Fermi::spherical_coords_from_point_sources(
-    std::vector<Fermi::Source> const& srcs)
-    -> std::vector<std::pair<double, double>> {
-    auto dirs = std::vector<std::pair<double, double>>();
-    std::transform(srcs.cbegin(),
-                   srcs.cend(),
-                   std::back_inserter(dirs),
-                   [](auto const& s) -> std::pair<double, double> {
-                       auto params = std::get<SkyDirFunctionSpatialModel>(
-                                         std::get<PointSource>(s).spatial_model)
-                                         .params;
+    std::vector<Fermi::Source> const& srcs) -> Tensor<double, 2> {
 
-                       auto ra_it  = std::find_if(params.cbegin(),
-                                                 params.cend(),
-                                                 [](auto const& p) -> bool {
-                                                     return p.name == "RA";
-                                                 });
+    size_t const Nsrc = srcs.size();
 
-                       auto dec_it = std::find_if(params.cbegin(),
-                                                  params.cend(),
-                                                  [](auto const& p) -> bool {
-                                                      return p.name == "DEC";
-                                                  });
+    Tensor<double, 2> dirs(Nsrc, 2);
 
-                       return { ra_it->value, dec_it->value };
-                   });
+    for (size_t i = 0; i < Nsrc; ++i) {
+        auto const& s      = srcs[i];
+        auto        params = std::get<SkyDirFunctionSpatialModel>(
+                          std::get<PointSource>(s).spatial_model)
+                          .params;
+
+        auto ra_it = std::find_if(
+            params.cbegin(), params.cend(), [](auto const& p) -> bool {
+                return p.name == "RA";
+            });
+
+        auto dec_it = std::find_if(
+            params.cbegin(), params.cend(), [](auto const& p) -> bool {
+                return p.name == "DEC";
+            });
+
+        if (ra_it == params.cend()) {
+            throw std::runtime_error("RA keyword not found.");
+        }
+        if (dec_it == params.cend()) {
+            throw std::runtime_error("DEC keyword not found.");
+        }
+
+        dirs[i, 0] = ra_it->value;
+        dirs[i, 1] = dec_it->value;
+    }
+
     return dirs;
 }
 

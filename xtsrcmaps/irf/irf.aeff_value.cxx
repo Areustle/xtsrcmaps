@@ -1,47 +1,55 @@
 #include "xtsrcmaps/irf/irf.hxx"
+
 #include "xtsrcmaps/math/bilerp.hxx"
-#include "xtsrcmaps/math/tensor_types.hxx"
+#include "xtsrcmaps/tensor/tensor.hpp"
+
+#include <cassert>
+#include <mdspan>
+
 
 using std::vector;
-
-inline void
-co_aeff_value_base(Tensor2d&       R,
-                   auto const&     C,
-                   auto const&     E,
-                   auto const&     IC,
-                   auto const&     IE,
-                   Tensor2d const& IP,
-                   double const    minCosTheta) noexcept {
-    auto elerps = Fermi::lerp_pars(IE, E);
-    auto clerps = Fermi::lerp_pars(IC, C, minCosTheta);
-
-    for (long e = 0; e < R.dimension(0); ++e) {
-        for (long c = 0; c < R.dimension(1); ++c) {
-            R(e, c) = 1e4 * Fermi::bilerp(elerps[e], clerps[c], IP);
-        }
-    }
-}
-
 auto
-Fermi::aeff_value(vector<double> const& costhet,
-                  vector<double> const& logEs,
-                  IrfData3 const&       AeffData) -> Tensor2d {
-    // auto        aeff = vector<double>(costhet.size() * logEs.size(), 0.0);
-    // auto        R    = mdspan(aeff.data(), costhet.size(), logEs.size());
-    Tensor2d R(logEs.size(), costhet.size());
-    R.setZero();
+Fermi::aeff_value(vector<double> const& costhet, // M_t
+                  vector<double> const& logEs,   // M_e
+                  IrfData3 const&       AeffData // M_t, M_e, Ngrids
+                  ) -> Tensor<double, 2> {
+    Tensor<double, 2> R(costhet.size(), logEs.size());
+    R.clear();
     auto const& C  = costhet;
     auto const& E  = logEs;
     auto const& IC = AeffData.cosths;
     auto const& IE = AeffData.logEs;
 
-    assert(AeffData.params.dimension(0) == 1);
-    TensorMap<Tensor2d const> IP(AeffData.params.data(),
-                                 AeffData.params.dimension(1),
-                                 AeffData.params.dimension(2));
+    assert(AeffData.params.extent(0) == IC.extent(0));
+    assert(AeffData.params.extent(1) == IE.extent(0));
+    assert(AeffData.params.extent(2) == 1);
+    /* TensorMap<Tensor2d const> IP(AeffData.params.data(), */
+    std::mdspan IP { AeffData.params.data(),
+                     AeffData.params.extent(0),
+                     AeffData.params.extent(1) };
 
-    co_aeff_value_base(R, C, E, IC, IE, IP, AeffData.minCosTheta);
+    /* co_aeff_value_base(R, C, E, IC, IE, IP, AeffData.minCosTheta); */
+    auto elerps = Fermi::lerp_pars(IE, E);
+    auto clerps = Fermi::lerp_pars(IC, C, AeffData.minCosTheta);
 
-    // [E,C]
+    for (size_t c = 0; c < R.extent(0); ++c) {
+        for (size_t e = 0; e < R.extent(1); ++e) {
+            /* R[e, c] = 1e4 * Fermi::bilerp(elerps[e], clerps[c], IP); */
+            std::tuple<double, double, size_t> const& et = elerps[e];
+            std::tuple<double, double, size_t> const& ct = clerps[c];
+            auto const& [c_wgt, c_cmpl, c_idx]           = ct;
+            auto const& [e_wgt, e_cmpl, e_idx]           = et;
+
+            /////////
+            double xx = c_cmpl * e_cmpl * IP[c_idx - 1, e_idx - 1];
+            double xy = c_cmpl * e_wgt * IP[c_idx, e_idx - 1];
+            double yx = c_wgt * e_cmpl * IP[c_idx - 1, e_idx];
+            double yy = c_wgt * e_wgt * IP[c_idx, e_idx];
+
+            R[c, e]   = 1e4 * (xx + xy + yx + yy);
+        }
+    }
+
+    // [C, E]
     return R;
 }

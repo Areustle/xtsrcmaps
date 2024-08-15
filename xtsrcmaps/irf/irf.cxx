@@ -3,13 +3,16 @@
 #include "xtsrcmaps/fits/fits.hxx"
 #include "xtsrcmaps/math/gauss_legendre.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
+#include "xtsrcmaps/tensor/tensor.hpp"
 
+#include <cassert>
 #include <cmath>
-#include <utility>
+#include <mdspan>
+
 
 #include "fmt/color.h"
 
-using std::pair;
+using std::mdspan;
 using std::sin;
 using std::string;
 using std::vector;
@@ -60,74 +63,93 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
     assert(pars.extents[2] > 1);
     assert(pars.extents[2] == pars.extents[3]);
     assert(pars.extents[4] == pars.extents[0] * pars.extents[2]);
-    assert(pars.rowdata.dimension(1) == 1);
+    assert(pars.rowdata.extent(0) == 1uz);
 
-    auto const&    extents = pars.extents;
-    auto const&    offsets = pars.offsets;
-    Tensor1f const row
-        = pars.rowdata.reshape(Idx1 { pars.rowdata.dimension(0) });
+    auto const& extents               = pars.extents;
+    auto const& offsets               = pars.offsets;
+    /* Fermi::Tensor<float, 1> const row */
+    /*     = pars.rowdata.reshape(Idx1 { pars.rowdata.dimension(0) }); */
 
-    long const M_e_base = extents[0];
-    long const M_e      = extents[0] + 2;
-    long const M_t_base = extents[2];
-    long const M_t      = extents[2] + 2;
-
-    long const off_cos0 = offsets[2];
-    long const off_cos1 = offsets[3];
-    Tensor1d   cosths(M_t);
-    cosths.setZero();
+    size_t const             M_e_base = extents[0];
+    size_t const             M_e      = extents[0] + 2;
+    size_t const             M_t_base = extents[2];
+    size_t const             M_t      = extents[2] + 2;
+    size_t const             off_cos0 = offsets[2];
+    size_t const             off_cos1 = offsets[3];
+    Fermi::Tensor<double, 1> cosths(M_t);
+    /* cosths.clear(); */
     // Arithmetic mean of cosine bins
-    cosths.slice(Idx1 { 1 }, Idx1 { M_t_base })
-        = 0.5
-          * (row.slice(Idx1 { off_cos0 }, Idx1 { M_t_base })
-             + row.slice(Idx1 { off_cos1 }, Idx1 { M_t_base }))
-                .cast<double>();
-    cosths(0)          = -1.;
-    cosths(M_t - 1)    = 1.;
+    auto const cos0view = std::span { &pars.rowdata[0, off_cos0], M_t_base };
+    auto const cos1view = std::span { &pars.rowdata[0, off_cos1], M_t_base };
+    std::transform(cos0view.begin(),
+                   cos0view.end(),
+                   cos1view.begin(),
+                   cosths.begin(),
+                   [](auto const& c0, auto const& c1) {
+                       return 0.5 * (c0 + c1);
+                   });
+    /* cosths.slice(Idx1 { 1 }, Idx1 { M_t_base }) */
+    /*     = 0.5 */
+    /*       * (row.slice(Idx1 { off_cos0 }, Idx1 { M_t_base }) */
+    /*          + row.slice(Idx1 { off_cos1 }, Idx1 { M_t_base })) */
+    /*             .cast<double>(); */
+    cosths[0]                        = -1.;
+    cosths[M_t - 1]                  = 1.;
 
     // scale and pad the energy data
-    long const off_Es0 = offsets[0];
-    long const off_Es1 = offsets[1];
-    Tensor1d   logEs(M_e);
-    logEs.setZero();
-    logEs.slice(Idx1 { 1 }, Idx1 { M_e_base })
-        = (row.slice(Idx1 { off_Es0 }, Idx1 { M_e_base })
-           * row.slice(Idx1 { off_Es1 }, Idx1 { M_e_base }))
-              .sqrt()
-              .unaryExpr([](float x) -> float { return std::log10(x); })
-              .cast<double>();
-    logEs(0)        = 0.;
-    logEs(M_e - 1)  = 10.;
+    size_t const             off_Es0 = offsets[0];
+    size_t const             off_Es1 = offsets[1];
+    Fermi::Tensor<double, 1> logEs(M_e);
+    /* logEs.(); */
+    auto const Es0view = std::span { &pars.rowdata[0, off_Es0], M_e_base };
+    auto const Es1view = std::span { &pars.rowdata[0, off_Es1], M_e_base };
+    std::transform(Es0view.begin(),
+                   Es0view.end(),
+                   Es1view.begin(),
+                   logEs.begin(),
+                   [](auto const& c0, auto const& c1) {
+                       return 0.5 * std::log10((c0 * c1));
+                   });
+    /* logEs.slice(Idx1 { 1 }, Idx1 { M_e_base }) */
+    /*     = (row.slice(Idx1 { off_Es0 }, Idx1 { M_e_base }) */
+    /*        * row.slice(Idx1 { off_Es1 }, Idx1 { M_e_base })) */
+    /*           .sqrt() */
+    /*           .unaryExpr([](float x) -> float { return std::log10(x); }) */
+    /*           .cast<double>(); */
+    logEs[0]                        = 0.;
+    logEs[M_e - 1]                  = 10.;
 
-    long     Ngrids = extents.size() - 4;
-    Tensor3d params(Ngrids, M_e, M_t); // Note column major Tensor.
-
-    TensorMap<Tensor3f const> pv(
-        row.data() + offsets[4], M_e_base, M_t_base, Ngrids);
+    size_t const             Ngrids = extents.size() - 4;
+    Fermi::Tensor<double, 3> params(M_t, M_e, Ngrids);
+    std::mdspan              pv {
+        pars.rowdata.data() + offsets[4], Ngrids, M_t_base, M_e_base
+    };
+    /* TensorMap<Tensor3f const> pv( */
+    /*     row.data() + offsets[4], M_e_base, M_t_base, Ngrids); */
 
     // Let's assign the data values into the params block structure. Pad by
     // value duplication.
-    for (long p = 0; p < Ngrids; ++p) /* params */ {
-        for (long t = 0; t < M_t; ++t) /* costheta */ {
-            long const t_ = t == 0 ? 0 : t >= M_t_base ? M_t_base - 1 : t - 1;
-            for (long e = 0; e < M_e; ++e) /* energy */ {
-                long const e_   = e == 0          ? 0
+    for (size_t p = 0; p < Ngrids; ++p) {  // params
+        for (size_t t = 0; t < M_t; ++t) { // costheta
+            size_t const t_ = t == 0 ? 0 : t >= M_t_base ? M_t_base - 1 : t - 1;
+            for (size_t e = 0; e < M_e; ++e) { // energy
+                size_t const e_ = e == 0          ? 0
                                   : e >= M_e_base ? M_e_base - 1
                                                   : e - 1;
-                params(p, e, t) = pv(e_, t_, p);
+                params[t, e, p] = pv[p, t_, e_];
             }
         }
     }
 
-    return { cosths, logEs, params, row(off_cos0) };
+    return { cosths, logEs, params, pars.rowdata[0, off_cos0] };
 }
 
 auto
 prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale {
-    assert(pars.rowdata.dimension(0) == 3);
-    assert(pars.rowdata.dimension(1) == 1);
+    assert(pars.rowdata.extent(0) == 1);
+    assert(pars.rowdata.extent(1) == 3);
 
-    return { pars.rowdata(0, 0), pars.rowdata(1, 0), pars.rowdata(2, 0) };
+    return { pars.rowdata[0, 0], pars.rowdata[0, 1], pars.rowdata[0, 2] };
 }
 
 auto
@@ -135,71 +157,15 @@ prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic {
 
     assert(pars.extents.size() == 1);
     assert(pars.extents[0] == 6);
-    assert(pars.rowdata.dimension(0) == 6);
-    assert(pars.rowdata.dimension(1) == 2);
+    assert(pars.rowdata.extent(0) == 2);
+    assert(pars.rowdata.extent(1) == 6);
 
     auto p0 = std::array<float, 6> { 0.0 };
     auto p1 = std::array<float, 6> { 0.0 };
-    std::copy(&pars.rowdata(0, 0), &pars.rowdata(6, 0), p0.begin());
-    std::copy(&pars.rowdata(0, 1), &pars.rowdata(6, 1), p1.begin());
+    std::copy(&pars.rowdata[0, 0], &pars.rowdata[0, 6], p0.begin());
+    std::copy(&pars.rowdata[1, 0], &pars.rowdata[1, 6], p1.begin());
 
     return { p0, p1 };
-}
-
-//
-inline auto
-evaluate_king(double const sep, double const scale_factor, Tensor1d const& pars)
-    -> double {
-    auto f = [](double const u, double gamma) -> double {
-        // ugly kluge because of sloppy programming in handoff_response
-        // when setting boundaries of fit parameters for the PSF.
-        if (gamma == 1) { gamma = 1.001; }
-        return (1. - 1. / gamma) * std::pow(1. + u / gamma, -gamma);
-    };
-
-    double const ncore = pars(0);
-    double const ntail = pars(1);
-    double const score = pars(2) * scale_factor;
-    double const stail = pars(3) * scale_factor;
-    double const gcore = pars(4);
-    double const gtail = pars(5);
-
-    double rc          = sep / score;
-    double uc          = rc * rc / 2.;
-
-    double rt          = sep / stail;
-    double ut          = rt * rt / 2.;
-    return (ncore * f(uc, gcore) + ntail * ncore * f(ut, gtail));
-}
-
-inline auto
-psf3_psf_base_integral(double const    radius,
-                       double const    scale_factor,
-                       Tensor1d const& pars) -> double {
-    auto f = [](double u, double gamma) -> double {
-        double arg(1. + u / gamma);
-        if (arg < 0) { throw std::runtime_error("neg. arg to pow"); }
-        return 1. - std::pow(arg, 1. - gamma);
-    };
-
-    double const ncore = pars(0);
-    double const ntail = pars(1);
-    double const score = pars(2) * scale_factor;
-    double const stail = pars(3) * scale_factor;
-    double const gcore = pars(4);
-    double const gtail = pars(5);
-
-    double sep         = radius * deg2rad;
-    double rc          = sep / score;
-    double uc          = rc * rc / 2.;
-
-    double rt          = sep / stail;
-    double ut          = rt * rt / 2.;
-
-    if (gcore < 0. || gtail < 0.) { throw std::runtime_error("gamma < 0"); }
-
-    return (ncore * f(uc, gcore) * twopi * score * score
-            + ntail * ncore * f(ut, gtail) * twopi * stail * stail);
 }
 
 auto
@@ -220,41 +186,36 @@ normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void {
     // legendre polynomials here for future use.
     auto const polypars = Fermi::legendre_poly_rw<64>(1e-15);
 
-    for (long c = 0; c < data.params.dimension(2); ++c) // costheta
+    for (size_t c = 0; c < data.params.extent(0); ++c) // costheta
     {
-        for (long e = 0; e < data.params.dimension(1); ++e) // energy
+        for (size_t e = 0; e < data.params.extent(1); ++e) // energy
         {
-            double const energy = std::pow(10, data.logEs[e]);
+            double const energy = std::pow(10.0, data.logEs[e]);
             double const sf     = scaleFactor(energy);
             double const norm
                 = energy < 120. //
                       ? Fermi::gauss_legendre_integral(
-                          0.0,
-                          90.,
-                          polypars,
-                          [&](auto const& v) -> double {
-                              double x = evaluate_king(
-                                  v * deg2rad,
-                                  sf,
-                                  data.params
-                                      .slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 })
-                                      .reshape(Idx1 { 6 }));
-                              double y = sin(v * deg2rad) * twopi * deg2rad;
-                              return x * y;
-                          })
-                      : psf3_psf_base_integral(
-                          90.0,
-                          sf,
-                          data.params.slice(Idx3 { 0, e, c }, Idx3 { 6, 1, 1 })
-                              .reshape(Idx1 { 6 }));
+                            0.0,
+                            90.,
+                            polypars,
+                            [&](auto const& v) -> double {
+                                double x = Fermi::evaluate_king(
+                                    v * deg2rad,
+                                    sf,
+                                    std::span { &data.params[c, e, 0], 6 });
+                                double y = sin(v * deg2rad) * twopi * deg2rad;
+                                return x * y;
+                            })
+                      : Fermi::psf3_psf_base_integral(
+                            90.0, sf, std::span { &data.params[c, e, 0], 6 });
 
-            data.params(0, e, c) /= norm;
-            data.params(2, e, c) *= sf;
-            data.params(3, e, c) *= sf;
-            data.params(4, e, c)
-                = data.params(4, e, c) == 1. ? 1.001 : data.params(4, e, c);
-            data.params(5, e, c)
-                = data.params(5, e, c) == 1. ? 1.001 : data.params(5, e, c);
+            data.params[c, e, 0uz] /= norm;
+            data.params[c, e, 2uz] *= sf;
+            data.params[c, e, 3uz] *= sf;
+            data.params[c, e, 4uz]
+                = data.params[c, e, 4uz] == 1. ? 1.001 : data.params[c, e, 4uz];
+            data.params[c, e, 5uz]
+                = data.params[c, e, 5uz] == 1. ? 1.001 : data.params[c, e, 5uz];
         }
     }
 };
@@ -303,8 +264,9 @@ prepare_aeff_data(Fermi::fits::TablePars const& front_eff_area,
 }
 
 auto
-read_opt(auto&& F, std::string const& filename, std::string const& tablename)
-    -> auto {
+read_opt(auto&&             F,
+         std::string const& filename,
+         std::string const& tablename) -> auto {
     auto opt_irf = F(filename, tablename);
     if (!opt_irf) fmt::print("Cannot read {} table {}!\n", filename, tablename);
     return opt_irf;
@@ -361,7 +323,8 @@ Fermi::load_psf(std::string const& filename)
 auto
 Fermi::livetime_efficiency_factors(vector<double> const& logEs,
                                    IrfEffic const&       effic)
-    -> pair<vector<double>, vector<double>> {
+    -> Tensor<double, 2> /* [2, Ne] */ {
+    // pair<vector<double>, vector<double>> {
 
     auto single_factor = [](auto const& p) -> auto {
         auto const&  a0     = p.at(0);
@@ -380,13 +343,20 @@ Fermi::livetime_efficiency_factors(vector<double> const& logEs,
         };
     };
 
-    auto lf1 = vector<double>(logEs.size(), 0.);
-    auto lf0 = vector<double>(logEs.size(), 0.);
-    std::transform(
-        logEs.cbegin(), logEs.cend(), lf0.begin(), single_factor(effic.p0));
-    std::transform(
-        logEs.cbegin(), logEs.cend(), lf1.begin(), single_factor(effic.p1));
-
+    /* auto lf1 = vector<double>(logEs.size(), 0.); */
+    /* auto lf0 = vector<double>(logEs.size(), 0.); */
+    Tensor<double, 2> ltf(2UZ, logEs.size());
     // Intentionally ordered that way. ¯\_(ツ)_/¯
-    return { lf1, lf0 };
+    std::transform(logEs.cbegin(),
+                   logEs.cend(),
+                   ltf.begin_at(1, 0),
+                   single_factor(effic.p0));
+    std::transform(logEs.cbegin(),
+                   logEs.cend(),
+                   ltf.begin_at(0, 0),
+                   single_factor(effic.p1));
+
+    return ltf; // [2, Ne]
+    // Intentionally ordered that way. ¯\_(ツ)_/¯
+    /* return { lf1, lf0 }; */
 }

@@ -2,45 +2,46 @@
 #include "xtsrcmaps/misc/misc.hxx"
 
 auto
-Fermi::ModelMap::map_integral(Tensor4d const&        model_map,
-                              Obs::sphcrd_v_t const& src_dirs,
-                              SkyGeom const&         skygeom,
-                              Tensor1d const&        psf_radius,
-                              Tensor1b const&        is_in_fov) -> Tensor2d {
-    long const Ne = model_map.dimension(0);
-    long const Nh = model_map.dimension(1);
-    long const Nw = model_map.dimension(2);
-    long const Ns = model_map.dimension(3);
-    long const Nf = psf_radius.dimension(0);
+Fermi::ModelMap::map_integral(Tensor<float, 4> const&  model_map,
+                              Tensor<double, 2> const& src_sph,
+                              SkyGeom<float> const&    skygeom,
+                              Tensor<double, 1> const& psf_radius,
+                              std::vector<bool> const& is_in_fov)
+    -> Tensor<float, 2> {
+    size_t const Ns = model_map.extent(0);
+    size_t const Nh = model_map.extent(1);
+    size_t const Nw = model_map.extent(2);
+    size_t const Ne = model_map.extent(3);
+    /* size_t const Nf = psf_radius.extent(0); */
 
-    Tensor2d MapIntegral(Ne, Nf);
-    MapIntegral.setZero();
+    Tensor<float, 2> MapIntegral(Ns, Ne);
+    MapIntegral.clear();
 
-    // Annoyingly nested, but hard to declarize because of the skygeom
-    // dependency.
-    long i = 0;
-    for (long s = 0; s < Ns; ++s) {
-        if (!is_in_fov(s)) { continue; }
+    for (size_t s = 0; s < Ns; ++s) {
+        if (!is_in_fov[s]) { continue; }
 
-        double const rad = psf_radius(i);
-        for (long w = 0; w < Nw; ++w) {
-            for (long h = 0; h < Nh; ++h) {
-                if (sph_pix_diff(src_dirs[s], Vector2d(h + 1., w + 1.), skygeom)
-                        * R2D
+        auto const ss = std::array<double, 2> { src_sph[s, 0], src_sph[s, 1] };
+        double const rad = psf_radius[s];
+        for (size_t w = 0; w < Nw; ++w) {
+            for (size_t h = 0; h < Nh; ++h) {
+                if (R2D
+                        * SkyGeom<float>::dir_diff(
+                            skygeom.sph2dir(ss),
+                            skygeom.pix2dir({ h + 1.0f, w + 1.0f }))
                     <= rad) {
-                    MapIntegral.slice(Idx2 { 0, i }, Idx2 { Ne, 1 })
-                        += model_map
-                               .slice(Idx4 { 0, h, w, s }, Idx4 { Ne, 1, 1, 1 })
-                               .reshape(Idx2 { Ne, 1 });
+                    for (size_t e = 0; e < Ne; ++e) {
+                        MapIntegral[s, e] += model_map[s, h, w, 0];
+                    }
                 }
             }
         }
-        ++i;
     }
 
-    Tensor2d zeros          = MapIntegral.constant(0.0);
-    Tensor2d invMapIntegral = MapIntegral.inverse();
-    MapIntegral             = (MapIntegral == 0.).select(zeros, invMapIntegral);
+    std::transform(MapIntegral.begin(),
+                   MapIntegral.end(),
+                   MapIntegral.begin(),
+                   [](float const& v) { return v ? 1.0f / v : v; });
+
 
     return MapIntegral;
 }

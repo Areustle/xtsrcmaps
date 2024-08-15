@@ -3,8 +3,8 @@
 #include "doctest/doctest.h"
 
 
-#include "xtsrcmaps/config.hxx"
-#include "xtsrcmaps/misc.hxx"
+#include "xtsrcmaps/config/config.hxx"
+#include "xtsrcmaps/misc/misc.hxx"
 #include "xtsrcmaps/model_map.hxx"
 #include "xtsrcmaps/parse_src_mdl.hxx"
 #include "xtsrcmaps/psf.hxx"

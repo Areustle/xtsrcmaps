@@ -1,16 +1,16 @@
 #pragma once
 
-#include "xtsrcmaps/math/tensor_types.hxx"
+#include "xtsrcmaps/tensor/tensor.hpp"
 
 #include <array>
 
 namespace Fermi {
 
 struct IrfData3 {
-    Tensor1d cosths;
-    Tensor1d logEs;
-    Tensor3d params;
-    double   minCosTheta;
+    Tensor<double, 1> cosths;
+    Tensor<double, 1> logEs;
+    Tensor<double, 3> params;
+    double            minCosTheta;
 };
 
 struct IrfScale {
@@ -53,9 +53,9 @@ struct Pass8FB {
 } // namespace irf::aeff
 
 struct XtIrf {
-    irf::aeff::Pass8FB                                  aeff_irf;
-    irf::psf::Pass8FB                                   psf_irf;
-    std::pair<std::vector<double>, std::vector<double>> front_LTF;
+    irf::aeff::Pass8FB aeff_irf;
+    irf::psf::Pass8FB  psf_irf;
+    Tensor<double, 2>  front_LTF;
 };
 
 
