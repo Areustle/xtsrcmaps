@@ -32,8 +32,8 @@ Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
             for (size_t d = 0; d < Bilerps.extent(1); ++d) {
                 Bilerps[c, d, e]
                     = c_cmplm * e_cmplm * kings[c_index - 1, e_index - 1, d]
-                      + c_cmplm * e_wgt * kings[c_index, e_index - 1, d]
-                      + c_wgt * e_cmplm * kings[c_index - 1, e_index, d]
+                      + c_cmplm * e_wgt * kings[c_index - 1, e_index, d]
+                      + c_wgt * e_cmplm * kings[c_index, e_index - 1, d]
                       + c_wgt * e_wgt * kings[c_index, e_index, d];
             }
         }

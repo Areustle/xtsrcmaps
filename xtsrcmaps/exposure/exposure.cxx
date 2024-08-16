@@ -10,12 +10,6 @@
 #include <span>
 #include <vector>
 
-#ifdef __APPLE__
-#include <Accelerate/Accelerate.h>
-#else
-#include <cblas.h>
-#endif
-
 using std::vector;
 using Tensor2d = Fermi::Tensor<double, 2>;
 
@@ -85,104 +79,36 @@ Fermi::exposure(Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
     // Nsrc
     assert(src_exposure_cosbins.extent(0)
            == src_weighted_exposure_cosbins.extent(0));
-    size_t const Nsrc = src_exposure_cosbins.extent(0);
+    /* size_t const Nsrc = src_exposure_cosbins.extent(0); */
 
     // Nc
     assert(src_exposure_cosbins.extent(1)
            == src_weighted_exposure_cosbins.extent(1));
     assert(src_exposure_cosbins.extent(1) == front_aeff.extent(0));
     assert(src_exposure_cosbins.extent(1) == back_aeff.extent(0));
-    size_t const Nc = front_aeff.extent(0);
+    /* size_t const Nc = front_aeff.extent(0); */
 
     // Ne
     assert(front_aeff.extent(1) == front_LTF.extent(1));
-    size_t const Ne    = front_LTF.extent(1);
+    size_t const Ne = front_LTF.extent(1);
 
     // xxxxxxxx[Ne, Nsrc]
     // [Nsrc, Ne]
     /* ===========================================================
      * Tensor Contractions as DGEMM Matrix Multiplies
      */
-    const double alpha = 1.0;
-    const double beta  = 0.0;
     // ExpC[s, e] = Sum_c (ECB[s, c] * Aeff[c, e])
-    Tensor2d exp_aeff_f(Nsrc, Ne);
+    Tensor2d exp_aeff_f
+        = exp_contract(src_exposure_cosbins, front_aeff); //(Nsrc, Ne);
 
-    cblas_dgemm(CblasRowMajor,
-                CblasNoTrans,
-                CblasNoTrans,
-                Nsrc,
-                Ne,
-                Nc,
-                alpha,
-                src_exposure_cosbins.data(),
-                Nc,
-                front_aeff.data(),
-                Ne,
-                beta,
-                exp_aeff_f.data(),
-                Ne);
-    /* Tensor2d const exp_aeff_f */
-    /*     = front_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } }
-     * }); */
+    Tensor2d wexp_aeff_f
+        = exp_contract(src_weighted_exposure_cosbins, front_aeff); //(Nsrc, Ne);
 
-    Tensor2d wexp_aeff_f(Nsrc, Ne);
+    Tensor2d exp_aeff_b
+        = exp_contract(src_exposure_cosbins, back_aeff); //(Nsrc, Ne);
 
-    cblas_dgemm(CblasRowMajor,
-                CblasNoTrans,
-                CblasNoTrans,
-                Nsrc,
-                Ne,
-                Nc,
-                alpha,
-                src_weighted_exposure_cosbins.data(),
-                Nc,
-                front_aeff.data(),
-                Ne,
-                beta,
-                wexp_aeff_f.data(),
-                Ne);
-    /* Tensor2d const wexp_aeff_f = front_aeff.contract( */
-    /*     src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } }); */
-
-    Tensor2d exp_aeff_b(Nsrc, Ne);
-
-    cblas_dgemm(CblasRowMajor,
-                CblasNoTrans,
-                CblasNoTrans,
-                Nsrc,
-                Ne,
-                Nc,
-                alpha,
-                src_exposure_cosbins.data(),
-                Nc,
-                back_aeff.data(),
-                Ne,
-                beta,
-                exp_aeff_b.data(),
-                Ne);
-    /* Tensor2d const exp_aeff_b */
-    /*     = back_aeff.contract(src_exposure_cosbins, IdxPair1 { { { 1, 0 } }
-     * }); */
-
-    Tensor2d wexp_aeff_b(Nsrc, Ne);
-
-    cblas_dgemm(CblasRowMajor,
-                CblasNoTrans,
-                CblasNoTrans,
-                Nsrc,
-                Ne,
-                Nc,
-                alpha,
-                src_weighted_exposure_cosbins.data(),
-                Nc,
-                back_aeff.data(),
-                Ne,
-                beta,
-                wexp_aeff_b.data(),
-                Ne);
-    /* Tensor2d const wexp_aeff_b = back_aeff.contract( */
-    /*     src_weighted_exposure_cosbins, IdxPair1 { { { 1, 0 } } }); */
+    Tensor2d wexp_aeff_b
+        = exp_contract(src_weighted_exposure_cosbins, back_aeff); //(Nsrc, Ne);
 
     auto const LTFe = std::span { &front_LTF[0, 0], Ne };
     auto const LTFw = std::span { &front_LTF[1, 0], Ne };

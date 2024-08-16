@@ -84,7 +84,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
     std::transform(cos0view.begin(),
                    cos0view.end(),
                    cos1view.begin(),
-                   cosths.begin(),
+                   cosths.begin_at(1uz),
                    [](auto const& c0, auto const& c1) {
                        return 0.5 * (c0 + c1);
                    });
@@ -106,7 +106,7 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
     std::transform(Es0view.begin(),
                    Es0view.end(),
                    Es1view.begin(),
-                   logEs.begin(),
+                   logEs.begin_at(1uz),
                    [](auto const& c0, auto const& c1) {
                        return 0.5 * std::log10((c0 * c1));
                    });
@@ -141,7 +141,10 @@ prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
         }
     }
 
-    return { cosths, logEs, params, pars.rowdata[0, off_cos0] };
+    return { .cosths      = cosths,
+             .logEs       = logEs,
+             .params      = params,
+             .minCosTheta = pars.rowdata[0, off_cos0] };
 }
 
 auto

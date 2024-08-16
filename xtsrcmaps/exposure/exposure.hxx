@@ -30,6 +30,10 @@ auto exp_map(Obs::ExposureCubeData const&) -> ExposureMap;
 
 auto exp_costhetas(Obs::ExposureCubeData const&) -> std::vector<double>;
 
+auto
+exp_contract(Fermi::Tensor<double, 2> const& A,
+             Fermi::Tensor<double, 2> const& B) -> Fermi::Tensor<double, 2>;
+
 auto src_exp_cosbins(Tensor<double, 2> const&,
                      ExposureMap const&) -> Tensor<double, 2>;
 

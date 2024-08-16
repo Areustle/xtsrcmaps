@@ -33,17 +33,17 @@ Fermi::aeff_value(vector<double> const& costhet, // M_t
     auto clerps = Fermi::lerp_pars(IC, C, AeffData.minCosTheta);
 
     for (size_t c = 0; c < R.extent(0); ++c) {
+        std::tuple<double, double, size_t> const& ct = clerps[c];
+        auto const& [c_wgt, c_cmpl, c_idx]           = ct;
         for (size_t e = 0; e < R.extent(1); ++e) {
             /* R[e, c] = 1e4 * Fermi::bilerp(elerps[e], clerps[c], IP); */
             std::tuple<double, double, size_t> const& et = elerps[e];
-            std::tuple<double, double, size_t> const& ct = clerps[c];
-            auto const& [c_wgt, c_cmpl, c_idx]           = ct;
             auto const& [e_wgt, e_cmpl, e_idx]           = et;
 
             /////////
             double xx = c_cmpl * e_cmpl * IP[c_idx - 1, e_idx - 1];
-            double xy = c_cmpl * e_wgt * IP[c_idx, e_idx - 1];
-            double yx = c_wgt * e_cmpl * IP[c_idx - 1, e_idx];
+            double xy = c_cmpl * e_wgt * IP[c_idx-1 , e_idx];
+            double yx = c_wgt * e_cmpl * IP[c_idx, e_idx - 1];
             double yy = c_wgt * e_wgt * IP[c_idx, e_idx];
 
             R[c, e]   = 1e4 * (xx + xy + yx + yy);

@@ -2,10 +2,10 @@
 #
 add_executable(
   tests #
-  # test_exposure.cxx #
+  test_exposure.cxx #
   # test_fitsfuncs.cxx #
   # test_healpix.cxx #
-  # test_irf.cxx #
+  test_irf.cxx #
   # test_king.cxx #
   test_main.cxx #
   tensor/test_read_tensor.cpp #

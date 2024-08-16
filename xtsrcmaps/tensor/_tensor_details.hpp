@@ -80,3 +80,13 @@ struct AlignedAllocator {
 };
 
 } // namespace Fermi::tensor
+
+namespace Fermi{
+
+// Forward Declare Broadcast Tensor for use with Tensor.hpp
+template <typename T>
+class BroadcastTensor{};
+
+} // namespace Fermi
+
+
