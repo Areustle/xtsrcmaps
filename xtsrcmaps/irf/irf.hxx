@@ -19,11 +19,6 @@ auto load_psf(std::string const&) -> std::optional<irf::psf::Pass8FB>;
 
 auto collect_irf_data(XtCfg const& cfg, XtObs const& obs) -> XtIrf;
 
-// Define a concept for types that support the subscript operator
-/* template <typename C> */
-/* concept Subscriptable = requires(C t, std::size_t i) { */
-/*     { t[i] } -> std::convertible_to<typename C::value_type>; */
-/* }; */
 
 template <typename T, typename C>
 inline auto

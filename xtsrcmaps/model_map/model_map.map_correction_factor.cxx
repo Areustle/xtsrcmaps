@@ -6,7 +6,7 @@ Fermi::ModelMap::map_correction_factor(
     Tensor<double, 1> const& psf_radius,
     std::vector<bool> const& is_in_fov,
     Tensor<float, 3> const&  mean_psf,         // [SDE]
-    Tensor<float, 3> const&  partial_integrals // [SDE]
+    Tensor<double, 3> const& partial_integrals // [SDE]
     ) -> Tensor<float, 2> {
     size_t const Ns = mean_psf.extent(0);
     /* size_t const Nd = mean_psf.extent(1); */

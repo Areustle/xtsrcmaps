@@ -71,19 +71,19 @@ convolve_pixel_psf(T* __restrict__ model_map,
 
         T const va                     = wgts.first;
         T const vb                     = wgts.second;
-        T const* const __restrict__ Y0 = &(psf_lut[Ne * idx]);
-        T const* const __restrict__ Y1 = &(psf_lut[Ne * (idx + 1UZ)]);
+        T const* const __restrict__ YL = &(psf_lut[Ne * idx]);
+        T const* const __restrict__ YR = &(psf_lut[Ne * (idx + 1)]);
 
-        size_t e                       = 0UZ;
+        uint16_t e                     = 0;
         // Process `simd_width` elements at a time
         for (; e <= Ne - simd_width; e += simd_width) {
-            for (size_t lane = 0; lane < simd_width; ++lane) {
+            for (uint16_t lane = 0; lane < simd_width; ++lane) {
                 auto const i = e + lane;
-                model_map[i] += (va * Y0[i]) + (vb * Y1[i]);
+                model_map[i] += (va * YL[i]) + (vb * YR[i]);
             }
         }
         for (; e < Ne; ++e) {
-            model_map[e] += (wgts.first * Y0[e]) + (wgts.second * Y1[e]);
+            model_map[e] += (wgts.first * YL[e]) + (wgts.second * YR[e]);
         }
     }
 }

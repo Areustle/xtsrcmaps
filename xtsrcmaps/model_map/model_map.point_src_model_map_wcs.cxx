@@ -14,7 +14,7 @@ Fermi::ModelMap::point_src_model_map_wcs(
     Tensor<float, 3> const&         uPsf,
     SkyGeom<float> const&           skygeom,
     Tensor<double, 2> const&        exposures,
-    Tensor<float, 3> const&         partial_integrals /* [SDE] */
+    Tensor<double, 3> const&         partial_integrals /* [SDE] */
     ) -> Tensor<float, 4> {
 
     fmt::print(fg(fmt::color::light_pink), "Computing Model Maps for each source.\n");

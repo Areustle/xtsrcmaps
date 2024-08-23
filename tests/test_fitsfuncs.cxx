@@ -1,14 +1,13 @@
 #define DOCTEST_CONFIG_IMPLEMENTATION_IN_DLL
 #include "doctest/doctest.h"
 
-#include "xtsrcmaps/config.hxx"
-#include "xtsrcmaps/fitsfuncs.hxx"
-#include "xtsrcmaps/tests/fits/aeff_expected.hxx"
-#include "xtsrcmaps/tests/fits/ccube_energies_expected.hxx"
-#include "xtsrcmaps/tests/fits/psf_expected.hxx"
+#include "tests/fits/aeff_expected.hxx"
+#include "tests/fits/ccube_energies_expected.hxx"
+#include "tests/fits/psf_expected.hxx"
+#include "xtsrcmaps/config/config.hxx"
+#include "xtsrcmaps/fits/fits.hxx"
 
-TEST_CASE("Fermi FITS ccube_energies.")
-{
+TEST_CASE("Fermi FITS ccube_energies.") {
     auto cfg = Fermi::XtCfg();
     auto ov  = Fermi::fits::ccube_energies(cfg.cmap);
     REQUIRE(ov);
@@ -16,14 +15,12 @@ TEST_CASE("Fermi FITS ccube_energies.")
     auto v = ov.value();
     CHECK(v.size() == FermiTest::CCubeEnergies::expected.size());
     // CHECK(v == FermiTest::CCubeEnergies::expected);
-    for (size_t i = 0; i < v.size(); ++i)
-    {
+    for (size_t i = 0; i < v.size(); ++i) {
         CHECK(v[i] == doctest::Approx(FermiTest::CCubeEnergies::expected[i]));
     }
 }
 
-TEST_CASE("Fermi FITS ccube_pixels.")
-{
+TEST_CASE("Fermi FITS ccube_pixels.") {
     auto cfg = Fermi::XtCfg();
     // auto ov  = //Fermi::fits::ccube_energies(cfg.cmap);
     auto ov  = Fermi::fits::ccube_pixels(cfg.cmap);
@@ -47,8 +44,7 @@ TEST_CASE("Fermi FITS ccube_pixels.")
     REQUIRE(v.is_galactic == false);
 }
 
-TEST_CASE("Fermi FITS read_expcube.")
-{
+TEST_CASE("Fermi FITS read_expcube.") {
     auto cfg  = Fermi::XtCfg();
     auto oecd = Fermi::fits::read_expcube(cfg.expcube, "EXPOSURE");
     REQUIRE(oecd);
@@ -63,11 +59,10 @@ TEST_CASE("Fermi FITS read_expcube.")
     CHECK(ecd.thetabin == true);
 }
 
-TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")
-{
+TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB") {
     auto f = [](std::string tablename, auto expected) -> void {
         auto cfg = Fermi::XtCfg();
-        auto ov  = Fermi::fits::read_irf_pars(cfg.psf_name, tablename);
+        auto ov  = Fermi::fits::read_irf_pars(cfg.psf_file, tablename);
         REQUIRE(ov);
 
         auto v = ov.value();
@@ -75,12 +70,12 @@ TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.dimension(1) == 1);
-        CHECK(v.rowdata.dimension(0) == expected.rowdata.size());
+        CHECK(v.rowdata.extent(0) == 1);
+        CHECK(v.rowdata.extent(1) == expected.rowdata.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
-        std::vector<float> vv(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        std::vector<float> vv(&v.rowdata[0, 0], &v.rowdata[1, 0]);
         CHECK(vv == expected.rowdata);
     };
 
@@ -98,11 +93,11 @@ TEST_CASE("Fermi FITS read_irf_pars psf_P8R3_SOURCE_V2_FB")
       FermiTest::psf_P8R3_SOURCE_V2_FB::FISHEYE_CORRECTION_BACK);
 }
 
-TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT")
-{
+TEST_CASE(
+    "Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT") {
     auto testAEFF1 = [](std::string tablename, auto expected) -> void {
         auto cfg = Fermi::XtCfg();
-        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, tablename);
+        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_file, tablename);
         REQUIRE(ov);
 
         auto v = ov.value();
@@ -110,19 +105,19 @@ TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT"
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.dimension(1) == 1);
-        CHECK(v.rowdata.dimension(0) == expected.rowdata.size());
+        CHECK(v.rowdata.extent(0) == 1);
+        CHECK(v.rowdata.extent(1) == expected.rowdata.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
         // CHECK(v.rowdata[0] == expected.rowdata);
-        std::vector<float> vv(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        std::vector<float> vv(&v.rowdata[0, 0], &v.rowdata[1, 0]);
         CHECK(vv == expected.rowdata);
     };
 
     auto testAEFF2 = [](std::string tablename, auto expected) -> void {
         auto cfg = Fermi::XtCfg();
-        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_name, tablename);
+        auto ov  = Fermi::fits::read_irf_pars(cfg.aeff_file, tablename);
         REQUIRE(ov);
 
         auto v = ov.value();
@@ -130,15 +125,15 @@ TEST_CASE("Fermi FITS read_irf_pars aeff_P8R3_SOURCE_V2_FB EFFECTIVE AREA_FRONT"
         // size data
         CHECK(v.extents.size() == expected.extents.size());
         CHECK(v.offsets.size() == expected.offsets.size());
-        CHECK(v.rowdata.dimension(1) == 2);
-        CHECK(v.rowdata.dimension(0) == expected.rowdata0.size());
-        CHECK(v.rowdata.dimension(0) == expected.rowdata1.size());
+        CHECK(v.rowdata.extent(0) == 2);
+        CHECK(v.rowdata.extent(1) == expected.rowdata0.size());
+        CHECK(v.rowdata.extent(1) == expected.rowdata1.size());
         // vector values
         CHECK(v.extents == expected.extents);
         CHECK(v.offsets == expected.offsets);
-        std::vector<float> v0(&v.rowdata(0, 0), &v.rowdata(0, 1));
+        std::vector<float> v0(&v.rowdata[0, 0], &v.rowdata[1, 0]);
         CHECK(v0 == expected.rowdata0);
-        std::vector<float> v1(&v.rowdata(0, 1), &v.rowdata(0, 2));
+        std::vector<float> v1(&v.rowdata[1, 0], &v.rowdata[2, 0]);
         CHECK(v1 == expected.rowdata1);
     };
 

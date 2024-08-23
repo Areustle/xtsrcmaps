@@ -9,7 +9,7 @@
 
 
 // Internal details namespace
-namespace Fermi::tensor {
+namespace Fermi::tensor_details {
 
 // Concept to ensure T is a valid data type
 template <typename T>
@@ -22,7 +22,6 @@ concept PositiveRank = (R > 0);
 // Concept to ensure all types in the parameter pack are integral
 template <typename... Ts>
 concept AllIntegral = (std::integral<Ts> && ...);
-
 
 // Helper to find the maximum alignment between two sizes
 template <std::size_t A, std::size_t B>
@@ -79,14 +78,17 @@ struct AlignedAllocator {
     bool operator!=(const AlignedAllocator&) const noexcept { return false; }
 };
 
+// Define the SameRankTensor concept
+template <typename T1, typename T2, std::size_t R1, std::size_t R2>
+concept SameRankTensor = std::is_arithmetic_v<T1> && std::is_arithmetic_v<T2>
+                         && (R1 == R2) && (R1 > 0);
+
+// Concept to ensure Op can be applied to two arithmetic types and produce a
+// result
+template <typename Op, typename T, typename U>
+concept ArithmeticBinaryOp = requires(Op op, T a, U b) {
+    { op(a, b) } -> std::convertible_to<std::common_type_t<T, U>>;
+} && std::is_arithmetic_v<T> && std::is_arithmetic_v<U>;
+
+
 } // namespace Fermi::tensor
-
-namespace Fermi{
-
-// Forward Declare Broadcast Tensor for use with Tensor.hpp
-template <typename T>
-class BroadcastTensor{};
-
-} // namespace Fermi
-
-

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "xtsrcmaps/tensor/_tensor_details.hpp"
+#include "xtsrcmaps/tensor/broadcast_iterator.hpp"
+
 #include <array>
 #include <cstddef>
 #include <numeric>
@@ -7,22 +10,38 @@
 #include <type_traits>
 #include <vector>
 
-#include "xtsrcmaps/tensor/_tensor_details.hpp"
-
 namespace Fermi {
 
-template <typename T, std::size_t R>
-    requires tensor::DataType<T> && tensor::PositiveRank<R>
+/**********************************************************************************
+ * Tensor
+ *
+ * A Multdimensional Array class for large block data operations.
+ *********************************************************************************/
+template <typename T, std::size_t R, bool IsBcast = false>
+    requires tensor_details::DataType<T> && tensor_details::PositiveRank<R>
 class Tensor {
+    //////////////////////////////////////////////////////////////////////////////
+    // Definitions and Traits
+    //////////////////////////////////////////////////////////////////////////////
   public:
-    using ValueType        = T;
-    using ExtentsType      = std::array<std::size_t, R>;
-    using AlignedVector    = std::vector<T, tensor::AlignedAllocator<T>>;
-    using iterator         = typename AlignedVector::iterator;
-    using const_iterator   = typename AlignedVector::const_iterator;
-    using reverse_iterator = typename AlignedVector::reverse_iterator;
-    using const_reverse_iterator =
-        typename AlignedVector::const_reverse_iterator;
+    using value_type    = T;
+    using ExtentsType   = std::array<std::size_t, R>;
+    using IndicesType   = std::array<long, R>;
+    using AlignedVector = std::vector<T, tensor_details::AlignedAllocator<T>>;
+    using DataPtrType   = std::shared_ptr<AlignedVector>;
+    using iterator      = std::conditional_t<IsBcast,
+                                             BroadcastIterator<T, R>,
+                                             typename AlignedVector::iterator>;
+    using const_iterator
+        = std::conditional_t<IsBcast,
+                             BroadcastIterator<T, R, true>,
+                             typename AlignedVector::const_iterator>;
+    using reverse_iterator       = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using iterator_type
+        = std::conditional_t<std::is_const_v<std::remove_pointer_t<T*>>,
+                             typename AlignedVector::const_iterator,
+                             typename AlignedVector::iterator>;
 
     static constexpr std::size_t Rank = R;
 
@@ -33,122 +52,160 @@ class Tensor {
     static_assert(std::is_move_constructible_v<T>,
                   "Tensor elements must be move constructible");
 
+    //////////////////////////////////////////////////////////////////////////////
+    // Definitions and Traits
+    //////////////////////////////////////////////////////////////////////////////
   private:
-    ExtentsType   extents_;
-    AlignedVector data_;
-    ExtentsType   strides_;
+    DataPtrType   data_;
+    ExtentsType   extents_; // Broadcast Extent
+    ExtentsType   memory_strides_;
+    iterator_type start_;
 
-    // Helper function to calculate strides based on extents.
-    void calculate_strides() {
-        strides_[R - 1] = 1;
-        for (std::size_t i = R - 1; i > 0; --i) {
-            strides_[i - 1] = strides_[i] * extents_[i];
+    //////////////////////////////////////////////////////////////////////////////
+    // Constructors
+    //////////////////////////////////////////////////////////////////////////////
+  public:
+    // Default constructor
+    Tensor()
+        : data_(std::make_shared<AlignedVector>(1, T {}))
+        , extents_({ 1 })
+        , // Default extent of 1 in each dimension
+        memory_strides_({ 1 })
+        , start_(data_->begin()) {
+        if constexpr (R > 1) {
+            std::fill(extents_.begin(), extents_.end(), 1);
+            std::exclusive_scan(extents_.rbegin(),
+                                extents_.rend(),
+                                memory_strides_.rbegin(),
+                                1,
+                                std::multiplies<>());
         }
     }
 
-  public:
-    // Initialize the array with a specific size for each dimension.
+    explicit Tensor(std::shared_ptr<AlignedVector> data,
+                    ExtentsType const&             extents,
+                    ExtentsType const&             memory_strides,
+                    iterator_type const&           start)
+        : data_(data)
+        , extents_(extents)
+        , memory_strides_(memory_strides)
+        , start_(start) {}
+
+    template <bool IsConst = false>
+    explicit Tensor(std::shared_ptr<AlignedVector>          data,
+                    ExtentsType const&                      extents,
+                    ExtentsType const&                      memory_strides,
+                    BroadcastIterator<T, R, IsConst> const& start)
+        : data_(data)
+        , extents_(extents)
+        , memory_strides_(memory_strides)
+        , start_(start) {}
+
+    explicit Tensor(AlignedVector        data,
+                    ExtentsType const&   extents,
+                    ExtentsType const&   memory_strides,
+                    iterator_type const& start)
+        : data_(std::make_shared<AlignedVector>(data))
+        , extents_(extents)
+        , memory_strides_(memory_strides)
+        , start_(start) {}
+
     explicit Tensor(ExtentsType const& extents)
-        : extents_(extents)
-        , data_(std::accumulate(
-              extents.begin(), extents.end(), 1, std::multiplies<>())) {
-        calculate_strides();
+        : data_(std::make_shared<AlignedVector>(std::accumulate(
+              extents.begin(), extents.end(), 1, std::multiplies<>())))
+        , extents_(extents)
+        , start_(data_->begin()) {
+        std::exclusive_scan(extents_.rbegin(),
+                            extents_.rend(),
+                            memory_strides_.rbegin(),
+                            1UZ,
+                            std::multiplies<>());
+    }
+    // Constructor to initialize a rank-1 tensor with a variadic list of values
+    template <typename... Args>
+        requires(R == 1 && sizeof...(Args) > 1)
+    explicit Tensor(Args... args)
+        : Tensor(std::array<std::size_t, 1> { sizeof...(Args) }) {
+        data_->assign({ static_cast<T>(args)... });
+        start_ = data_->begin();
     }
 
-    template <tensor::AllIntegral... IndexTypes>
-        requires(sizeof...(IndexTypes) == R
-                 && std::conjunction_v<std::is_integral<IndexTypes>...>)
-    explicit Tensor(IndexTypes... extents)
-        : Tensor({ static_cast<std::size_t>(extents)... }) {}
-    // Constructor to initialize the tensor with a specific size for each
-    // dimension using array of integral types
-    template <typename ExtentsType>
-        requires(std::is_integral_v<typename ExtentsType::value_type>
-                 && std::tuple_size<ExtentsType>::value == R)
-    explicit Tensor(const ExtentsType& extents)
-        : extents_()
-        , data_(std::accumulate(
-              extents.begin(), extents.end(), 1, std::multiplies<>()))
-        , strides_() {
-        std::copy(extents.begin(), extents.end(), extents_.begin());
-        calculate_strides();
-    }
-    // Constructor to initialize the tensor from an existing container
-    // dimension using array of integral types
-    template <typename InputIt, typename ExtentsType>
-        requires(std::is_integral_v<typename ExtentsType::value_type> //
-                 && std::tuple_size<ExtentsType>::value == R
-                 && std::input_iterator<InputIt>)
-    explicit Tensor(InputIt            other_begin,
-                    InputIt            other_end,
-                    const ExtentsType& extents)
-        : extents_(), data_(other_begin, other_end), strides_() {
-        std::copy(extents.begin(), extents.end(), extents_.begin());
-        calculate_strides();
-
-        size_t expected_size = std::accumulate(
+    // Constructor to build from iterators of a non-tensor object. Can't build
+    // from iterators of a tensor as we need to persist the shared_ptr somehow.
+    template <typename InputIt>
+        requires std::input_iterator<InputIt>
+                     && (!std::is_same_v<
+                         InputIt,
+                         BroadcastIterator<
+                             typename std::iterator_traits<InputIt>::value_type,
+                             R>>)
+    explicit Tensor(InputIt first, InputIt last, const ExtentsType& extents)
+        : data_(std::make_shared<AlignedVector>(first, last))
+        , extents_(extents)
+        , start_(data_->begin()) {
+        std::exclusive_scan(extents_.rbegin(),
+                            extents_.rend(),
+                            memory_strides_.rbegin(),
+                            1UZ,
+                            std::multiplies<>());
+        std::size_t expected_size = std::accumulate(
             extents.begin(), extents.end(), 1, std::multiplies<>());
-
-        if (data_.size() != expected_size) {
+        if (data_->size() != expected_size) {
             throw std::invalid_argument(
                 "Data size does not match the provided tensor extents.");
         }
     }
 
 
-    template <typename ExtentsType>
-        requires(std::is_integral_v<typename ExtentsType::value_type>
-                 && std::tuple_size<ExtentsType>::value == R)
-    explicit Tensor(std::vector<T> const& data, const ExtentsType& extents)
-        : Tensor(data.begin(), data.end(), extents) {}
+    template <tensor_details::AllIntegral... IndexTypes>
+        requires(sizeof...(IndexTypes) == R)
+    explicit Tensor(IndexTypes... extents)
+        : Tensor<T, sizeof...(IndexTypes)>(
+              { static_cast<std::size_t>(extents)... }) {}
 
-    template <tensor::AllIntegral... IndexTypes>
-        requires(sizeof...(IndexTypes) == R
-                 && std::conjunction_v<std::is_integral<IndexTypes>...>)
-    explicit Tensor(std::vector<T> const& other, IndexTypes... extents)
-        : Tensor(other.begin(),
-                 other.end(),
-                 ExtentsType { static_cast<std::size_t>(extents)... }) {}
+    Tensor(std::vector<T> const& r, ExtentsType const& extents)
+        : Tensor<T, R>(r.begin(), r.end(), extents) {}
+
+    template <typename U, tensor_details::AllIntegral... IndexTypes>
+        requires(sizeof...(IndexTypes) == R)
+    Tensor(std::vector<U> const& r, IndexTypes... extents)
+        : Tensor(r.begin(), r.end(), { static_cast<std::size_t>(extents)... }) {
+    }
 
 
-
+    //////////////////////////////////////////////////////////////////////////////
+    // Multi-dimensional Subscripting Operations
+    //////////////////////////////////////////////////////////////////////////////
+  public:
     // Helper function to calculate the linear index in 1D data storage
-    std::size_t linear_index(ExtentsType const& indices) const {
+    inline std::size_t linear_index(IndicesType const& indices) const {
         return std::inner_product(
-            indices.cbegin(), indices.cend(), strides_.cbegin(), 0UZ);
+            indices.cbegin(), indices.cend(), memory_strides_.cbegin(), 0);
     }
 
-    T& operator[](const ExtentsType& indices) {
-        return data_[linear_index(indices)];
-    }
 
-    T const& operator[](const ExtentsType& indices) const {
-        return data_[linear_index(indices)];
+    T& operator[](const IndicesType& indices) {
+        return start_[linear_index(indices)];
     }
-
-    // Access element by a multi-index using the new multidimensional operator[]
-    template <tensor::AllIntegral... IndexTypes>
+    template <tensor_details::AllIntegral... IndexTypes>
         requires(sizeof...(IndexTypes) == R)
     T& operator[](IndexTypes... indices) {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_[linear_index(idxs)];
+        return start_[linear_index({ static_cast<long>(indices)... })];
     }
 
-    template <tensor::AllIntegral... IndexTypes>
+    T const& operator[](const IndicesType& indices) const {
+        return start_[linear_index(indices)];
+    }
+    template <tensor_details::AllIntegral... IndexTypes>
         requires(sizeof...(IndexTypes) == R)
     T const& operator[](IndexTypes... indices) const {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_[linear_index(idxs)];
+        return start_[linear_index({ static_cast<long>(indices)... })];
     }
 
-    template <tensor::AllIntegral... IndexTypes>
-        requires(sizeof...(IndexTypes) == R
-                 && std::conjunction_v<std::is_integral<IndexTypes>...>)
-    T* operator&(IndexTypes... indices) {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return &data_[linear_index(idxs)];
-    }
-
+    //////////////////////////////////////////////////////////////////////////////
+    // Utility Methods
+    //////////////////////////////////////////////////////////////////////////////
+  public:
     // Get the extent of a specific dimension
     std::size_t extent(std::size_t dimension) const {
         if (dimension >= R) {
@@ -158,111 +215,171 @@ class Tensor {
     }
 
     // Get the total number of elements
-    std::size_t total_size() const { return data_.size(); }
+    std::size_t size() const {
+        return std::accumulate(
+            extents_.begin(), extents_.end(), 1UL, std::multiplies<>());
+    }
 
     // Access to raw data
-    T*       data() noexcept { return data_.data(); }
-    const T* data() const noexcept { return data_.data(); }
+    T*       data() noexcept { return &(*start_); }
+    const T* data() const noexcept { return &(*start_); }
 
     // Access to extents
     ExtentsType extents() const noexcept { return extents_; }
 
     // Access to strides
-    ExtentsType strides() const noexcept { return strides_; }
+    ExtentsType strides() const noexcept { return memory_strides_; }
 
     // Set the contents of the Tensor to Zero
     void clear() { std::fill(begin(), end(), T {}); }
 
+    //////////////////////////////////////////////////////////////////////////////
+    // Iterators
+    //////////////////////////////////////////////////////////////////////////////
+  public:
     // iterator support
-    iterator               begin() noexcept { return data_.begin(); }
-    const_iterator         begin() const noexcept { return data_.begin(); }
-    const_iterator         cbegin() const noexcept { return data_.cbegin(); }
-    iterator               end() noexcept { return data_.end(); }
-    const_iterator         end() const noexcept { return data_.end(); }
-    const_iterator         cend() const noexcept { return data_.cend(); }
-    reverse_iterator       rbegin() noexcept { return data_.rbegin(); }
-    const_reverse_iterator rbegin() const noexcept { return data_.rbegin(); }
-    const_reverse_iterator crbegin() const noexcept { return data_.crbegin(); }
-    reverse_iterator       rend() noexcept { return data_.rend(); }
-    const_reverse_iterator rend() const noexcept { return data_.rend(); }
-    const_reverse_iterator crend() const noexcept { return data_.crend(); }
-
-    // Get an iterator to a specific element based on multi-dimensional indices
-    template <tensor::AllIntegral... IndexTypes>
-        requires(sizeof...(IndexTypes) == R)
-    iterator begin_at(IndexTypes... indices) {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_.begin() + linear_index(idxs);
+    iterator begin() {
+        if constexpr (IsBcast) {
+            return iterator(&(*start_), extents_, memory_strides_);
+        } else {
+            return start_;
+        }
+    }
+    const_iterator begin() const {
+        if constexpr (IsBcast) {
+            return const_iterator(&(*start_), extents_, memory_strides_);
+        } else {
+            return start_;
+        }
+    }
+    const_iterator cbegin() const {
+        if constexpr (IsBcast) {
+            return const_iterator(&(*start_), extents_, memory_strides_);
+        } else {
+            return start_;
+        }
+    }
+    iterator end() {
+        if constexpr (IsBcast) {
+            auto end_index = IndicesType {};
+            end_index[0]   = extents_[0];
+            return iterator(&(*start_), extents_, memory_strides_, end_index);
+        } else {
+            return start_ + size();
+        }
+    }
+    const_iterator end() const {
+        if constexpr (IsBcast) {
+            auto end_index = IndicesType {};
+            end_index[0]   = extents_[0];
+            return const_iterator(
+                &(*start_), extents_, memory_strides_, end_index);
+        } else {
+            return start_ + size();
+        }
+    }
+    const_iterator cend() const {
+        if constexpr (IsBcast) {
+            auto end_index = IndicesType {};
+            end_index[0]   = extents_[0];
+            return const_iterator(
+                &(*start_), extents_, memory_strides_, end_index);
+        } else {
+            return start_ + size();
+        }
+    }
+    reverse_iterator       rbegin() { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin() const {
+        return const_reverse_iterator(cend());
+    }
+    const_reverse_iterator crbegin() const {
+        return const_reverse_iterator(cend());
+    }
+    reverse_iterator       rend() { return reverse_iterator(begin()); }
+    const_reverse_iterator rend() const {
+        return const_reverse_iterator(cbegin());
+    }
+    const_reverse_iterator crend() const {
+        return const_reverse_iterator(cbegin());
     }
 
-    template <tensor::AllIntegral... IndexTypes>
-        requires(sizeof...(IndexTypes) == R)
+    // Get an iterator to a specific element based on multi-dimensional indices
+    iterator begin_at(IndicesType const indices) {
+        return start_ + linear_index(indices);
+    }
+    const_iterator begin_at(IndicesType const indices) const {
+        return start_ + linear_index(indices);
+    }
+    template <tensor_details::AllIntegral... IndexTypes>
+    iterator begin_at(IndexTypes... indices) {
+        IndicesType idxs = { static_cast<long>(indices)... };
+        return start_ + linear_index(idxs);
+    }
+    template <tensor_details::AllIntegral... IndexTypes>
     const_iterator begin_at(IndexTypes... indices) const {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_.begin() + linear_index(idxs);
+        IndicesType idxs = { static_cast<long>(indices)... };
+        return start_ + linear_index(idxs);
     }
 
     // Get an iterator to one past a specific element based on multi-dimensional
     // indices
-    template <tensor::AllIntegral... IndexTypes>
+    template <tensor_details::AllIntegral... IndexTypes>
         requires(sizeof...(IndexTypes) == R)
     iterator end_at(IndexTypes... indices) {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_.begin() + linear_index(idxs);
+        IndicesType idxs = { static_cast<long>(indices)... };
+        return start_ + linear_index(idxs);
     }
 
-    template <tensor::AllIntegral... IndexTypes>
+    template <tensor_details::AllIntegral... IndexTypes>
         requires(sizeof...(IndexTypes) == R)
     const_iterator end_at(IndexTypes... indices) const {
-        ExtentsType idxs = { static_cast<std::size_t>(indices)... };
-        return data_.begin() + linear_index(idxs);
+        IndicesType idxs = { static_cast<long>(indices)... };
+        return start_ + linear_index(idxs);
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-    /// Broadcasting Reshaping and Slicing operations
+    /// Broadcasting, Reshaping, and Slicing operations
     ////////////////////////////////////////////////////////////////////////////////
-  private:
-    // Special constructor used by the broadcast method
-    template <std::size_t NewRank>
-    Tensor(const std::array<std::size_t, NewRank>& new_extents,
-           const std::array<std::size_t, NewRank>& new_strides,
-           const AlignedVector&                    data)
-        : extents_(new_extents), strides_(new_strides), data_(data) {}
 
   public:
-    // Broadcasting method to reshape the tensor for broadcasting
-    template <std::size_t NewRank>
-    Tensor<T, NewRank>
-    broadcast(const std::array<std::size_t, NewRank>& new_extents) const {
-        static_assert(NewRank >= R,
-                      "New rank must be greater than or equal to current rank");
-
-        // Calculate new strides for the broadcasted tensor
-        std::array<std::size_t, NewRank> new_strides = {};
-        std::size_t                      offset      = NewRank - R;
-        for (std::size_t i = 0; i < R; ++i) {
-            new_strides[i + offset] = strides_[i];
-        }
-
+    //////////////////////////////////////////////////////////////////////////////
+    // Broadcast
+    //////////////////////////////////////////////////////////////////////////////
+    Tensor<value_type, Rank, true>
+    broadcast(ExtentsType const& broadcast_extents) const {
         // Ensure that the broadcasted extents are compatible
-        for (std::size_t i = 0; i < R; ++i) {
-            if (extents_[i] != new_extents[i + offset] && extents_[i] != 1) {
+        for (std::size_t i = 0; i < Rank; ++i) {
+            if (extents_[i] != broadcast_extents[i] && extents_[i] != 1) {
                 throw std::invalid_argument(
-                    "Incompatible dimensions for broadcasting.");
+                    "Incompatible dimension for broadcasting at index "
+                    + std::to_string(i) + ": tensor extent "
+                    + std::to_string(extents_[i]) + " cannot be broadcast to "
+                    + std::to_string(broadcast_extents[i]) + ".");
             }
         }
 
-        return Tensor<T, NewRank>(new_extents, new_strides, data_);
+        ExtentsType strides = memory_strides_;
+        if constexpr (!IsBcast) {
+            for (std::size_t i = 0; i < Rank; ++i) {
+                strides[i] = (extents_[i] == 1UZ) ? 0UZ : strides[i];
+            }
+        }
+
+        return Tensor<value_type, Rank, true>(
+            data_, broadcast_extents, strides, start_);
     }
 
-    template <std::size_t NewRank, tensor::AllIntegral... IndexTypes>
-    Tensor<T, NewRank> broadcast(IndexTypes... new_extents) const {
+    template <tensor_details::AllIntegral... IndexTypes>
+        requires(sizeof...(IndexTypes) == Rank)
+    decltype(auto) broadcast(IndexTypes... new_extents) const {
         return broadcast({ static_cast<std::size_t>(new_extents)... });
     }
 
-    ///// Reshape //////
+    //////////////////////////////////////////////////////////////////////////////
+    // Reshape
+    //////////////////////////////////////////////////////////////////////////////
     template <std::size_t NewRank>
-    Tensor<T, NewRank>
+    Tensor<T, NewRank, IsBcast>
     reshape(const std::array<std::size_t, NewRank>& new_extents) const {
         // Calculate the total size to ensure it's consistent
         std::size_t old_total_size = std::accumulate(
@@ -275,36 +392,30 @@ class Tensor {
                                         "constant during reshape.");
         }
 
-        // Calculate new strides for the reshaped tensor
-        std::array<std::size_t, NewRank> new_strides;
-        new_strides[NewRank - 1] = 1;
-        for (std::size_t i = NewRank - 1; i > 0; --i) {
-            new_strides[i - 1] = new_strides[i] * new_extents[i];
-        }
+        typename Tensor<T, NewRank, IsBcast>::ExtentsType new_strides {};
+        std::exclusive_scan(new_extents.rbegin(),
+                            new_extents.rend(),
+                            new_strides.rbegin(),
+                            1UZ,
+                            std::multiplies<>());
 
-        // Return the new Tensor with adjusted extents and strides
-        return Tensor<T, NewRank>(data_, new_extents, new_strides, 0);
+
+        return Tensor<T, NewRank, IsBcast>(
+            data_, new_extents, new_strides, start_);
     }
 
-    template <tensor::AllIntegral... IndexTypes>
-    Tensor<T, sizeof...(IndexTypes)> reshape(IndexTypes... new_extents) {
-        return reshape({ static_cast<std::size_t>(new_extents)... });
+    template <tensor_details::AllIntegral... IndexTypes>
+    decltype(auto) reshape(IndexTypes... new_extents) {
+        return reshape<sizeof...(new_extents)>(
+            { static_cast<std::size_t>(new_extents)... });
     }
 
-    /////// Slice //////
-  private:
-    // Special Constructor for creating a Tensor slice without deep copy
-    Tensor(AlignedVector&     data,
-           const ExtentsType& extents,
-           const ExtentsType& strides,
-           std::size_t        offset)
-        : extents_(extents)
-        , data_(data.begin() + offset, data.end())
-        , strides_(strides) {}
+    //////////////////////////////////////////////////////////////////////////////
+    // Slice
+    //////////////////////////////////////////////////////////////////////////////
 
-  public:
-    Tensor
-    slice(const ExtentsType& offset, const ExtentsType& slice_extents) const {
+    Tensor<T, Rank, IsBcast>
+    slice(const IndicesType& offset, const ExtentsType& slice_extents) const {
         // Check if the offset and extent are valid
         for (std::size_t i = 0; i < R; ++i) {
             if (offset[i] + slice_extents[i] > extents_[i]) {
@@ -312,50 +423,29 @@ class Tensor {
             }
         }
 
-        // Calculate the new strides and offset
-        std::size_t new_offset = std::inner_product(
-            offset.begin(), offset.end(), strides_.begin(), 0UL);
+        std::size_t linear_offset = linear_index(offset);
+
+        if (begin() + linear_offset >= end()) {
+            throw std::out_of_range("Slice exceeds tensor bounds.");
+        }
 
         // Return a new Tensor that represents the slice
-        return Tensor(data_, slice_extents, strides_, new_offset);
+        return Tensor<T, Rank, IsBcast>(
+            data_, slice_extents, memory_strides_, start_ + linear_offset);
     }
+
+
     ////////////////////////////////////////////////////////////////////////////////
     /// Tensor Arithmetic
     ////////////////////////////////////////////////////////////////////////////////
   private:
-    template <typename T1, std::size_t R1, typename Op>
-    static Tensor elementwise_arithmetic_helper(const Tensor<T1, R1>& lhs,
-                                                const Tensor<T1, R1>& rhs,
-                                                Op&&                  op) {
-        if (lhs.extents_ != rhs.extents_) {
-            throw std::invalid_argument(
-                "Tensors must have the same shape for elementwise addition.");
-        }
-
-        Tensor result(lhs.extents_);
-        std::transform(lhs.begin(),
-                       lhs.end(),
-                       rhs.begin(),
-                       result.begin(),
-                       std::forward<Op>(op));
-        return result;
-    }
-
-    template <typename T1, std::size_t R1, typename Op>
-    static Tensor
-    elementwise_arithmetic_helper(const Tensor<T1, R1>& lhs, T1& rhs, Op&& op) {
-        Tensor result(lhs.extents_);
-        std::transform(lhs.begin(),
-                       lhs.end(),
-                       result.begin(),
-                       [&](auto l, auto r) -> T { return op(l, r); });
-        return result;
-    }
-
-    template <typename T1, std::size_t R1, typename Op>
-    Tensor&
-    elementwise_arithmetic_helper(const Tensor<T1, R1>& other, Op&& op) {
-        if (this->extents_ != other.extents_) {
+    template <typename U,
+              std::size_t                              R1,
+              bool                                     B,
+              tensor_details::ArithmeticBinaryOp<T, U> Op>
+    inline Tensor&
+    elementwise_arithmetic_helper(const Tensor<U, R1, B>& other, Op&& op) {
+        if (this->extents_ != other.extents()) {
             throw std::invalid_argument(
                 "Tensors must have the same shape for elementwise operations.");
         }
@@ -367,174 +457,174 @@ class Tensor {
                        std::forward<Op>(op));
         return *this;
     }
-
+    //
   public:
-    friend Tensor operator+(const Tensor& lhs, const Tensor& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::plus<T> {});
+    template <typename U, std::size_t R1, bool IsBcastR>
+        requires tensor_details::SameRankTensor<T, U, R, R1>
+    inline decltype(auto) operator+=(const Tensor<U, R1, IsBcastR>& other) {
+        return elementwise_arithmetic_helper(other, std::plus<T> {});
     }
-    friend Tensor operator-(const Tensor& lhs, const Tensor& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::minus<T> {});
+    template <typename U, std::size_t R1, bool IsBcastR>
+        requires tensor_details::SameRankTensor<T, U, R, R1>
+    inline decltype(auto) operator-=(const Tensor<U, R1, IsBcastR>& other) {
+        return elementwise_arithmetic_helper(other, std::minus<T> {});
     }
-    friend Tensor operator*(const Tensor& lhs, const Tensor& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::multiplies<T> {});
+    template <typename U, std::size_t R1, bool IsBcastR>
+        requires tensor_details::SameRankTensor<T, U, R, R1>
+    inline decltype(auto) operator*=(const Tensor<U, R1, IsBcastR>& other) {
+        return elementwise_arithmetic_helper(other, std::multiplies<T> {});
     }
-    friend Tensor operator/(const Tensor& lhs, const Tensor& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::divides<T> {});
+    template <typename U, std::size_t R1, bool IsBcastR>
+        requires tensor_details::SameRankTensor<T, U, R, R1>
+    inline decltype(auto) operator/=(const Tensor<U, R1, IsBcastR>& other) {
+        return elementwise_arithmetic_helper(other, std::divides<T> {});
     }
-    friend Tensor operator+(const Tensor& lhs, const T& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::plus<T> {});
-    }
-    friend Tensor operator-(const Tensor& lhs, const T& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::minus<T> {});
-    }
-    friend Tensor operator*(const Tensor& lhs, const T& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::multiplies<T> {});
-    }
-    friend Tensor operator/(const Tensor& lhs, const T& rhs) {
-        return elementwise_arithmetic_helper(lhs, rhs, std::divides<T> {});
-    }
-    Tensor& operator+=(const Tensor& rhs) {
-        return elementwise_arithmetic_helper(rhs, std::plus<T> {});
-    }
-    Tensor& operator-=(const Tensor& rhs) {
-        return elementwise_arithmetic_helper(rhs, std::minus<T> {});
-    }
-    Tensor operator*(const Tensor& rhs) {
-        return elementwise_arithmetic_helper(rhs, std::multiplies<T> {});
-    }
-    Tensor operator/(const Tensor& rhs) {
-        return elementwise_arithmetic_helper(rhs, std::divides<T> {});
-    }
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // broadcast multi index
-    //
-    // If a tensor were broadcast to a new shape for arithmetic purposes what
-    // index would need to be applied to access the underlying data correctly?
-    //
-    // underlying tensor2 a = [1, 4] = {1 2 3 4}
-    // broadcast to [3, 4] aka repeat the columns twice.
-    // use broadcast rule [3, 1]
-    //                     App Data   App Lidx   True Lidx
-    //       b = [3, 4] = 1 2 3 4      0 1 2 3     0 1 2 3
-    //                    1 2 3 4      4 5 6 7     0 1 2 3
-    //                    1 2 3 4      8 9 a b     0 1 2 3
-    //  [x y]
-    //  [0 1]
-    //  l = x0 +y1 = y
-    //
-    //                     broacast to [4, 3] | copies [1, 3]
-    // = [4, 1] Data      App Data    App Lidx   True Lidx
-    // for a = {1         1 1 1         0 1 2      0 0 0
-    //          2         2 2 2         3 4 5      1 1 1
-    //          3         3 3 3         6 7 8      2 2 2
-    //          4}        4 4 4         9 a b      3 3 3
-    //
-    //  [x y]
-    //  [1 0]
-    //  l = x1 + y0 = x
-    //
-    //   original shape = [A B]
-    //   padded shape = [1 A B]
-    //   broadcast shape = [C A B]
-    //
-    //   original stride = [B 1]
-    //   padded stride = [0 B 1]
-    //   broadcast stride = [AB B 1]
-    //
-    //   broacast_multiindex = [c a b]
-    //   broacast linear_index = cAB + aB + b1
-    //   original linear_index = c0 + aB + b1 = bmix . padded_stride
-    //
-    //----------------------------------------------------------------
-    //
-    //   original shape = [A B]
-    //   padded shape = [1 A 1 B 1]
-    //   broadcast shape = [C A D B E]
-    //
-    //   original stride = [B 1]
-    //   padded stride = [0 B 0 1 0]
-    //   broadcast stride = [ADBE DBE BE E 1]
-    //
-    //   broacast_multiindex = [c a d b e]
-    //   original linear_index = [c0 + aB + 0d + b1 + e0]
-    //
-    //   Generically:
-    //      multi_index[i] = (linear_index / strides[i]) % extents[i];
-    //
-    //   broadcast multi_index[i] =
-    //      (broadcast_linear_index / broadcast_stride[i]) % broadcast_extent[i]
-    //   original linear_index = broacast_multiindex . padded_stride
-    //
-    //   memory_index = 0;
-    //   memory_index += ps[j] * ((bli / bs[j]) % be[j]);
-    //
-    // auto broadcast_multi_index(int broadcast_linear_index) -> auto {
-    //     std::vector<int> broadcast_extent { 1, 2, 3, 4 };
-    //     std::vector<int> broadcast_stride { 24, 12, 4, 1 };
-    //     std::vector<int> padded_stride { 0, 4, 0, 1 };
-    //     int              memory_index = 0;
-    //     for (int i = 0; i < 4; ++i) {
-    //         memory_index += padded_stride[i]
-    //                         * ((broadcast_linear_index / broadcast_stride[i])
-    //                            * broadcast_extent[i]);
-    //     }
-    // }
-    //  =======================================
-    //  reshaping operations as broadcast?
-    //  original shape = [3 4]    0 1 2 3 |    0 1    6 7
-    //  New Shape = [2 3 2]       4 5 6 7 |->  2 3    8 9 
-    //  pad shape = [1 3 2]???    8 9 a b |    4 5    a b
-    //  original stride = [4 1]
-    //  New stride = [6 2 1]
-    //  padded_stride = New stride
-    //  broacast stride = New stride
-    //  linear_index = reshaped_linear_index
-    //  ========================================
-    //  broadcasting a reshape
-    //  broadcast extent to [2 5 3 2 5]
-    //  padding shape [2 1 3 2 1]
-    //  padding stride [6 0 2 1 0]
-    //  broadcast stride [150 30 10 5 1]
-    //  memory_index += ps[j] * ((bli / bs[j]) % be[j]);
-    //  ========================================
-    //  reshapeing a broadcast
-    //  Much like reshape, just change broadcast extent and broadcast stride
-    //  new extent [2 1 15 2 5]
-    //  new stride [150 150 10 5 1]
-    //  ========================================
-    //  broadcasting a slice
-    //  slice maintains memory layout stride, so pad the slice's stride
-    //  original shape = [2 3 4]
-    //  original stride = [12 4 1]
-    //  slice offset = [0, 0, 1]
-    //  slice shape = [2 1 3]
-    //  slice stride = [12 4 1]
-    //  broadcast shape = [2 5 3]
-    //  broadcast stride = [15 3 1]
-    //  memory stride = [12 0 1]
-    //
-    //  ========================================
-    //  slicing a broadcast: maintain rank
-    //  offset added to pointer
-    //  new extents
-    //  strides remain same.
-    //  original shape = [3 4]
-    //  original stride = [4 1]
-    //  reshape shape [3 1 4]
-    //  reshape stride [4 4 1]
-    //
-    //  broadcast shape = [3 5 4]
-    //  broadcast stride = [20 4 1]
-    //  padded_stride = [4 0 1]
-    //
-    //  slice offset = [1 1 1] = update broadcast ptr
-    //  slice shape = [2 2 3] = update broadcast stride
-    //  slice stride = [20 4 1] = broadcast stride
-    //  padded_stride = [4 0 1] = padded stride
-    //
-    //
 };
+
+namespace tensor_details {
+template <typename T,
+          typename U,
+          std::size_t              R,
+          bool                     B1,
+          bool                     B2,
+          ArithmeticBinaryOp<T, U> Op>
+static inline Tensor<std::common_type_t<T, std::decay_t<U>>, R, false>
+elementwise_arithmetic_helper(const Tensor<T, R, B1>& lhs,
+                              const Tensor<U, R, B2>& rhs,
+                              Op&&                    op) {
+    if (lhs.extents() != rhs.extents()) {
+        throw std::invalid_argument(
+            "Tensors must have the same shape for elementwise addition.");
+    }
+
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+
+    Tensor<ResultType, R, false> result(lhs.extents());
+    std::transform(lhs.begin(),
+                   lhs.end(),
+                   rhs.begin(),
+                   result.begin(),
+                   std::forward<Op>(op));
+    return result;
+}
+
+/* template <typename U, std::size_t R1, bool B, typename Op> */
+template <typename T,
+          typename U,
+          std::size_t              R,
+          bool                     IsBcast,
+          ArithmeticBinaryOp<T, U> Op>
+static inline Tensor<std::common_type_t<T, std::decay_t<U>>, R, false>
+elementwise_arithmetic_helper(const Tensor<U, R, IsBcast>& lhs,
+                              U&                           rhs,
+                              Op&&                         op) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+
+    Tensor<ResultType, R, false> result(lhs.extents());
+    std::transform(lhs.begin(),
+                   lhs.end(),
+                   result.begin(),
+                   [&](auto& l, auto& r) -> ResultType { return op(l, r); });
+    return result;
+}
+} // namespace tensor_details
+
+////////////////////////////////////////////////////////////////////////
+// Tensor, Tensor operations + - * /
+//
+// Tensor + Tensor
+template <typename T, typename U, std::size_t R1, bool IsBcastL, bool IsBcastR>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator+(const Tensor<T, R1, IsBcastL>& lhs,
+          const Tensor<U, R1, IsBcastR>& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::plus<ResultType> {});
+}
+
+// Tensor - Tensor
+template <typename T, typename U, std::size_t R1, bool IsBcastL, bool IsBcastR>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator-(const Tensor<T, R1, IsBcastL>& lhs,
+          const Tensor<U, R1, IsBcastR>& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::minus<ResultType> {});
+}
+
+//  Tensor * Tensor
+template <typename T, typename U, std::size_t R1, bool IsBcastL, bool IsBcastR>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator*(const Tensor<T, R1, IsBcastL>& lhs,
+          const Tensor<U, R1, IsBcastR>& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::multiplies<ResultType> {});
+}
+
+//  Tensor / Tensor
+template <typename T, typename U, std::size_t R1, bool IsBcastL, bool IsBcastR>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator/(const Tensor<T, R1, IsBcastL>& lhs,
+          const Tensor<U, R1, IsBcastR>& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::divides<ResultType> {});
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Tensor, Scalar operations + - * /
+
+// Tensor + scaler
+template <typename T, typename U, std::size_t R1, bool IsBcastL>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator+(const Tensor<T, R1, IsBcastL>& lhs, const U& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::plus<ResultType> {});
+}
+
+// Tensor - scaler
+template <typename T, typename U, std::size_t R1, bool IsBcastL>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator-(const Tensor<T, R1, IsBcastL>& lhs, const U& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::minus<ResultType> {});
+}
+
+// Tensor * scaler
+template <typename T, typename U, std::size_t R1, bool IsBcastL>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator*(const Tensor<T, R1, IsBcastL>& lhs, const U& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::multiplies<ResultType> {});
+}
+
+// Tensor / scalar
+template <typename T, typename U, std::size_t R1, bool IsBcastL>
+    requires tensor_details::SameRankTensor<T, U, R1, R1>
+inline decltype(auto)
+operator/(const Tensor<T, R1, IsBcastL>& lhs, const U& rhs) {
+    using ResultType = std::common_type_t<T, std::decay_t<U>>;
+    return tensor_details::elementwise_arithmetic_helper(
+        lhs, rhs, std::divides<ResultType> {});
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// CTAD deduction guide(s)
+////////////////////////////////////////////////////////////////////////////////
+template <typename T, typename... IndexTypes>
+Tensor(std::vector<T> const&,
+       IndexTypes...) -> Tensor<T, sizeof...(IndexTypes), false>;
 
 } // namespace Fermi

@@ -60,7 +60,7 @@ TEST_CASE("test lerp_pars") {
     auto Cs = aeff.front.effective_area.cosths;
     auto IC = std::span(Cs.data(), Cs.extent(0));
 
-    for (size_t i = 0; i < exp_costhetas.size(); ++i) {
+    for (long i = 0; i < exp_costhetas.size(); ++i) {
         auto p = Fermi::lerp_pars(IC, exp_costhetas[i]);
         CHECK(std::get<0>(p) == doctest::Approx(cweight[i]));
         CHECK(Cs[std::get<2>(p)] == doctest::Approx(cubound[i]));
@@ -95,7 +95,7 @@ TEST_CASE("test lerp_pars") {
     auto Es = aeff.front.effective_area.logEs;
     auto IE = std::span(Es.data(), Es.extent(0));
 
-    for (size_t i = 0; i < logE.size(); ++i) {
+    for (long i = 0; i < logE.size(); ++i) {
         auto p = Fermi::lerp_pars(IE, logE[i]);
         REQUIRE(std::get<0>(p) == doctest::Approx(eweight[i]));
         REQUIRE(Es[std::get<2>(p)] == doctest::Approx(eubound[i]));
@@ -134,11 +134,11 @@ TEST_CASE("Test Source Exposure CosineThetas.") {
 
     REQUIRE(exp_costhetas.size() == FermiTest::exp_costhetas.size());
     REQUIRE(wexp_costhetas.size() == FermiTest::exp_costhetas.size());
-    for (size_t i = 0; i < FermiTest::exp_costhetas.size(); ++i) {
+    for (long i = 0; i < FermiTest::exp_costhetas.size(); ++i) {
         REQUIRE(exp_costhetas[i]
                 == doctest::Approx(FermiTest::exp_costhetas[i]));
     }
-    for (size_t i = 0; i < FermiTest::exp_costhetas.size(); ++i) {
+    for (long i = 0; i < FermiTest::exp_costhetas.size(); ++i) {
         REQUIRE(wexp_costhetas[i]
                 == doctest::Approx(FermiTest::exp_costhetas[i]));
     }
@@ -188,7 +188,7 @@ TEST_CASE("Test Exposure") {
     // auto back_LTF  = Fermi::lt_effic_factors(logEs,
     // aeff.back.efficiency_params);
 
-    for (size_t i = 0; i < front_LTF.extent(1); ++i) {
+    for (long i = 0; i < front_LTF.extent(1); ++i) {
         CHECK(front_LTF[0, i]
               == doctest::Approx(FermiTest::Aeff::livetime_factor1[i]));
         CHECK(front_LTF[1, i]
@@ -274,42 +274,40 @@ TEST_CASE("Test Exposure") {
 
     /* TensorMap<Tensor2d const> LTFe(front_LTF.first.data(), Ne, 1); */
     /* TensorMap<Tensor2d const> LTFw(front_LTF.second.data(), Ne, 1); */
-    Tensor2d const LTFe = front_LTF.slice({ 0, 0 }, { 1, Ne }).broadcast<2>({Nsrc, 1});
-    Tensor1d const LTFw = front_LTF.slice({ 1, 0 }, { 1, Ne }).reshape(Ne);
+    auto LTFe = front_LTF.slice({ 0, 0 }, { 1, Ne }).broadcast({ Nsrc, Ne });
+    auto LTFw = front_LTF.slice({ 1, 0 }, { 1, Ne }).broadcast({ Nsrc, Ne });
 
     // auto const lef = Fermi::mul210(exp_aeff_f, front_LTF.first);
-    /* Tensor2d const lef  = exp_aeff_f * LTFe.broadcast(Idx2 { 1, Nsrc }); */
-    /* SUBCASE("EXPECTED FRONT EXPOSURE VALUE AFTER LTF SCALING") { */
-    /*     filecomp2(lef, "exposure_lef"); */
-    /* } */
+    Tensor2d const lef = exp_aeff_f * LTFe;
+    SUBCASE("EXPECTED FRONT EXPOSURE VALUE AFTER LTF SCALING") {
+        filecomp(lef, "exposure_lef");
+    }
 
-    /* // auto const lwf        = Fermi::mul210(wexp_aeff_f, LTFw); */
-    /* Tensor2d const lwf = wexp_aeff_f * LTFw.broadcast(Idx2 { 1, Nsrc }); */
-    /* SUBCASE("EXPECTED FRONT WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING") { */
-    /*     filecomp2(lwf, "exposure_lwf"); */
-    /* } */
-    /**/
-    /* // auto const leb        = Fermi::mul210(exp_aeff_b, LTFe); */
-    /* Tensor2d const leb = exp_aeff_b * LTFe.broadcast(Idx2 { 1, Nsrc }); */
-    /* SUBCASE("EXPECTED BACK EXPOSURE VALUE AFTER LTF SCALING (Front LTF " */
-    /*         "apparently).") { */
-    /*     filecomp2(leb, "exposure_leb"); */
-    /* } */
+    // auto const lwf        = Fermi::mul210(wexp_aeff_f, LTFw);
+    Tensor2d const lwf = wexp_aeff_f * LTFw;
+    SUBCASE("EXPECTED FRONT WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING") {
+        filecomp(lwf, "exposure_lwf");
+    }
 
-    /* // auto const lwb        = Fermi::mul210(wexp_aeff_b, LTFw); */
-    /* Tensor2d const lwb = wexp_aeff_b * LTFw.broadcast(Idx2 { 1, Nsrc }); */
-    /* SUBCASE( */
-    /*     "EXPECTED BACK WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING (Front LTF "
-     */
-    /*     "apparently).") { */
-    /*     filecomp2(lwb, "exposure_lwb"); */
-    /* } */
-    /**/
-    /* Tensor2d const exposure = Fermi::exposure(src_exposure_cosbins, */
-    /*                                           src_weighted_exposure_cosbins,
-     */
-    /*                                           front_aeff, */
-    /*                                           back_aeff, */
-    /*                                           front_LTF); */
-    /* SUBCASE("EXPECTED EXPOSURE!") { filecomp2(exposure, "exposure"); } */
+    // auto const leb        = Fermi::mul210(exp_aeff_b, LTFe);
+    Tensor2d const leb = exp_aeff_b * LTFe;
+    SUBCASE("EXPECTED BACK EXPOSURE VALUE AFTER LTF SCALING (Front LTF "
+            "apparently).") {
+        filecomp(leb, "exposure_leb");
+    }
+
+    // auto const lwb        = Fermi::mul210(wexp_aeff_b, LTFw);
+    Tensor2d const lwb = wexp_aeff_b * LTFw;
+    SUBCASE(
+        "EXPECTED BACK WEIGHTED_EXPOSURE VALUE AFTER LTF SCALING (Front LTF "
+        "apparently).") {
+        filecomp(lwb, "exposure_lwb");
+    }
+
+    Tensor2d const exposure = Fermi::exposure(src_exposure_cosbins,
+                                              src_weighted_exposure_cosbins,
+                                              front_aeff,
+                                              back_aeff,
+                                              front_LTF);
+    SUBCASE("EXPECTED EXPOSURE!") { filecomp(exposure, "exposure"); }
 }

@@ -14,7 +14,7 @@ namespace Fermi {
 
 struct XtPsf {
     Tensor<float, 3> uPsf;
-    Tensor<float, 3> partial_psf_integral;
+    Tensor<double, 3> partial_psf_integral;
 };
 
 namespace PSF {
@@ -72,15 +72,15 @@ auto mean_psf(                                    //
     Tensor<double, 3> const& front_corrected_psf, /*[Ne, Nc, Nd]*/
     Tensor<double, 3> const& back_corrected_psf,  /*[Ne, Nc, Nd]*/
     Tensor<double, 2> const& exposures /*[Nsrc, Ne]*/)
-    -> Tensor<float, 3> /*[Ns, Ne, Nd]*/;
+    -> Tensor<float, 3> /*[Ns, Nd, Ne]*/;
 
 auto partial_total_integral(Tensor<float, 3> const& mean_psf /*[Ns, Ne, Nd]*/)
-    -> std::pair<Tensor<float, 3>,
-                 Tensor<float, 2>>; // <[Ns, Ne, Nd], [Nsrc, Ne]>
+    -> std::pair<Tensor<double, 3>,
+                 Tensor<double, 2>>; // <[Ns, Ne, Nd], [Nsrc, Ne]>
 
 
-auto normalize(Tensor<float, 3>&       mean_psf, /* [Ns, Ne, Nd] */
-               Tensor<float, 2> const& total_integrals) -> void;
+auto normalize(Tensor<float, 3>&        mean_psf, /* [Ns, Ne, Nd] */
+               Tensor<double, 2> const& total_integrals) -> void;
 
 
 auto psf_lookup_table_and_partial_integrals(
@@ -93,7 +93,7 @@ auto psf_lookup_table_and_partial_integrals(
     Tensor<double, 2> const&   src_weighted_exposure_cosbins,
     Tensor<double, 2> const&   front_LTF, /*[2, Ne]*/
     Tensor<double, 2> const&   exposure   /*[Nsrc, Ne]*/
-    ) -> std::tuple<Tensor<float, 3>, Tensor<float, 3>>;
+    ) -> std::tuple<Tensor<float, 3>, Tensor<double, 3>>;
 
 auto
 compute_psf_data(XtObs const& obs, XtIrf const& irf, XtExp const exp) -> XtPsf;

@@ -49,8 +49,8 @@ TEST_CASE("Load AEFF IRF") {
     REQUIRE(aeff.front.effective_area.params.extent(2) == 1);  // Ngrids
 
     // Test effective_area params are what we expect
-    Tensor2d expect_fr_effarea(
-        FermiTest::Aeff::Front::effarea_raw_params, 32, 74);
+    auto expect_fr_effarea
+        = Tensor2d(FermiTest::Aeff::Front::effarea_raw_params, 32, 74);
 
     for (size_t c = 0; c < 32; ++c) {
         for (size_t e = 0; e < 74; ++e) {

@@ -17,7 +17,7 @@ Fermi::PSF::psf_lookup_table_and_partial_integrals(
     Tensor2d const& src_weighted_exposure_cosbins,
     Tensor2d const& front_LTF, /*[Ne]*/
     Tensor2d const& exposures  /*[Nsrc, Ne]*/
-    ) -> std::tuple<Tensor3f, Tensor3f> {
+    ) -> std::tuple<Tensor3f, Tensor3d> {
     auto const front_kings   = Fermi::PSF::king(psf_irf.front);
     auto const back_kings    = Fermi::PSF::king(psf_irf.back);
     /* [Nc, Nd, Ne] */
@@ -46,7 +46,7 @@ Fermi::PSF::psf_lookup_table_and_partial_integrals(
         src_weighted_exposure_cosbins,
         /*Stays front for now.*/ front_LTF);
 
-    Tensor3f uPsf = Fermi::PSF::mean_psf(
+    auto uPsf = Fermi::PSF::mean_psf(
         front_corr_exp_psf, back_corr_exp_psf, exposures);
     // auto uPeak                       = Fermi::PSF::peak_psf(uPsf);
     auto [part_psf_integ, psf_integ] = Fermi::PSF::partial_total_integral(uPsf);

@@ -9,6 +9,8 @@ project(
 
 cmake_policy(SET CMP0072 NEW)
 set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # CMake tool support packages. These provide additional funcitons to our Cmake
 # files.
@@ -17,6 +19,9 @@ include(CMakeDependentOption)
 include(CheckCXXCompilerFlag)
 include(GNUInstallDirs)
 include(FetchContent)
+
+# Add the 'cmake' directory to the CMake module path
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # use ccache
 find_program(CCACHE_PROGRAM ccache)
@@ -44,13 +49,15 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_NAME STREQUAL
   # Apple Silicon (M1/M2) uses NEON SIMD
   add_compile_options(-march=armv8-a+simd)
 endif()
+
 # ##############################################################################
 
 add_compile_options(
-  -Wall #
-  -Wextra #
-  -Werror # -mbmi2 #
+  # -Wall #
+  # -Wextra #
+  # -Werror # -mbmi2 #
   $<$<CONFIG:RELEASE>:-march=native> #
+  -fexperimental-library #
   $<$<CONFIG:RELEASE>:-O3> #
   -Wno-unused-parameter #
   -Wno-array-bounds #
@@ -76,6 +83,7 @@ add_link_options(
 )
 
 add_subdirectory(xtsrcmaps)
+
 
 # Add OpenMP flags to your compiler
 if(OpenMP_CXX_FOUND)

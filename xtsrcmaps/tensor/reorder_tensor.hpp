@@ -12,6 +12,7 @@ reorder_tensor(Tensor<T, R> const&                       tensor,
                typename Tensor<T, R>::ExtentsType const& order) {
 
     using ExtentsType = typename Tensor<T, R>::ExtentsType;
+    using IndicesType = typename Tensor<T, R>::IndicesType;
 
     // Ensure the order array is a valid permutation
     ExtentsType check = order;
@@ -38,7 +39,7 @@ reorder_tensor(Tensor<T, R> const&                       tensor,
     }
 
     // Fill the new tensor with reordered data
-    std::size_t total_elements = tensor.total_size();
+    std::size_t total_elements = tensor.size();
 
 #pragma omp parallel for schedule(static, 16)
     for (std::size_t lidx = 0; lidx < total_elements; ++lidx) {
@@ -47,7 +48,7 @@ reorder_tensor(Tensor<T, R> const&                       tensor,
         for (std::size_t i = 0; i < R; ++i) {
             indices[i] = (lidx / tensor.strides()[i]) % tensor.extents()[i];
         }
-        ExtentsType reordered_indices;
+        IndicesType reordered_indices;
         for (std::size_t i = 0; i < R; ++i) {
             reordered_indices[i] = indices[order[i]];
         }

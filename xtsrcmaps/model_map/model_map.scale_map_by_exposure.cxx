@@ -12,8 +12,8 @@ Fermi::ModelMap::scale_map_by_exposure(Tensor<float, 4>&        model_map,
     assert(Ns == exposures.extent(0));
     assert(Ne == exposures.extent(1));
 
-    /* model_map *= exposures.reshape(Idx4 { Ne, 1, 1, Ns }) */
-    /*                  .broadcast(Idx4 { 1, Nh, Nw, 1 }); */
+    /* model_map */
+    /*     *= exposures.reshape<4>({ Ns, 1, 1, Ne }).broadcast({ Ns, Nh, Nw, Ne }); */
 #pragma omp parallel for schedule(static, 16)
     for (size_t s = 0; s < Ns; ++s) {
         for (size_t h = 0; h < Nh; ++h) {

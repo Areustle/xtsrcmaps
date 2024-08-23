@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <utility>
-/* #include <vector> */
 
 namespace Fermi::Healpix
 {
@@ -12,9 +11,9 @@ namespace Fermi::Healpix
 auto
 ang2pix(double const theta, double const phi, int64_t const nside_) -> uint64_t;
 
-/* auto */
-/* ang2pix(std::pair<double, double> const ang, int64_t const nside_) -> uint64_t; */
-/**/
+auto
+ang2pix(std::pair<double, double> const ang, int64_t const nside_) -> uint64_t;
+
 /* auto */
 /* ang2pix(std::vector<std::pair<double, double>> const& angs, int64_t const nside_) */
 /*     -> std::vector<uint64_t>; */

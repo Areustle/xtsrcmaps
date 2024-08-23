@@ -23,7 +23,7 @@ Fermi::lerp_pars(std::span<double const, std::dynamic_extent> const sp,
     auto tt = (v - *(upper - 1)) / (*upper - *(upper - 1));
 
     // Weight, Weight_Complement, Upper Bound Index
-    return { tt, 1 - tt, idx };
+    return { tt, 1. - tt, idx };
 }
 
 auto

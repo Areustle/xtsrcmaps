@@ -17,7 +17,7 @@ Fermi::ModelMap::scale_map_by_correction_factors(
         for (size_t h = 0; h < Nh; ++h) {
             for (size_t w = 0; w < Nw; ++w) {
                 for (size_t e = 0; e < Ne; ++e) {
-                    model_map[s, h, w, e] *= factor[s, e];
+                    model_map[s, h, w, e] *= 1e3 * factor[s, e];
                 }
             }
         }

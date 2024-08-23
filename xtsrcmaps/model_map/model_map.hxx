@@ -21,7 +21,7 @@ point_src_model_map_wcs(size_t const                    Nh,
                         Tensor<float, 3> const&         uPsf,
                         SkyGeom<float> const&           skygeom,
                         Tensor<double, 2> const&        exposures,
-                        Tensor<float, 3> const& partial_integrals /* [SDE] */
+                        Tensor<double, 3> const& partial_integrals /* [SDE] */
                         ) -> Tensor<float, 4>;
 
 
@@ -36,7 +36,7 @@ auto map_correction_factor(Tensor<float, 2> const& MapInteg,
                            Tensor<double, 1> const& psf_radius,
                            std::vector<bool> const& is_in_fov,
                            Tensor<float, 3> const&  mean_psf,         // [SED]
-                           Tensor<float, 3> const&  partial_integrals // [SED]
+                           Tensor<double, 3> const& partial_integrals // [SED]
                            ) -> Tensor<float, 2>;
 
 void scale_map_by_correction_factors(Tensor<float, 4>&       model_map,
@@ -57,7 +57,7 @@ auto map_integral(Tensor<float, 4> const&  model_map,
 
 auto integral(Tensor<double, 1> const& angles,
               Tensor<float, 3> const&  mean_psf,         // [D,E,S]
-              Tensor<float, 3> const&  partial_integrals // [D,E,S]
+              Tensor<double, 3> const& partial_integrals // [D,E,S]
               ) -> Tensor<float, 2>;
 
 template <typename T>

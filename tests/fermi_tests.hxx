@@ -7,6 +7,7 @@
 /* #include <vector> */
 
 /* #include "xtsrcmaps/tensor_ops.hxx" */
+#include "xtsrcmaps/tensor/read_file_tensor.hpp"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
 /* using Tensor1b = Fermi::Tensor<bool, 1>; */
@@ -33,7 +34,7 @@ auto
 et2comp(Fermi::Tensor<T1, 2> const& computed,
         std::vector<T2> const&      expected) -> void {
 
-    REQUIRE(computed.total_size() == expected.size());
+    REQUIRE(computed.size() == expected.size());
 
     Fermi::Tensor<T2, 2uz> const sp_b(
         expected, computed.extent(0), computed.extent(1));
@@ -45,35 +46,39 @@ et2comp(Fermi::Tensor<T1, 2> const& computed,
         }
 }
 
-/* template <typename T> */
-/* auto */
-/* et2comp_exprm(Fermi::Tensor<T, 2> const&       computed, */
-/*               std::vector<T> const& expected) -> void { */
-/*     REQUIRE(computed.total_size() == expected.size()); */
-/*     TensorMap<Tensor<T, 2, Eigen::RowMajor> const> sp_b( */
-/*         expected.data(), computed.dimension(1), computed.dimension(0)); */
-/**/
-/*     for (long j = 0; j < computed.dimension(1); ++j) */
-/*         for (long i = 0; i < computed.dimension(0); ++i) */
-/*             REQUIRE_MESSAGE(computed(i, j) == doctest::Approx(sp_b(j, i)), */
-/*                             i << " " << j); */
-/* } */
 
-/* template <typename T = double> */
+template <typename T, size_t Rank>
+auto
+filecomp(Fermi::Tensor<T, Rank> const& computed,
+         std::string const&            filebase) -> void {
+
+    auto const sp_b = Fermi::read_file_tensor(
+        "./tests/expected/" + filebase + ".bin", computed.extents());
+
+    auto it1 = computed.begin();
+    auto it2 = sp_b.begin();
+
+    for (; it1 != computed.end() && it2 != sp_b.end(); ++it1, ++it2) {
+        REQUIRE((*it1 == doctest::Approx(*it2)));
+    }
+}
+
+/* template <typename T, size_t Rank> */
 /* auto */
-/* filecomp2(Tensor2d const& computed, std::string const& filebase) -> void { */
-/*     const size_t sz_exp   = computed.size(); */
-/*     auto         expected = std::vector<T>(sz_exp); */
+/* filecomp_reorder(Fermi::Tensor<T, Rank> const&   computed, */
+/*                  std::string const&              filebase, */
+/*                  std::array<size_t, Rank> const& order) -> void { */
 /**/
-/*     Tensor2d const sp_b   = Fermi::row_major_file_to_col_major_tensor( */
-/*         "./xtsrcmaps/tests/expected/" + filebase + ".bin", */
-/*         computed.dimension(1), */
-/*         computed.dimension(0)); */
 /**/
-/*     for (long j = 0; j < computed.dimension(1); ++j) */
-/*         for (long i = 0; i < computed.dimension(0); ++i) */
-/*             REQUIRE_MESSAGE(computed(i, j) == doctest::Approx(sp_b(i, j)), */
-/*                             i << " " << j << " " << filebase); */
+/*     auto const sp_b = Fermi::read_file_tensor( */
+/*         "./tests/expected/" + filebase + ".bin", computed.extents()); */
+/**/
+/*     auto it1 = computed.begin(); */
+/**/
+/*     for (; it1 != computed.end() ; ++it1) { */
+/**/
+/*         REQUIRE((*it1 == doctest::Approx(*it2))); */
+/*     } */
 /* } */
 
 
