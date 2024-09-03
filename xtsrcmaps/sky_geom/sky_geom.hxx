@@ -19,13 +19,19 @@ template <typename T>
 class SkyGeom {
 
     std::array<char, 3000> m_wcs_struct {};
-    wcsprm*                m_wcs;
-    // = std::unique_ptr<wcsprm>(new (m_wcs_struct.data()) wcsprm);
-    std::string m_proj_name;
-    bool        m_is_galactic;
-    bool        m_wcspih_used = false;
+    wcsprm*                m_wcs { nullptr }; // Initialize to nullptr
+    std::string            m_proj_name;
+    bool                   m_is_galactic { false };
+    bool                   m_wcspih_used { false };
 
   public:
+    SkyGeom() {
+        // Initialize wcsprm with a safe state
+        m_wcs = new (m_wcs_struct.data()) wcsprm;
+        std::memset(m_wcs, 0, sizeof(wcsprm)); // Ensure it's zeroed out
+        m_wcs->flag = -1;
+    }
+
     SkyGeom(Obs::CCubePixels const& pars) {
         // Mostly copied from SkyProj.cxx in Sciencetools Likelihood.
 
@@ -70,19 +76,51 @@ class SkyGeom {
 #endif
         (void)(status);
     }
-    ~SkyGeom() { wcsfree(m_wcs); }
+    // Destructor to clean up wcsprm
+    ~SkyGeom() {
+        if (m_wcs) { wcsfree(m_wcs); }
+    }
 
-    // // Delete all the other constructor types.
-    // SkyGeom()          = delete;
-    // SkyGeom(SkyGeom&&) = delete;
-    // SkyGeom
-    // operator=(SkyGeom&&)
-    //     = delete;
-    // SkyGeom
-    // operator=(SkyGeom const&)
-    //     = delete;
+    // Add copy constructor and assignment operators if necessary
+    SkyGeom(SkyGeom const& other) {
+        m_wcs = new (m_wcs_struct.data()) wcsprm;
+        std::memcpy(m_wcs, other.m_wcs, sizeof(wcsprm));
+        m_proj_name   = other.m_proj_name;
+        m_is_galactic = other.m_is_galactic;
+        m_wcspih_used = other.m_wcspih_used;
+    }
 
-    /* auto sph2pix(std::array<T, 2> const&) const -> std::array<T, 2>; */
+    SkyGeom& operator=(SkyGeom const& other) {
+        if (this != &other) {
+            std::memcpy(m_wcs, other.m_wcs, sizeof(wcsprm));
+            m_proj_name   = other.m_proj_name;
+            m_is_galactic = other.m_is_galactic;
+            m_wcspih_used = other.m_wcspih_used;
+        }
+        return *this;
+    }
+
+    // Add move constructor and move assignment operators if necessary
+    SkyGeom(SkyGeom&& other) noexcept {
+        m_wcs = new (m_wcs_struct.data()) wcsprm;
+        std::memcpy(m_wcs, other.m_wcs, sizeof(wcsprm));
+        m_proj_name   = std::move(other.m_proj_name);
+        m_is_galactic = other.m_is_galactic;
+        m_wcspih_used = other.m_wcspih_used;
+        other.m_wcs   = nullptr; // Leave other in a valid state
+    }
+
+    SkyGeom& operator=(SkyGeom&& other) noexcept {
+        if (this != &other) {
+            std::memcpy(m_wcs, other.m_wcs, sizeof(wcsprm));
+            m_proj_name   = std::move(other.m_proj_name);
+            m_is_galactic = other.m_is_galactic;
+            m_wcspih_used = other.m_wcspih_used;
+            other.m_wcs   = nullptr; // Leave other in a valid state
+        }
+        return *this;
+    }
+
     auto sph2pix(std::array<T, 2> const& ss) const -> std::array<T, 2> {
         double    s1 = ss[0], s2 = ss[1];
         int const ncoords = 1;
@@ -171,36 +209,6 @@ class SkyGeom {
         return { static_cast<T>(s1), static_cast<T>(worldcrd[1]) };
     }
 
-    /* auto sph2pix(Obs::sphcrd_v_t const&) const -> Obs::sphcrd_v_t; */
-    /* auto sph2pix(Obs::sphcrd_v_t const& ss) const -> Obs::sphcrd_v_t { */
-    /*     auto v = std::vector<std::pair<T, T>>(ss.size()); */
-    /*     std::transform(ss.begin(), ss.end(), v.begin(), [&](auto const& x) {
-     */
-    /*         return sph2pix(x); */
-    /*     }); */
-    /*     return v; */
-    /* } */
-
-    /* auto pix2sph(Eigen::Matrix2Xd const&) const -> Eigen::Matrix2Xd; */
-    /* auto */
-    /* pix2sph(Eigen::Matrix2Xd const& px) const -> Eigen::Matrix2Xd { */
-    /*     // auto v = std::vector<std::pair<double, double>>(px.size()); */
-    /*     // std::transform(px.begin(), px.end(), */
-    /*     // v.begin(), [&](auto const& x) { */
-    /*     //     return pix2sph(x); */
-    /*     // }); */
-    /*     // return v; */
-    /*     Eigen::Matrix2Xd S(2, px.cols()); */
-    /*     for (long i = 0; i < px.cols(); ++i) { */
-    /*         std::array<float, 2> v = px(Eigen::all, i); */
-    /*         S(Eigen::all, i)       = pix2sph(v); */
-    /*     } */
-    /*     return S; */
-    /* } */
-
-    // auto
-    // pix2sph(Eigen::Matrix2Xd const&) const -> Eigen::Matrix2Xd;
-
     auto dir2sph(std::array<T, 3> const& dir) const -> std::array<T, 2> {
         T ra = atan2(dir[1], dir[0]) * rad2deg;
         // fold RA into the range (0,360)
@@ -213,22 +221,7 @@ class SkyGeom {
 
     auto pix2dir(std::array<T, 2> const& px) const -> std::array<T, 3> {
         return sph2dir(pix2sph(px));
-        // auto ra_rad  = s(0) * deg2rad;
-        // auto dec_rad = s(1) * deg2rad;
-        // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad),
-        // sin(dec_rad) };
     }
-
-    /* auto sph2dir(std::array<T, 2> const& s) const -> std::array<T, 3> { */
-    /*     // auto ra_rad  = s(0) * deg2rad; */
-    /*     // auto dec_rad = s(1) * deg2rad; */
-    /*     T cos_ra  = cos(s[0] * deg2rad); */
-    /*     T cos_dec = cos(s[1] * deg2rad); */
-    /*     T sin_ra  = sin(s[0] * deg2rad); */
-    /*     T sin_dec = sin(s[1] * deg2rad); */
-    /*     return { cos_ra * cos_dec, sin_ra * cos_dec, sin_dec }; */
-    /* } */
-
 
     auto sph2dir(std::pair<T, T> const& s) const -> std::array<T, 3> {
         T cos_ra  = cos(s.first * deg2rad);
@@ -236,24 +229,13 @@ class SkyGeom {
         T sin_ra  = sin(s.first * deg2rad);
         T sin_dec = sin(s.second * deg2rad);
         return { cos_ra * cos_dec, sin_ra * cos_dec, sin_dec };
-        // return { cos_ra * cos_dec, sin_ra * cos_dec, sin_dec };
-        // auto ra_rad  = s.first * deg2rad;
-        // auto dec_rad = s.second * deg2rad;
-        // return { cos(ra_rad) * cos(dec_rad), sin(ra_rad) * cos(dec_rad),
-        // sin(dec_rad) };
     }
 
-    /* auto srcpixoff(std::array<T, 3> const& src, */
-    /*                std::array<T, 2> const& pix) const -> T; */
     auto srcpixoff(std::array<T, 3> const& src_dir_coord,
                    std::array<T, 2> const& delta_pix) const -> T {
         auto const dpx = pix2dir(delta_pix);
         return srcpixoff(src_dir_coord, dpx);
     }
-
-    /* auto srcpixoff(std::array<T, 3> const& src, */
-    /*                std::array<T, 3> const& pix) const -> T; */
-
 
     static inline auto
     dir_diff(std::array<T, 3> const& L, std::array<T, 3> const& R) -> T {
@@ -262,9 +244,6 @@ class SkyGeom {
         return 2. * asin(0.5 * norm);
     };
 
-    /* auto pix_diff(std::array<T, 2> const& L, */
-    /*               std::array<T, 2> const& R, */
-    /*               SkyGeom const&          skygeom) -> T; */
     static auto pix_diff(std::array<T, 2> const& L,
                          std::array<T, 2> const& R,
                          SkyGeom const&          skygeom) -> T {
@@ -282,26 +261,6 @@ class SkyGeom {
 
     auto srcpixoff(std::array<float, 3> const& src_dir_coord,
                    std::array<float, 3> const& pix) const -> double {
-        // src = sph
-        // dpix = pix
-        // auto  src  = sph2dir(src_sph_coord);
-        // auto const& s0   = std::get<0>(src_dir_coord);
-        // auto const& s1   = std::get<1>(src_dir_coord);
-        // auto const& s2   = std::get<2>(src_dir_coord);
-        // auto const& p0   = std::get<0>(pix);
-        // auto const& p1   = std::get<1>(pix);
-        // auto const& p2   = std::get<2>(pix);
-        // auto        diff = coord3 { s0 - p0, s1 - p1, s2 - p2 };
-        // diff
-        // auto&       d0   = std::get<0>(diff);
-        // auto&       d1   = std::get<1>(diff);
-        // auto&       d2   = std::get<2>(diff);
-        //
-        // double mag       = sqrt(d0 * d0 + d1 * d1 + d2 * d2);
-        //
-        // // double x  = 0.5 * (m_dir - other.dir()).mag();
-        // // return 2. * asin(x);
-        // return 2. * asin(0.5 * mag) * rad2deg;
         return dir_diff(src_dir_coord, pix) * rad2deg;
     }
 };

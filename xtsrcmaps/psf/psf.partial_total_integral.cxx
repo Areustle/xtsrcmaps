@@ -6,7 +6,7 @@ using Tensor3d = Fermi::Tensor<double, 3>;
 using Tensor3f = Fermi::Tensor<float, 3>;
 
 auto
-Fermi::PSF::partial_total_integral(Tensor3f const& uPsf /* [Ns, Nd, Ne] */
+Fermi::PSF::partial_total_integral(Tensor3d const& uPsf /* [Ns, Nd, Ne] */
                                    ) -> std::pair<Tensor3d, Tensor2d> {
     size_t const Ns   = uPsf.extent(0);
     size_t const Nd   = uPsf.extent(1);
@@ -20,12 +20,12 @@ Fermi::PSF::partial_total_integral(Tensor3f const& uPsf /* [Ns, Nd, Ne] */
 
     // Use Midpoint Rule to compute approximate sum of psf from each separation
     // entry over the lookup table.
-    for (long s = 0; s < Ns; ++s) {
-        for (long e = 0; e < Ne; ++e) {
+    for (size_t s = 0; s < Ns; ++s) {
+        for (size_t e = 0; e < Ne; ++e) {
             // Cumulative psf integral across separation from point source (d)
             double cumulative = 0.0;
             parint[s, 0, e]   = 0.0;
-            for (long d = 1; d < Nd; ++d) {
+            for (size_t d = 1; d < Nd; ++d) {
                 double const theta1 = deg2rad * seps[d - 1];
                 double const theta2 = deg2rad * seps[d];
                 double const y1 = twopi * uPsf[s, d - 1, e] * std::sin(theta1);
@@ -41,7 +41,7 @@ Fermi::PSF::partial_total_integral(Tensor3f const& uPsf /* [Ns, Nd, Ne] */
             // We only need to do the normilization if the sum in non-zero
             totint[s, e] = cumulative;
             if (totint[s, e]) {
-                for (long d = 0; d < Nd; ++d) { parint[s, d, e] /= cumulative; }
+                for (size_t d = 0; d < Nd; ++d) { parint[s, d, e] /= cumulative; }
             }
         }
     }

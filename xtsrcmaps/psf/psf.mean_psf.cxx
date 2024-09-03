@@ -7,12 +7,12 @@ auto
 Fermi::PSF::mean_psf(Tensor3d const& front_corrected_psf, /*[Nsrc, Nd, Ne]*/
                      Tensor3d const& back_corrected_psf,  /*[Nsrc, Nd, Ne]*/
                      Tensor2d const& exposures            /*[Nsrc, Ne]*/
-                     ) -> Tensor<float, 3> /* [Nsrc, Nd, Ne] */ {
+                     ) -> Tensor<double, 3> /* [Nsrc, Nd, Ne] */ {
     size_t const Ns = front_corrected_psf.extent(0);
     size_t const Nd = front_corrected_psf.extent(1);
     size_t const Ne = front_corrected_psf.extent(2);
 
-    Tensor<float, 3> psf(Ns, Nd, Ne);
+    Tensor<double, 3> psf(Ns, Nd, Ne);
     /* Tensor3d psf          = front_corrected_psf + back_corrected_psf; */
     /* Tensor3d inv_exposure = exposures.inverse().reshape(Idx3 { 1, Ne, Ns });
      */

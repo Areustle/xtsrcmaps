@@ -1,5 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENTATION_IN_DLL
-#include "doctest/doctest.h"
+#include <gtest/gtest.h>
 
 #include <fstream>
 
@@ -12,18 +11,18 @@
 #include "xtsrcmaps/source/source.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
-TEST_CASE("Test King") {
+TEST(KingTestSuite, KingFunctionality) {
     auto const cfg     = Fermi::XtCfg();
     auto const opt_psf = Fermi::load_psf(cfg.psf_file);
-    REQUIRE(opt_psf);
+    ASSERT_TRUE(opt_psf);
     auto const psf = opt_psf.value();
 
-    REQUIRE(psf.front.rpsf.params.extent(0) == psf.front.rpsf.cosths.size());
-    REQUIRE(psf.front.rpsf.params.extent(1) == psf.front.rpsf.logEs.size());
-    REQUIRE(psf.front.rpsf.params.extent(2) == 6);
+    ASSERT_EQ(psf.front.rpsf.params.extent(0), psf.front.rpsf.cosths.size());
+    ASSERT_EQ(psf.front.rpsf.params.extent(1), psf.front.rpsf.logEs.size());
+    ASSERT_EQ(psf.front.rpsf.params.extent(2), 6);
 
     auto separations = Fermi::PSF::separations();
-    REQUIRE(separations.size() == 401);
+    ASSERT_EQ(separations.size(), 401);
     auto expected_separations = std::vector<float> {
         0,           0.0001,      0.000103431, 0.000106979, 0.000110649,
         0.000114445, 0.000118371, 0.000122432, 0.000126633, 0.000130977,
@@ -107,9 +106,14 @@ TEST_CASE("Test King") {
         59.1359,     61.1647,     63.263,      65.4334,     67.6782,
         70
     };
-    SUBCASE("Separations!") { veq(separations, expected_separations); }
+    ASSERT_EQ(separations.size(), 401);
 
+    EXPECT_EQ(separations.size(), expected_separations.size());
+    for (size_t i = 0; i < separations.size(); ++i) {
+        EXPECT_TRUE(NearRelative(separations[i], expected_separations[i], 1e-5)
+                    << "Mismatch at index " << i);
+    }
 
     auto kings = Fermi::PSF::king(psf.front);
-    SUBCASE("Kings") { filecomp(kings, "king_front"); }
+    filecomp(kings, "king_front", 1e-2);
 }

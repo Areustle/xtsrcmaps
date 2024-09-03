@@ -25,6 +25,9 @@ add_executable(xtsrcmaps_exe main.cxx)
 set_target_properties(xtsrcmaps_exe PROPERTIES OUTPUT_NAME "xtsrcmaps")
 target_link_libraries(xtsrcmaps_exe PRIVATE xtsrcmaps)
 
+add_executable(xtread xtread.cpp)
+target_link_libraries(xtread PRIVATE xtsrcmaps)
+
 ### add_executable(gen_model_map scripts/gen_model_map.cxx)
 ### target_link_libraries(gen_model_map PRIVATE fmt::fmt Fermi::xtsrcmaps_lib)
 

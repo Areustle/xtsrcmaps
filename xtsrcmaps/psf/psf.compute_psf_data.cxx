@@ -11,7 +11,7 @@ Fermi::PSF::compute_psf_data(XtObs const& obs,
                              XtIrf const& irf,
                              XtExp const  exp) -> XtPsf {
 
-    fmt::print(fg(fmt::color::light_pink), "Computing Point Spread Function.\n");
+    /* fmt::print(fg(fmt::color::light_pink), "Computing Point Spread Function.\n"); */
     //**************************************************************************
     // Mean PSF Computations
     //**************************************************************************

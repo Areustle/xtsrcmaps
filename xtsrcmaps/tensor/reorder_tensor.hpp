@@ -54,9 +54,6 @@ reorder_tensor(Tensor<T, R> const&                       tensor,
         }
 
         // Assign the value from the original tensor to the new tensor
-        /* new_tensor.data()[lidx] = std::apply( */
-        /*     [&](auto&&... args) { return tensor[args...]; },
-         * reordered_indices); */
         new_tensor[reordered_indices] = tensor.data()[lidx];
     }
 

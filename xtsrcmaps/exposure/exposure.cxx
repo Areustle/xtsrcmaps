@@ -178,7 +178,7 @@ Fermi::compute_exposure_data(XtCfg const& cfg,
                              XtObs const& obs,
                              XtIrf const& irf) -> XtExp {
 
-    fmt::print(fg(fmt::color::light_pink), "Computing Exposure.\n");
+    /* fmt::print(fg(fmt::color::light_pink), "Computing Exposure.\n"); */
 
     //**************************************************************************
     // Exposure Cube Obsdata transformations

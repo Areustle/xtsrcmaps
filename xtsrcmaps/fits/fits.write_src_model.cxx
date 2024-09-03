@@ -9,7 +9,7 @@
 
 auto
 Fermi::fits::write_src_model(std::string const&              filename,
-                             Tensor<float, 4> &         model_map,
+                             Tensor<double, 4> &         model_map,
                              std::vector<std::string> const& src_names)
     -> void {
 
@@ -22,7 +22,7 @@ Fermi::fits::write_src_model(std::string const&              filename,
     fits_create_file(&fp, filename.c_str(), &status);
 
     // input a dummy primary image
-    fits_create_img(fp, FLOAT_IMG, 0, nullptr, &status);
+    fits_create_img(fp, DOUBLE_IMG, 0, nullptr, &status);
     char key_name[16] = { "HDUNAME" };
     char primary[16]  = { "PRIMARY" };
     fits_update_key(fp, TSTRING, key_name, primary, 0, &status);
@@ -46,7 +46,7 @@ Fermi::fits::write_src_model(std::string const&              filename,
     for (long s = 0; s < Ns; ++s) {
 
         // Create the image space in the fits output file.
-        fits_create_img(fp, FLOAT_IMG, 3, naxes.data(), &status);
+        fits_create_img(fp, DOUBLE_IMG, 3, naxes.data(), &status);
 
         char key_name[16] = { "EXTNAME" };
         fits_update_key(fp,
@@ -65,7 +65,7 @@ Fermi::fits::write_src_model(std::string const&              filename,
 
         // Write the image
         fits_write_pix(
-            fp, TFLOAT, &*coord.begin(), image_size, &img[s, 0, 0, 0], &status);
+            fp, TDOUBLE, &*coord.begin(), image_size, &img[s, 0, 0, 0], &status);
 
         fits_write_chksum(fp, &status);
     }

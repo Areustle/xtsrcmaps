@@ -2,19 +2,19 @@
 #include "xtsrcmaps/misc/misc.hxx"
 
 auto
-Fermi::ModelMap::map_integral(Tensor<float, 4> const&  model_map,
+Fermi::ModelMap::map_integral(Tensor<double, 4> const& model_map,
                               Tensor<double, 2> const& src_sph,
-                              SkyGeom<float> const&    skygeom,
+                              SkyGeom<double> const&   skygeom,
                               Tensor<double, 1> const& psf_radius,
                               std::vector<bool> const& is_in_fov)
-    -> Tensor<float, 2> {
+    -> Tensor<double, 2> {
     size_t const Ns = model_map.extent(0);
     size_t const Nh = model_map.extent(1);
     size_t const Nw = model_map.extent(2);
     size_t const Ne = model_map.extent(3);
     /* size_t const Nf = psf_radius.extent(0); */
 
-    Tensor<float, 2> MapIntegral(Ns, Ne);
+    Tensor<double, 2> MapIntegral(Ns, Ne);
     MapIntegral.clear();
 
 
@@ -26,7 +26,7 @@ Fermi::ModelMap::map_integral(Tensor<float, 4> const&  model_map,
         for (size_t h = 0; h < Nh; ++h) {
             for (size_t w = 0; w < Nw; ++w) {
 
-                double const rad = SkyGeom<float>::dir_diff(
+                double const rad = SkyGeom<double>::dir_diff(
                     ss, skygeom.pix2dir({ h + 1.0f, w + 1.0f }));
 
                 if (rad <= deg2rad * psf_radius[s]) {
@@ -41,7 +41,7 @@ Fermi::ModelMap::map_integral(Tensor<float, 4> const&  model_map,
     std::transform(MapIntegral.begin(),
                    MapIntegral.end(),
                    MapIntegral.begin(),
-                   [](float const& v) { return v ? 1.0f / v : v; });
+                   [](auto v) { return v ? 1.0f / v : v; });
 
 
     return MapIntegral;

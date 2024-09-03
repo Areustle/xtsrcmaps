@@ -2,6 +2,10 @@ target_sources(
   xtsrcmaps
   PRIVATE model_map.compute_src_maps.cxx
           mm_cubature/cubature.implementation.cxx
+          mm_cubature/weights.arpist.4.cpp
+          # mm_cubature/weights.asymsquare.12.cpp
+          # mm_cubature/weights.square.11.cpp
+          mm_cubature/weights.naive.4096.cpp
           model_map.point_src_model_map_wcs.cxx
           # model_map.integral.cxx
           # model_map.get_init_points.cxx

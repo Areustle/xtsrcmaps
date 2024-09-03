@@ -106,12 +106,13 @@ endif()
 # ##############################################################################
 
 FetchContent_Declare(
-  doctest
-  GIT_REPOSITORY https://github.com/doctest/doctest
-  GIT_TAG master)
-FetchContent_MakeAvailable(doctest)
+  GTest
+  GIT_REPOSITORY https://github.com/google/googletest
+  GIT_TAG v1.15.2)
+FetchContent_MakeAvailable(GTest )
 
 # target_include_directories(my_target PUBLIC ${DOCTEST_INCLUDE_DIR})
 include(CTest)
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(scripts)

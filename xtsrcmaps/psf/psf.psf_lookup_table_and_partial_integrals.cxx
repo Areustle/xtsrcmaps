@@ -2,8 +2,8 @@
 
 using Tensor2d = Fermi::Tensor<double, 2>;
 using Tensor3d = Fermi::Tensor<double, 3>;
-using Tensor2f = Fermi::Tensor<float, 2>;
-using Tensor3f = Fermi::Tensor<float, 3>;
+/* using Tensor2f = Fermi::Tensor<float, 2>; */
+/* using Tensor3f = Fermi::Tensor<float, 3>; */
 
 auto
 Fermi::PSF::psf_lookup_table_and_partial_integrals(
@@ -17,7 +17,7 @@ Fermi::PSF::psf_lookup_table_and_partial_integrals(
     Tensor2d const& src_weighted_exposure_cosbins,
     Tensor2d const& front_LTF, /*[Ne]*/
     Tensor2d const& exposures  /*[Nsrc, Ne]*/
-    ) -> std::tuple<Tensor3f, Tensor3d> {
+    ) -> std::tuple<Tensor3d, Tensor3d> {
     auto const front_kings   = Fermi::PSF::king(psf_irf.front);
     auto const back_kings    = Fermi::PSF::king(psf_irf.back);
     /* [Nc, Nd, Ne] */

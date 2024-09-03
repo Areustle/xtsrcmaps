@@ -10,7 +10,7 @@ auto
 Fermi::ModelMap::psf_boundary_radius(size_t const             Nh,
                                      size_t const             Nw,
                                      Tensor<double, 2> const& src_sph,
-                                     SkyGeom<float> const&    skygeom)
+                                     SkyGeom<double> const&   skygeom)
     -> std::pair<Tensor<double, 1>, std::vector<bool>> {
     size_t const Ns = src_sph.extent(0);
     // ................
@@ -28,18 +28,17 @@ Fermi::ModelMap::psf_boundary_radius(size_t const             Nh,
         double     min_deg = 360.;
         auto const ss = std::array<double, 2> { src_sph[s, 0], src_sph[s, 1] };
         auto       ps = skygeom.sph2pix(ss);
-        is_in_fov[s]  = ps.first > pix_buffer && ps.first < (Nh - pix_buffer)
-                       && ps.second > pix_buffer
-                       && ps.second < (Nw - pix_buffer);
+        is_in_fov[s]  = ps[0] > pix_buffer && ps[0] < (Nh - pix_buffer)
+                       && ps[1] > pix_buffer && ps[1] < (Nw - pix_buffer);
 
         for (size_t h = 0; h <= Nh; ++h) {
             double d
                 = R2D
-                  * SkyGeom<float>::dir_diff(
+                  * SkyGeom<double>::dir_diff(
                       skygeom.sph2dir(ss), skygeom.pix2dir({ h + 0.5f, 0.5f }));
             min_deg = min_deg < d ? min_deg : d;
             d       = R2D
-                * SkyGeom<float>::dir_diff(
+                * SkyGeom<double>::dir_diff(
                     skygeom.sph2dir(ss),
                     skygeom.pix2dir({ h + 0.5f, Nw + 0.5f }));
             min_deg = min_deg < d ? min_deg : d;
@@ -47,11 +46,11 @@ Fermi::ModelMap::psf_boundary_radius(size_t const             Nh,
         for (size_t w = 0; w <= Nw; ++w) {
             double d
                 = R2D
-                  * SkyGeom<float>::dir_diff(
+                  * SkyGeom<double>::dir_diff(
                       skygeom.sph2dir(ss), skygeom.pix2dir({ 0.5f, w + 0.5f }));
             min_deg = min_deg < d ? min_deg : d;
             d       = R2D
-                * SkyGeom<float>::dir_diff(
+                * SkyGeom<double>::dir_diff(
                     skygeom.sph2dir(ss),
                     skygeom.pix2dir({ Nh + 0.5f, w + 0.5f }));
             min_deg = min_deg < d ? min_deg : d;

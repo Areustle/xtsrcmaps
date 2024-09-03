@@ -36,6 +36,7 @@ constexpr double sep_delta
 constexpr double edm1
     = 0.0343067728020497121475244691736145227943806311378006312643513;
 constexpr double xmedm1 = 1e4 / edm1; // 1 / (1e-4 * edm1)
+constexpr double _redm1 = 29.148763300179999028597222671574207003288142769360422095500496366;
 
 auto
 good(auto opt, std::string const& msg, int const return_code = 1) -> auto {

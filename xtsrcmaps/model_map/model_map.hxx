@@ -11,54 +11,54 @@ namespace Fermi::ModelMap {
 
 auto compute_srcmaps(XtObs const& obs,
                      XtExp const& exp,
-                     XtPsf const& psf) -> Tensor<float, 4>;
+                     XtPsf const& psf) -> Tensor<double, 4>;
 
 auto
 point_src_model_map_wcs(size_t const                    Nh,
                         size_t const                    Nw,
                         Tensor<double, 2> const&        src_sph,
                         std::vector<std::string> const& src_names,
-                        Tensor<float, 3> const&         uPsf,
-                        SkyGeom<float> const&           skygeom,
+                        Tensor<double, 3> const&         uPsf,
+                        SkyGeom<double> const&           skygeom,
                         Tensor<double, 2> const&        exposures,
                         Tensor<double, 3> const& partial_integrals /* [SDE] */
-                        ) -> Tensor<float, 4>;
+                        ) -> Tensor<double, 4>;
 
 
-void scale_map_by_solid_angle(Tensor<float, 4>&     model_map,
-                              SkyGeom<float> const& skygeom);
+void scale_map_by_solid_angle(Tensor<double, 4>&     model_map,
+                              SkyGeom<double> const& skygeom);
 
-void scale_map_by_exposure(Tensor<float, 4>&        model_map,
+void scale_map_by_exposure(Tensor<double, 4>&        model_map,
                            Tensor<double, 2> const& exposures);
 
-auto map_correction_factor(Tensor<float, 2> const& MapInteg,
+auto map_correction_factor(Tensor<double, 2> const& MapInteg,
 
                            Tensor<double, 1> const& psf_radius,
                            std::vector<bool> const& is_in_fov,
-                           Tensor<float, 3> const&  mean_psf,         // [SED]
+                           Tensor<double, 3> const&  mean_psf,         // [SED]
                            Tensor<double, 3> const& partial_integrals // [SED]
-                           ) -> Tensor<float, 2>;
+                           ) -> Tensor<double, 2>;
 
-void scale_map_by_correction_factors(Tensor<float, 4>&       model_map,
-                                     Tensor<float, 2> const& factor //[SE]
+void scale_map_by_correction_factors(Tensor<double, 4>&       model_map,
+                                     Tensor<double, 2> const& factor //[SE]
 );
 
 auto psf_boundary_radius(size_t const             Nh,
                          size_t const             Nw,
                          Tensor<double, 2> const& src_sph,
-                         SkyGeom<float> const&    skygeom)
+                         SkyGeom<double> const&    skygeom)
     -> std::pair<Tensor<double, 1>, std::vector<bool>>;
 
-auto map_integral(Tensor<float, 4> const&  model_map,
+auto map_integral(Tensor<double, 4> const&  model_map,
                   Tensor<double, 2> const& src_sph,
-                  SkyGeom<float> const&    skygeom,
+                  SkyGeom<double> const&    skygeom,
                   Tensor<double, 1> const& psf_radius,
-                  std::vector<bool> const& is_in_fov) -> Tensor<float, 2>;
+                  std::vector<bool> const& is_in_fov) -> Tensor<double, 2>;
 
 auto integral(Tensor<double, 1> const& angles,
-              Tensor<float, 3> const&  mean_psf,         // [D,E,S]
+              Tensor<double, 3> const&  mean_psf,         // [D,E,S]
               Tensor<double, 3> const& partial_integrals // [D,E,S]
-              ) -> Tensor<float, 2>;
+              ) -> Tensor<double, 2>;
 
 template <typename T>
 Fermi::Tensor<T, 1>

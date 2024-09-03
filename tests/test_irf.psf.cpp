@@ -108,7 +108,6 @@ test_psf_irf(std::string direction) {
 
         for (long t = 0l; t < Mt; ++t) {
             for (long e = 0l; e < Me; ++e) {
-                //
                 double const energy = std::pow(10.0, data.logEs[e]);
                 double const sf     = scaleFactor(energy);
                 REQUIRE(psfdata.rpsf.params[t, e, 0]
