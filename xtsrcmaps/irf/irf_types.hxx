@@ -4,7 +4,7 @@
 
 #include <array>
 
-namespace Fermi {
+namespace Fermi::Irf {
 
 struct IrfData3 {
     Tensor<double, 1> cosths;
@@ -24,7 +24,7 @@ struct IrfEffic {
     std::array<float, 6> p1;
 };
 
-namespace irf::psf {
+namespace psf {
 
 struct Data {
     IrfData3 rpsf;
@@ -33,12 +33,12 @@ struct Data {
 };
 
 struct Pass8FB {
-    irf::psf::Data front;
-    irf::psf::Data back;
+    psf::Data front;
+    psf::Data back;
 };
-} // namespace irf::psf
+} // namespace psf
 
-namespace irf::aeff {
+namespace aeff {
 
 struct Data {
     IrfData3 effective_area;
@@ -47,16 +47,16 @@ struct Data {
 };
 
 struct Pass8FB {
-    irf::aeff::Data front;
-    irf::aeff::Data back;
+    aeff::Data front;
+    aeff::Data back;
 };
-} // namespace irf::aeff
+} // namespace aeff
 
 struct XtIrf {
-    irf::aeff::Pass8FB aeff_irf;
-    irf::psf::Pass8FB  psf_irf;
-    Tensor<double, 2>  front_LTF;
+    aeff::Pass8FB     aeff_irf;
+    psf::Pass8FB      psf_irf;
+    Tensor<double, 2> front_LTF;
 };
 
 
-} // namespace Fermi
+} // namespace Fermi::Irf

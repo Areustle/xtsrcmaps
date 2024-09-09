@@ -9,15 +9,13 @@
 #include "xtsrcmaps/observation/obs_types.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
-namespace Fermi {
-
+namespace Fermi::Psf {
 
 struct XtPsf {
     Tensor<double, 3> uPsf;
     Tensor<double, 3> partial_psf_integral;
 };
 
-namespace PSF {
 
 constexpr unsigned short sep_arr_len = 401;
 
@@ -51,7 +49,7 @@ auto fast_separation_lower_index(Tensor<double, 1> seps) -> Tensor<int, 1>;
 /// Given a PSF IRF grid and a set of separations, compute the King/Moffat
 /// results for every entry in the table and every separation.
 ///////////////////////////////////////////////////////////////////////////////////////
-auto king(irf::psf::Data const& data) -> Tensor<double, 3>;
+auto king(Irf::psf::Data const& data) -> Tensor<double, 3>;
 
 auto bilerp(std::vector<double> const& costhetas,
             std::vector<double> const& logEs,
@@ -84,7 +82,7 @@ auto normalize(Tensor<double, 3>&       mean_psf, /* [Ns, Ne, Nd] */
 
 
 auto psf_lookup_table_and_partial_integrals(
-    irf::psf::Pass8FB const&   data,
+    Irf::psf::Pass8FB const&   data,
     std::vector<double> const& costhetas,
     std::vector<double> const& logEs,
     Tensor<double, 2> const&   front_aeff,
@@ -95,8 +93,8 @@ auto psf_lookup_table_and_partial_integrals(
     Tensor<double, 2> const&   exposure   /*[Nsrc, Ne]*/
     ) -> std::tuple<Tensor<double, 3>, Tensor<double, 3>>;
 
-auto
-compute_psf_data(XtObs const& obs, XtIrf const& irf, XtExp const exp) -> XtPsf;
+auto compute_psf_data(Obs::XtObs const&        obs,
+                      Fermi::Irf::XtIrf const& irf,
+                      Exposure::XtExp const&   exp) -> XtPsf;
 
-} // namespace PSF
-} // namespace Fermi
+} // namespace Fermi::Psf

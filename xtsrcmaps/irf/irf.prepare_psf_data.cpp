@@ -9,12 +9,12 @@ prepare_psf_data(Fermi::fits::TablePars const& front_rpsf,
                  Fermi::fits::TablePars const& back_rpsf,
                  Fermi::fits::TablePars const& back_scaling,
                  Fermi::fits::TablePars const& back_fisheye)
-    -> Fermi::irf::psf::Pass8FB {
+    -> Fermi::Irf::psf::Pass8FB {
 
-    auto front = Fermi::irf::psf::Data { prepare_grid(front_rpsf),
+    auto front = Fermi::Irf::psf::Data { prepare_grid(front_rpsf),
                                          prepare_scale(front_scaling),
                                          prepare_grid(front_fisheye) };
-    auto back  = Fermi::irf::psf::Data { prepare_grid(back_rpsf),
+    auto back  = Fermi::Irf::psf::Data { prepare_grid(back_rpsf),
                                         prepare_scale(back_scaling),
                                         prepare_grid(back_fisheye) };
 

@@ -7,8 +7,8 @@ using std::string;
 
 /// Read the header keyword values from the counts cube.
 auto
-Fermi::fits::ccube_pixels(std::string const& filename) noexcept
-    -> std::optional<Obs::CCubePixels> {
+Fermi::fits::read_image_meta(std::string const& filename) noexcept
+    -> std::optional<WcsConfig> {
     // Use CFITSIO to open the ccube and read the energies in the header.
     int       status = 0;
     fitsfile* ifile;
@@ -111,9 +111,9 @@ Fermi::fits::ccube_pixels(std::string const& filename) noexcept
     string proj_name   = tokens.back();
 
     return {
-        {{ cols, rows, channels },
+        { { cols, rows, channels },
          crpix, crval,
          cdelt, axis_rot,
-         proj_name, is_galactic}
+         proj_name, is_galactic }
     };
 }

@@ -3,28 +3,23 @@
 #include "xtsrcmaps/sky_geom/sky_geom.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
-#include "fmt/color.h"
-
 auto
 Fermi::ModelMap::point_src_model_map_wcs(
     size_t const                    Nh,
     size_t const                    Nw,
+    SkyGeom<double> const&          skygeom,
     Tensor<double, 2> const&        src_sph,
     std::vector<std::string> const& src_names,
-    Tensor<double, 3> const&        uPsf,
-    SkyGeom<double> const&          skygeom,
     Tensor<double, 2> const&        exposures,
-    Tensor<double, 3> const&        partial_integrals /* [SDE] */
+    Tensor<double, 3> const&        uPsf,             // [SDE]
+    Tensor<double, 3> const&        partial_integrals // [SDE]
     ) -> Tensor<double, 4> {
 
-    fmt::print(fg(fmt::color::light_pink),
-               "Computing Model Maps for each source.\n");
-    // Use the ARPIST cubature scheme for spherical triangles to convolve the
-    // PSF for each source with the energy map.
+    // Use the cubature scheme to convolve the PSF for each source with the
+    // energy map.
     Tensor<double, 4> model_map
-        = convolve_psf_with_map(Nh, Nw, src_sph, uPsf, skygeom);
+        = cubature_convolve_map_psf(Nh, Nw, src_sph, uPsf, skygeom);
 
-    fmt::print(fg(fmt::color::light_pink), "Scaling Model Maps.\n");
     // Scale the model_map by the central solid angle of every pixel.
     scale_map_by_solid_angle(model_map, skygeom);
 

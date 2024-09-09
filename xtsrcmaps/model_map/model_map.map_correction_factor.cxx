@@ -17,9 +17,9 @@ Fermi::ModelMap::map_correction_factor(
 
     Tensor<double, 2> correction_factor(Ns, Ne);
 
-    PSF::SepArr const    seps = PSF::separations();
+    Psf::SepArr const    seps = Psf::separations();
     Tensor<int, 1> const sep_idxs
-        = Fermi::PSF::fast_separation_lower_index(psf_radius);
+        = Fermi::Psf::fast_separation_lower_index(psf_radius);
 
 #pragma omp parallel for schedule(static, 16)
     for (size_t s = 0; s < Ns; ++s) {
@@ -30,8 +30,8 @@ Fermi::ModelMap::map_correction_factor(
 
         // Use Midpoint Rule to compute approximate sum of psf from each
         // separation entry over the lookup table.
-        size_t const d      = sep_idxs[s] >= PSF::sep_arr_len - 2
-                                  ? PSF::sep_arr_len - 2
+        size_t const d      = sep_idxs[s] >= Psf::sep_arr_len - 2
+                                  ? Psf::sep_arr_len - 2
                                   : sep_idxs[s];
         double const theta1 = seps[d] * deg2rad;
         double const theta2 = seps[d + 1] * deg2rad;

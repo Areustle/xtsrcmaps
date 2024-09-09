@@ -9,10 +9,10 @@
 
 using std::vector;
 auto
-Fermi::aeff_value(vector<double> const& costhet, // M_t
-                  vector<double> const& logEs,   // M_e
-                  IrfData3 const&       AeffData // M_t, M_e, Ngrids
-                  ) -> Tensor<double, 2> {
+Fermi::Irf::aeff_value(vector<double> const& costhet, // M_t
+                       vector<double> const& logEs,   // M_e
+                       IrfData3 const&       AeffData // M_t, M_e, Ngrids
+                       ) -> Tensor<double, 2> {
     Tensor<double, 2> R(costhet.size(), logEs.size());
     R.clear();
     auto const& C  = costhet;
@@ -42,7 +42,7 @@ Fermi::aeff_value(vector<double> const& costhet, // M_t
 
             /////////
             double xx = c_cmpl * e_cmpl * IP[c_idx - 1, e_idx - 1];
-            double xy = c_cmpl * e_wgt * IP[c_idx-1 , e_idx];
+            double xy = c_cmpl * e_wgt * IP[c_idx - 1, e_idx];
             double yx = c_wgt * e_cmpl * IP[c_idx, e_idx - 1];
             double yy = c_wgt * e_wgt * IP[c_idx, e_idx];
 

@@ -11,8 +11,8 @@
 
 
 auto
-Fermi::exp_contract(Fermi::Tensor<double, 2> const& A,
-                    Fermi::Tensor<double, 2> const& B)
+Fermi::Exposure::contract(Fermi::Tensor<double, 2> const& A,
+                          Fermi::Tensor<double, 2> const& B)
     -> Fermi::Tensor<double, 2> {
     /* ===========================================================
      * Tensor Contractions as DGEMM Matrix Multiplies

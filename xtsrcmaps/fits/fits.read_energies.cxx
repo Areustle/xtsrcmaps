@@ -4,7 +4,7 @@
 #include "fmt/core.h"
 
 auto
-Fermi::fits::ccube_energies(std::string const& filename) noexcept
+Fermi::fits::read_energies(std::string const& filename) noexcept
     -> std::optional<std::vector<double>> {
     // Use CFITSIO to open the ccube and read the energies in the header.
     int       status = 0;

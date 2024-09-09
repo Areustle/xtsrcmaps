@@ -1,12 +1,17 @@
 #pragma once
 
+#include "xtsrcmaps/config/config.hxx"
+#include "xtsrcmaps/observation/obs_types.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
+#include <concepts>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
 namespace Fermi {
+namespace Source {
 
 struct SourceParameter {
     std::string   name  = "";
@@ -111,18 +116,61 @@ struct UnknownSource {
 using Source
     = std::variant<PointSource, DiffuseSource, CompositeSource, UnknownSource>;
 
+// Concept to constrain templates to be one of the allowed Fermi::Source types
+template <typename T>
+concept SourceConcept
+    = std::same_as<T, PointSource> || std::same_as<T, DiffuseSource>
+      || std::same_as<T, CompositeSource> || std::same_as<T, UnknownSource>;
+
+
+template <SourceConcept T>
+struct SourceData {
+    std::vector<T>           srcs;
+    Fermi::Tensor<double, 2> sph_locs;
+    std::vector<std::string> names;
+};
+
+
+struct XtSrc {
+    SourceData<PointSource>   point;
+    SourceData<DiffuseSource> diffuse;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// Utility Functions ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 
-auto spherical_coords_from_point_sources(std::vector<Source> const&)
-    -> Fermi::Tensor<double, 2>; // std::vector<std::pair<double, double>>;
+auto
+spherical_coords(std::vector<PointSource> const&) -> Fermi::Tensor<double, 2>;
+auto
+spherical_coords(std::vector<DiffuseSource> const&,
+                 std::pair<double, double> const) -> Fermi::Tensor<double, 2>;
 
-auto names_from_point_sources(std::vector<Source> const&)
-    -> std::vector<std::string>;
+
+/* auto names_from_point_sources(std::vector<Source> const&) */
+/*     -> std::vector<std::string>; */
+template <SourceConcept T>
+auto
+source_names(std::vector<T> const& srcs) -> std::vector<std::string> {
+
+    auto names = std::vector<std::string>();
+    std::transform(srcs.cbegin(),
+                   srcs.cend(),
+                   std::back_inserter(names),
+                   [](auto const& s) -> std::string { return s.name; });
+    return names;
+}
 
 
-auto parse_src_xml(std::string const& src_file_name) -> std::vector<Source>;
+struct SourceGroup {
+    std::vector<PointSource>   point;
+    std::vector<DiffuseSource> diffuse;
+};
 
+auto parse_src_xml(std::string const& src_file_name) -> SourceGroup;
+
+auto collect_source_model(Config::XtCfg const&, Obs::XtObs const&) -> XtSrc;
+
+} // namespace Source
 } // namespace Fermi

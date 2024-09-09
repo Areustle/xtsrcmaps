@@ -8,37 +8,20 @@
 
 
 namespace Fermi {
-auto convolve_psf_with_map(
+
+auto cubature_convolve_map_psf(
     size_t const             Nh,
     size_t const             Nw,
     Tensor<double, 2> const& src_sphcrds,
     Tensor<double, 3> const& psf_lut, // psf lookup table [Source, Seps, Energy]
     SkyGeom<double> const&   skygeom) -> Tensor<double, 4>; //[SHWE]
 
-//
-//
-constexpr size_t deg4x2_arpist_cardinality = 24;
-auto             deg4x2_arpist_ptswts(size_t const           Nh,
-                                      size_t const           Nw,
-                                      SkyGeom<double> const& skygeom) -> Tensor<double, 3>;
-
-/* constexpr size_t deg11_square_cardinality = 24; */
-/* auto             deg11_square_ptswts(size_t const           Nh, */
-/*                                      size_t const           Nw, */
-/*                                      SkyGeom<double> const& skygeom) ->
- * Tensor<double, 3>; */
 
 constexpr size_t naive_4096_cardinality = 4096;
 auto             naive_4096_ptswts(size_t const           Nh,
                                    size_t const           Nw,
                                    SkyGeom<double> const& skygeom) -> Tensor<double, 3>;
 
-/* constexpr size_t deg12_asymsquare_cardinality = 31; */
-/* auto */
-/* deg12_asymsquare_ptswts(size_t const           Nh, */
-/*                         size_t const           Nw, */
-/*                         SkyGeom<double> const& skygeom) -> Tensor<double, 3>;
- */
 
 namespace CubatureSets {
 

@@ -1,22 +1,20 @@
 #include "xtsrcmaps/source/source.hxx"
 
 #include <algorithm>
-#include <string>
 #include <vector>
 
 auto
-Fermi::spherical_coords_from_point_sources(
-    std::vector<Fermi::Source> const& srcs) -> Tensor<double, 2> {
+Fermi::Source::spherical_coords(std::vector<PointSource> const& srcs)
+    -> Tensor<double, 2> {
 
     size_t const Nsrc = srcs.size();
 
     Tensor<double, 2> dirs(Nsrc, 2);
 
     for (size_t i = 0; i < Nsrc; ++i) {
-        auto const& s      = srcs[i];
-        auto        params = std::get<SkyDirFunctionSpatialModel>(
-                          std::get<PointSource>(s).spatial_model)
-                          .params;
+        auto const& s = srcs[i];
+        auto        params
+            = std::get<SkyDirFunctionSpatialModel>(s.spatial_model).params;
 
         auto ra_it = std::find_if(
             params.cbegin(), params.cend(), [](auto const& p) -> bool {
@@ -43,15 +41,18 @@ Fermi::spherical_coords_from_point_sources(
 }
 
 auto
-Fermi::names_from_point_sources(std::vector<Fermi::Source> const& srcs)
-    -> std::vector<std::string> {
+Fermi::Source::spherical_coords(std::vector<DiffuseSource> const& srcs,
+                                std::pair<double, double> const   cmap_ref_dir)
+    -> Tensor<double, 2> {
 
-    auto names = std::vector<std::string>();
-    std::transform(srcs.cbegin(),
-                   srcs.cend(),
-                   std::back_inserter(names),
-                   [](auto const& s) -> std::string {
-                       return std::get<PointSource>(s).name;
-                   });
-    return names;
+    size_t const Nsrc = srcs.size();
+
+    Tensor<double, 2> dirs(Nsrc, 2);
+
+    for (size_t i = 0; i < Nsrc; ++i) {
+        dirs[i, 0] = std::get<0>(cmap_ref_dir);
+        dirs[i, 1] = std::get<1>(cmap_ref_dir);
+    }
+
+    return dirs;
 }

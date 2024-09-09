@@ -14,20 +14,29 @@
 using RXNPtr = rapidxml::xml_node<>*;
 
 // Forward Declarations
-auto parse_source_node(RXNPtr src) -> Fermi::Source;
-auto parse_spatial_model_node(RXNPtr spamo) -> Fermi::SpatialModel;
-auto parse_spectrum_node(RXNPtr spec) -> Fermi::Spectrum;
-auto src_par_vec(RXNPtr parent) -> std::vector<Fermi::SourceParameter>;
+auto parse_source_node(RXNPtr src) -> Fermi::Source::Source;
+auto parse_spatial_model_node(RXNPtr spamo) -> Fermi::Source::SpatialModel;
+auto parse_spectrum_node(RXNPtr spec) -> Fermi::Source::Spectrum;
+auto src_par_vec(RXNPtr parent) -> std::vector<Fermi::Source::SourceParameter>;
+
+
+template <Fermi::Source::SourceConcept T>
+void
+sort_source_vector(std::vector<T>& srcs) {
+    std::sort(
+        std::begin(srcs), std::end(srcs), [](auto const& lhs, auto const& rhs) {
+            return lhs.name < rhs.name;
+        });
+}
 
 // Return a Fermi::Source given a RapidXML node .
 auto
-Fermi::parse_src_xml(std::string const& src_file_name)
-    -> std::vector<Fermi::Source> {
-
-    auto result          = std::vector<Fermi::Source>();
+Fermi::Source::parse_src_xml(std::string const& src_file_name) -> SourceGroup {
+    auto result          = Fermi::Source::SourceGroup {};
+    auto sorted_srcs     = std::vector<Fermi::Source::Source>();
     auto doc             = rapidxml::xml_document<>();
     auto src_file_stream = std::ifstream(src_file_name);
-    if (!src_file_stream.is_open()){
+    if (!src_file_stream.is_open()) {
         std::cerr << "Cannot open " << src_file_name << std::endl;
         exit(1);
     }
@@ -42,59 +51,88 @@ Fermi::parse_src_xml(std::string const& src_file_name)
     auto root     = RXNPtr(doc.first_node("source_library"));
     auto src_node = RXNPtr(root->first_node("source"));
     for (; src_node; src_node = src_node->next_sibling()) {
-        result.push_back(parse_source_node(src_node));
+        Fermi::Source::Source src = parse_source_node(src_node);
+        if (std::holds_alternative<PointSource>(src)) {
+            result.point.push_back(std::get<PointSource>(src));
+        } else if (std::holds_alternative<DiffuseSource>(src)) {
+            result.diffuse.push_back(std::get<DiffuseSource>(src));
+        }
+        /*  else if (std::holds_alternative<CompositeSource>(src)) { */
+        /*     result.composite.push_back(std::get<CompositeSource>(src)); */
+        /* } else if (std::holds_alternative<UnknownSource>(src)) { */
+        /*     result.unknown.push_back(std::get<UnknownSource>(src)); */
+        /* } */
     }
 
     // Sort sources by name. Default sorting occurs on variant index first, then
     // name.
-    std::sort(std::begin(result),
-              std::end(result),
-              [](auto const& lhs, auto const& rhs) {
-                  auto name = [](auto const& x) {
-                      return std::visit([](auto const& e) { return e.name; },
-                                        x);
-                  };
-                  return name(lhs) < name(rhs);
-              });
+    sort_source_vector(result.point);
+    sort_source_vector(result.diffuse);
 
     return result;
 }
 
 // Return a Fermi::Source given a RapidXML node .
 auto
-parse_source_node(RXNPtr src) -> Fermi::Source {
-    auto parse_pt_src = [](RXNPtr src) -> Fermi::Source {
-        return Fermi::PointSource {
-            src->first_attribute("name")->value(),
-            parse_spectrum_node(src->first_node("spectrum")),
-            parse_spatial_model_node(RXNPtr(src->first_node("spatialModel"))),
-            std::stof(src->first_attribute("ROI_Center_Distance")->value())
-        };
+parse_source_node(RXNPtr src) -> Fermi::Source::Source {
+
+    auto parse_string_attribute
+        = [](RXNPtr src, const char* attr_name) -> std::string {
+        if (auto attr = src->first_attribute(attr_name)) {
+            return attr->value();
+        }
+        throw std::runtime_error("Missing required string attribute: "
+                                 + std::string(attr_name));
     };
 
-    auto parse_diff_src = [](RXNPtr src) -> Fermi::Source {
-        return Fermi::DiffuseSource {
-            src->first_attribute("name")->value(),
+    auto parse_float_attribute
+        = [](RXNPtr src, const char* attr_name) -> float {
+        if (auto attr = src->first_attribute(attr_name)) {
+            try {
+                return std::stof(attr->value());
+            } catch (const std::invalid_argument&) {
+                throw std::runtime_error("Invalid float value for attribute: "
+                                         + std::string(attr_name));
+            }
+        }
+        throw std::runtime_error("Missing required float attribute: "
+                                 + std::string(attr_name));
+    };
+
+    auto parse_pt_src = [&](RXNPtr src) -> Fermi::Source::Source {
+        return Fermi::Source::PointSource {
+            parse_string_attribute(src, "name"),
             parse_spectrum_node(src->first_node("spectrum")),
             parse_spatial_model_node(src->first_node("spatialModel")),
+            parse_float_attribute(src, "ROI_Center_Distance")
         };
     };
 
-    auto parse_comp_src = [](RXNPtr src) -> Fermi::Source {
-        return Fermi::CompositeSource { src->first_attribute("name")->value() };
+    auto parse_diff_src = [&](RXNPtr src) -> Fermi::Source::Source {
+        return Fermi::Source::DiffuseSource {
+            parse_string_attribute(src, "name"),
+            parse_spectrum_node(src->first_node("spectrum")),
+            parse_spatial_model_node(src->first_node("spatialModel"))
+        };
     };
 
-    auto parse_unknown_src = [](RXNPtr src) -> Fermi::Source {
-        return Fermi::UnknownSource { src->first_attribute("name")->value() };
+    auto parse_comp_src = [&](RXNPtr src) -> Fermi::Source::Source {
+        return Fermi::Source::CompositeSource { parse_string_attribute(
+            src, "name") };
     };
 
-    auto src_parser
-        = [=](std::string const& s) -> std::function<Fermi::Source(RXNPtr)> {
+    auto parse_unknown_src = [&](RXNPtr src) -> Fermi::Source::Source {
+        return Fermi::Source::UnknownSource { parse_string_attribute(src,
+                                                                     "name") };
+    };
+
+    auto src_parser = [=](std::string const& s)
+        -> std::function<Fermi::Source::Source(RXNPtr)> {
         if (s == "PointSource") { return parse_pt_src; }
         if (s == "DiffuseSource") { return parse_diff_src; }
         if (s == "CompositeSource") { return parse_comp_src; }
         return parse_unknown_src;
-    }(src->first_attribute("type")->value());
+    }(parse_string_attribute(src, "type"));
 
     return src_parser(src);
 }
@@ -102,8 +140,8 @@ parse_source_node(RXNPtr src) -> Fermi::Source {
 // Return a vector of Fermi::SourceParameters by iterating through the
 // 'parameter' child nodes of the given RapidXML node .
 auto
-src_par_vec(RXNPtr parent) -> std::vector<Fermi::SourceParameter> {
-    auto result = std::vector<Fermi::SourceParameter>();
+src_par_vec(RXNPtr parent) -> std::vector<Fermi::Source::SourceParameter> {
+    auto result = std::vector<Fermi::Source::SourceParameter>();
     auto par    = RXNPtr(parent->first_node("parameter"));
 
     for (; par; par = par->next_sibling()) {
@@ -122,26 +160,28 @@ src_par_vec(RXNPtr parent) -> std::vector<Fermi::SourceParameter> {
 
 // Return a Fermi::SpatialModel given a RapidXML node .
 auto
-parse_spatial_model_node(RXNPtr spamo) -> Fermi::SpatialModel {
-    auto parse_const_spamo = [](RXNPtr spamo) -> Fermi::SpatialModel {
-        return Fermi::ConstantValueSpatialModel { src_par_vec(spamo) };
+parse_spatial_model_node(RXNPtr spamo) -> Fermi::Source::SpatialModel {
+    auto parse_const_spamo = [](RXNPtr spamo) -> Fermi::Source::SpatialModel {
+        return Fermi::Source::ConstantValueSpatialModel { src_par_vec(spamo) };
     };
-    auto parse_map_cube_spamo = [](RXNPtr spamo) -> Fermi::SpatialModel {
-        return Fermi::MapCubeFunctionSpatialModel {
+    auto parse_map_cube_spamo
+        = [](RXNPtr spamo) -> Fermi::Source::SpatialModel {
+        return Fermi::Source::MapCubeFunctionSpatialModel {
             spamo->first_attribute("file")->value(),
             src_par_vec(spamo),
         };
     };
-    auto parse_sky_dir_spamo = [](RXNPtr spamo) -> Fermi::SpatialModel {
-        return Fermi::SkyDirFunctionSpatialModel { src_par_vec(spamo) };
+    auto parse_sky_dir_spamo = [](RXNPtr spamo) -> Fermi::Source::SpatialModel {
+        return Fermi::Source::SkyDirFunctionSpatialModel { src_par_vec(spamo) };
     };
-    auto parse_unkknown_spamo = [](RXNPtr spamo) -> Fermi::SpatialModel {
+    auto parse_unkknown_spamo
+        = [](RXNPtr spamo) -> Fermi::Source::SpatialModel {
         (void)spamo;
-        return Fermi::UnknownSpatialModel {};
+        return Fermi::Source::UnknownSpatialModel {};
     };
 
     auto spatial_model_parser = [=](std::string const& s)
-        -> std::function<Fermi::SpatialModel(RXNPtr)> {
+        -> std::function<Fermi::Source::SpatialModel(RXNPtr)> {
         if (s == "ConstantValue") { return parse_const_spamo; }
         if (s == "MapCubeFunction") { return parse_map_cube_spamo; }
         if (s == "SkyDirFunction") { return parse_sky_dir_spamo; }
@@ -153,41 +193,45 @@ parse_spatial_model_node(RXNPtr spamo) -> Fermi::SpatialModel {
 
 // Return a Fermi::Spectrum given a RapidXML node .
 auto
-parse_spectrum_node(RXNPtr spec) -> Fermi::Spectrum {
+parse_spectrum_node(RXNPtr spec) -> Fermi::Source::Spectrum {
 
     if (spec == nullptr) return {};
 
     auto type = std::string(spec->first_attribute("type")->value());
     if (type == "FileFunction") {
-        return Fermi::FileSpectrum {
+        return Fermi::Source::FileSpectrum {
             spec->first_attribute("file")->value(),
             src_par_vec(spec),
             std::string(spec->first_attribute("apply_edisp")->value())
                 == "true",
         };
     }
-    return Fermi::NormalSpectrum {
+    return Fermi::Source::NormalSpectrum {
         src_par_vec(spec),
-        [](std::string const& s) -> Fermi::SpectrumType {
-            if (s == "BPLExpCutoff") return Fermi::SpectrumType::BPLExpCutoff;
+        [](std::string const& s) -> Fermi::Source::SpectrumType {
+            if (s == "BPLExpCutoff")
+                return Fermi::Source::SpectrumType::BPLExpCutoff;
             if (s == "BrokenPowerLaw")
-                return Fermi::SpectrumType::BrokenPowerLaw;
+                return Fermi::Source::SpectrumType::BrokenPowerLaw;
             if (s == "BrokenPowerLaw2")
-                return Fermi::SpectrumType::BrokenPowerLaw2;
-            if (s == "ConstantValue") return Fermi::SpectrumType::ConstantValue;
-            if (s == "ExpCutoff") return Fermi::SpectrumType::ExpCutoff;
-            if (s == "FileFunction") return Fermi::SpectrumType::FileFunction;
-            if (s == "Gaussian") return Fermi::SpectrumType::Gaussian;
-            if (s == "LogParabola") return Fermi::SpectrumType::LogParabola;
-            if (s == "PowerLaw") return Fermi::SpectrumType::PowerLaw;
-            if (s == "PowerLaw2") return Fermi::SpectrumType::PowerLaw2;
+                return Fermi::Source::SpectrumType::BrokenPowerLaw2;
+            if (s == "ConstantValue")
+                return Fermi::Source::SpectrumType::ConstantValue;
+            if (s == "ExpCutoff") return Fermi::Source::SpectrumType::ExpCutoff;
+            if (s == "FileFunction")
+                return Fermi::Source::SpectrumType::FileFunction;
+            if (s == "Gaussian") return Fermi::Source::SpectrumType::Gaussian;
+            if (s == "LogParabola")
+                return Fermi::Source::SpectrumType::LogParabola;
+            if (s == "PowerLaw") return Fermi::Source::SpectrumType::PowerLaw;
+            if (s == "PowerLaw2") return Fermi::Source::SpectrumType::PowerLaw2;
             if (s == "PLSuperExpCutoff2")
-                return Fermi::SpectrumType::PLSuperExpCutoff2;
+                return Fermi::Source::SpectrumType::PLSuperExpCutoff2;
             if (s == "PLSuperExpCutoff3")
-                return Fermi::SpectrumType::PLSuperExpCutoff3;
+                return Fermi::Source::SpectrumType::PLSuperExpCutoff3;
             if (s == "PLSuperExpCutoff4")
-                return Fermi::SpectrumType::PLSuperExpCutoff4;
-            return Fermi::SpectrumType::Unknown;
+                return Fermi::Source::SpectrumType::PLSuperExpCutoff4;
+            return Fermi::Source::SpectrumType::Unknown;
         }(type),
     };
 }

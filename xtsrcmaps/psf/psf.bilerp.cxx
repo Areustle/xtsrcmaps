@@ -4,7 +4,7 @@
 
 
 auto
-Fermi::PSF::bilerp(std::vector<double> const& costhetas,  // [Nc]
+Fermi::Psf::bilerp(std::vector<double> const& costhetas,  // [Nc]
                    std::vector<double> const& logEs,      // [Ne]
                    Tensor<double, 1> const&   par_cosths, // [Mc]
                    Tensor<double, 1> const&   par_logEs,  // [Me]

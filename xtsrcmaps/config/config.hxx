@@ -4,6 +4,7 @@
 #include <string>
 
 namespace Fermi {
+namespace Config {
 
 // Configuration struct for xtsrcmaps
 //
@@ -45,6 +46,7 @@ struct XtCfg {
 
 auto parse_parfile(const std::string& filename) -> std::optional<XtCfg>;
 
-auto validate_cfg(Fermi::XtCfg const& ocfg) -> Fermi::XtCfg;
+auto validate_cfg(XtCfg const& ocfg) -> XtCfg;
 
+} // namespace Config
 } // namespace Fermi

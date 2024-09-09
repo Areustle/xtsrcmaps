@@ -3,7 +3,7 @@
 #include <ranges>
 
 auto
-Fermi::PSF::fast_separation_lower_index(Tensor<double, 1> seps)
+Fermi::Psf::fast_separation_lower_index(Tensor<double, 1> seps)
     -> Tensor<int, 1> {
     /* std::transform(seps.begin(),  */
     /* seps           = 1e4 * seps; */

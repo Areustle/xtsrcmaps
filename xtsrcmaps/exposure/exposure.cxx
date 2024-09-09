@@ -3,7 +3,6 @@
 #include "xtsrcmaps/healpix/healpix.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
 
-#include "fmt/color.h"
 
 #include <algorithm>
 #include <cassert>
@@ -14,14 +13,13 @@ using std::vector;
 using Tensor2d = Fermi::Tensor<double, 2>;
 
 auto
-Fermi::exp_map(Obs::ExposureCubeData const& data) -> ExposureMap {
+Fermi::Exposure::map(Obs::ExposureCubeData const& data) -> ExposureMap {
     size_t const& nside = data.nside;
     size_t const  npix  = 12 * nside * nside;
     size_t const  nbins = data.nbrbins;
 
     assert(data.cosbins.size() == npix * nbins);
 
-    /* Eigen::Tensor<double, 2, Eigen::RowMajor> rm_cosbins(npix, nbins); */
     Tensor<double, 2> rm_cosbins(npix, nbins);
     std::copy(data.cosbins.begin(), data.cosbins.end(), rm_cosbins.data());
 
@@ -29,7 +27,7 @@ Fermi::exp_map(Obs::ExposureCubeData const& data) -> ExposureMap {
 }
 
 auto
-Fermi::exp_costhetas(Obs::ExposureCubeData const& data)
+Fermi::Exposure::costhetas(Obs::ExposureCubeData const& data)
     -> vector<double> /*[Nbins]*/ {
     auto v = std::vector<double>(data.nbrbins);
     std::iota(v.begin(), v.end(), 0.0);
@@ -42,13 +40,13 @@ Fermi::exp_costhetas(Obs::ExposureCubeData const& data)
 }
 
 auto
-Fermi::src_exp_cosbins(Tensor<double, 2> const& src_sph, // [Nsrc, 2]
-                       ExposureMap const&       expmap   //
-                       ) -> Tensor<double, 2> /*[Nsrc, Nc]*/ {
+Fermi::Exposure::src_cosbins(Tensor<double, 2> const& src_sph, // [Nsrc, 2]
+                             ExposureMap const&       expmap   //
+                             ) -> Tensor<double, 2> /*[Nsrc, Nc]*/ {
 
     size_t const Nsrc = src_sph.extent(0);
     /*[Nsrc, nbins]*/
-    Tensor<double, 2> A(Nsrc, expmap.nbins);
+    Tensor<double, 2> result(Nsrc, expmap.nbins);
 
     for (size_t s = 0UZ; s < Nsrc; ++s) {
         // get theta, phi (radians) in appropriate coordinate system
@@ -58,10 +56,10 @@ Fermi::src_exp_cosbins(Tensor<double, 2> const& src_sph, // [Nsrc, 2]
         uint64_t pix = Fermi::Healpix::ang2pix(theta, phi, expmap.nside);
         std::copy(expmap.params.begin_at(pix, 0),
                   expmap.params.end_at(pix, expmap.nbins),
-                  A.begin_at(s, 0));
+                  result.begin_at(s, 0));
     }
 
-    return A;
+    return result;
 }
 
 // Double check order of rank. Now row major.
@@ -69,12 +67,13 @@ Fermi::src_exp_cosbins(Tensor<double, 2> const& src_sph, // [Nsrc, 2]
 // Compute the exposure by operating on all pre-generated tensors as necessary.
 // [Ne, Nsrc]
 auto
-Fermi::exposure(Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
-                Tensor2d const& src_weighted_exposure_cosbins, /*[Nsrc, Nc]*/
-                Tensor2d const& front_aeff,                    /*[Nc, Ne]*/
-                Tensor2d const& back_aeff,                     /*[Nc, Ne]*/
-                Tensor2d const& front_LTF                      /*[2, Ne]*/
-                ) -> Tensor<double, 2> /* [Nsrc, Ne] */ {
+Fermi::Exposure::exposure(
+    Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
+    Tensor2d const& src_weighted_exposure_cosbins, /*[Nsrc, Nc]*/
+    Tensor2d const& front_aeff,                    /*[Nc, Ne]*/
+    Tensor2d const& back_aeff,                     /*[Nc, Ne]*/
+    Tensor2d const& front_LTF                      /*[2, Ne]*/
+    ) -> Tensor<double, 2> /* [Nsrc, Ne] */ {
 
     // Nsrc
     assert(src_exposure_cosbins.extent(0)
@@ -99,16 +98,16 @@ Fermi::exposure(Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
      */
     // ExpC[s, e] = Sum_c (ECB[s, c] * Aeff[c, e])
     Tensor2d exp_aeff_f
-        = exp_contract(src_exposure_cosbins, front_aeff); //(Nsrc, Ne);
+        = contract(src_exposure_cosbins, front_aeff); //(Nsrc, Ne);
 
     Tensor2d wexp_aeff_f
-        = exp_contract(src_weighted_exposure_cosbins, front_aeff); //(Nsrc, Ne);
+        = contract(src_weighted_exposure_cosbins, front_aeff); //(Nsrc, Ne);
 
     Tensor2d exp_aeff_b
-        = exp_contract(src_exposure_cosbins, back_aeff); //(Nsrc, Ne);
+        = contract(src_exposure_cosbins, back_aeff); //(Nsrc, Ne);
 
     Tensor2d wexp_aeff_b
-        = exp_contract(src_weighted_exposure_cosbins, back_aeff); //(Nsrc, Ne);
+        = contract(src_weighted_exposure_cosbins, back_aeff); //(Nsrc, Ne);
 
     auto const LTFe = std::span { &front_LTF[0, 0], Ne };
     auto const LTFw = std::span { &front_LTF[1, 0], Ne };
@@ -172,51 +171,3 @@ Fermi::exposure(Tensor2d const& src_exposure_cosbins,          /*[Nsrc, Nc]*/
     // [Nsrc, Ne]
     return exp_aeff_f;
 };
-
-auto
-Fermi::compute_exposure_data(XtCfg const& cfg,
-                             XtObs const& obs,
-                             XtIrf const& irf) -> XtExp {
-
-    /* fmt::print(fg(fmt::color::light_pink), "Computing Exposure.\n"); */
-
-    //**************************************************************************
-    // Exposure Cube Obsdata transformations
-    //**************************************************************************
-    auto const exp_costhetas = Fermi::exp_costhetas(obs.exp_cube);
-    auto const exp_map       = Fermi::exp_map(obs.exp_cube);
-    auto const wexp_map      = Fermi::exp_map(obs.weighted_exp_cube);
-    auto const src_exposure_cosbins
-        = Fermi::src_exp_cosbins(obs.src_sph, exp_map);
-    auto const src_weighted_exposure_cosbins
-        = Fermi::src_exp_cosbins(obs.src_sph, wexp_map);
-
-    //**************************************************************************
-    // Effective Area Computations.
-    //**************************************************************************
-    auto const front_aeff = Fermi::aeff_value(
-        exp_costhetas, obs.logEs, irf.aeff_irf.front.effective_area);
-    auto const back_aeff = Fermi::aeff_value(
-        exp_costhetas, obs.logEs, irf.aeff_irf.back.effective_area);
-
-
-    //**************************************************************************
-    // Exposure
-    //**************************************************************************
-    auto const exposures = Fermi::exposure(src_exposure_cosbins,
-                                           src_weighted_exposure_cosbins,
-                                           front_aeff,
-                                           back_aeff,
-                                           irf.front_LTF);
-
-    return {
-        .exp_costhetas                 = exp_costhetas,
-        .exp_map                       = exp_map,
-        .wexp_map                      = wexp_map,
-        .front_aeff                    = front_aeff,
-        .back_aeff                     = back_aeff,
-        .src_exposure_cosbins          = src_exposure_cosbins,
-        .src_weighted_exposure_cosbins = src_weighted_exposure_cosbins,
-        .exposure                      = exposures,
-    };
-}

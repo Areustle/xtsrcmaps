@@ -24,7 +24,7 @@ pcmp(Vector2d const& a, std::pair<double, double> const& b) -> void
 
 TEST_CASE("Fermi Sky Geom")
 {
-    Fermi::fits::CCubePixels cc = {
+    Fermi::fits::FitsWcsMeta cc = {
         {   100,   100,               37},
         {  50.5,  50.5,              1.0},
         {193.98, -5.82,            100.0},

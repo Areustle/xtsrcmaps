@@ -6,18 +6,17 @@
 #include "xtsrcmaps/observation/obs_types.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
-namespace Fermi {
+namespace Fermi::Irf {
 
 auto livetime_efficiency_factors(std::vector<double> const& logEs,
                                  IrfEffic const&            effic)
     -> Tensor<double, 2> /* [2, Ne] */;
-// std::pair<std::vector<double>, std::vector<double>>;
 
-auto load_aeff(std::string const&) -> std::optional<irf::aeff::Pass8FB>;
+auto load_aeff(std::string const&) -> std::optional<Irf::aeff::Pass8FB>;
 
-auto load_psf(std::string const&) -> std::optional<irf::psf::Pass8FB>;
+auto load_psf(std::string const&) -> std::optional<Irf::psf::Pass8FB>;
 
-auto collect_irf_data(XtCfg const& cfg, XtObs const& obs) -> XtIrf;
+auto collect_irf_data(Config::XtCfg const& cfg, Obs::XtObs const& obs) -> XtIrf;
 
 
 template <typename T, typename C>
@@ -81,4 +80,4 @@ psf3_psf_base_integral(T const  radius,
 auto aeff_value(std::vector<double> const& costhet,
                 std::vector<double> const& logEs,
                 IrfData3 const&            AeffData) -> Tensor<double, 2>;
-} // namespace Fermi
+} // namespace Fermi::Irf

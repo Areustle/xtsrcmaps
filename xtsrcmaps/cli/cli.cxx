@@ -5,7 +5,8 @@
 #include "fmt/color.h"
 
 auto
-Fermi::parse_cli_to_cfg(int const argc, char** argv) -> Fermi::XtCfg {
+Fermi::Config::parse_cli_to_cfg(int const argc,
+                                char**    argv) -> Fermi::Config::XtCfg {
 
     using std::string;
 
@@ -31,10 +32,11 @@ Fermi::parse_cli_to_cfg(int const argc, char** argv) -> Fermi::XtCfg {
         exit(0);
     }
 
-    auto cfg = good(vm.count("parfile")
-                        ? Fermi::parse_parfile(vm["parfile"].as<string>())
-                        : Fermi::parse_parfile("gtsrcmaps.par"),
-                    "Cannot Read Parfile!");
+    auto cfg
+        = good(vm.count("parfile")
+                   ? Fermi::Config::parse_parfile(vm["parfile"].as<string>())
+                   : Fermi::Config::parse_parfile("gtsrcmaps.par"),
+               "Cannot Read Parfile!");
 
     // Override values with user-provided arguments
     if (vm.count("sctable")) cfg.sctable = vm["sctable"].as<string>();
@@ -47,7 +49,7 @@ Fermi::parse_cli_to_cfg(int const argc, char** argv) -> Fermi::XtCfg {
     if (vm.count("psf_file")) cfg.psf_file = vm["psf_file"].as<string>();
     if (vm.count("aeff_file")) cfg.aeff_file = vm["aeff_file"].as<string>();
 
-    cfg = Fermi::validate_cfg(cfg);
+    cfg = Fermi::Config::validate_cfg(cfg);
 
     return cfg;
 }

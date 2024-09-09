@@ -4,7 +4,7 @@ using Tensor2d = Fermi::Tensor<double, 2>;
 using Tensor3d = Fermi::Tensor<double, 3>;
 
 auto
-Fermi::PSF::mean_psf(Tensor3d const& front_corrected_psf, /*[Nsrc, Nd, Ne]*/
+Fermi::Psf::mean_psf(Tensor3d const& front_corrected_psf, /*[Nsrc, Nd, Ne]*/
                      Tensor3d const& back_corrected_psf,  /*[Nsrc, Nd, Ne]*/
                      Tensor2d const& exposures            /*[Nsrc, Ne]*/
                      ) -> Tensor<double, 3> /* [Nsrc, Nd, Ne] */ {

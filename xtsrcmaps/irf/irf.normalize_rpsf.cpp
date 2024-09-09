@@ -9,13 +9,13 @@
 namespace irf_private {
 
 auto
-normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void {
+normalize_rpsf(Fermi::Irf::psf::Data& psfdata) -> void {
 
-    Fermi::IrfData3&       data  = psfdata.rpsf;
-    Fermi::IrfScale const& scale = psfdata.psf_scaling_params;
+    Fermi::Irf::IrfData3&       data  = psfdata.rpsf;
+    Fermi::Irf::IrfScale const& scale = psfdata.psf_scaling_params;
     // Next normalize and scale.
 
-    auto scaleFactor             = [sp0 = (scale.scale0 * scale.scale0),
+    auto scaleFactor                  = [sp0 = (scale.scale0 * scale.scale0),
                         sp1 = (scale.scale1 * scale.scale1),
                         si  = scale.scale_index](double const energy) {
         double const tt = std::pow(energy * 1.e-2, si);
@@ -39,14 +39,14 @@ normalize_rpsf(Fermi::irf::psf::Data& psfdata) -> void {
                             90.,
                             polypars,
                             [&](auto const& v) -> double {
-                                double x = Fermi::evaluate_king(
+                                double x = Fermi::Irf::evaluate_king(
                                     v * deg2rad,
                                     sf,
                                     std::span { &data.params[c, e, 0], 6 });
                                 double y = sin(v * deg2rad) * twopi * deg2rad;
                                 return x * y;
                             })
-                      : Fermi::psf3_psf_base_integral(
+                      : Fermi::Irf::psf3_psf_base_integral(
                             90.0, sf, std::span { &data.params[c, e, 0], 6 });
 
             data.params[c, e, 0] /= norm;

@@ -7,8 +7,8 @@
 
 // [Mc, Me, Nd]
 auto
-Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor<double, 3> {
-    Fermi::IrfData3 const& psf_grid = psfdata.rpsf;
+Fermi::Psf::king(Irf::psf::Data const& psfdata) -> Tensor<double, 3> {
+    Fermi::Irf::IrfData3 const& psf_grid = psfdata.rpsf;
     assert(psf_grid.params.extent(0) == psf_grid.cosths.extent(0)); // Nc
     assert(psf_grid.params.extent(1) == psf_grid.logEs.extent(0));  // Ne
     assert(psf_grid.params.extent(2) == 6);                         // 6
@@ -30,7 +30,7 @@ Fermi::PSF::king(irf::psf::Data const& psfdata) -> Tensor<double, 3> {
     for (long d = 0; d < Nd; ++d) {
         for (long c = 0; c < Mc; ++c) {
             for (long e = 0; e < Me; ++e) {
-                Kings[d, c, e] = Fermi::evaluate_king(
+                Kings[d, c, e] = Fermi::Irf::evaluate_king(
                     seps[d] * deg2rad,
                     1.0,
                     std::span { &psf_grid.params[c, e, 0], 6 });

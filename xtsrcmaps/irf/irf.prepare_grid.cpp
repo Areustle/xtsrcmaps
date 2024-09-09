@@ -24,7 +24,7 @@ namespace irf_private {
 // column n: Data parameter in linearized (costheta x energy) grid.
 //************************************************************************************
 auto
-prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::IrfData3 {
+prepare_grid(Fermi::fits::TablePars const& pars) -> Fermi::Irf::IrfData3 {
 
     assert(pars.extents.size() >= 5);
     assert(pars.extents[0] > 1);

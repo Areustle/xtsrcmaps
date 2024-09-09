@@ -5,7 +5,7 @@
 namespace irf_private {
 
 auto
-prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::IrfEffic {
+prepare_effic(Fermi::fits::TablePars const& pars) -> Fermi::Irf::IrfEffic {
 
     assert(pars.extents.size() == 1);
     assert(pars.extents[0] == 6);

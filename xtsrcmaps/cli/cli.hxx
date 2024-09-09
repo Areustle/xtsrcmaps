@@ -1,11 +1,5 @@
 #include "xtsrcmaps/config/config.hxx"
 
-/* #include <string> */
-
-namespace Fermi {
-
-auto parse_cli_to_cfg(int const argc, char** argv) -> XtCfg;
-
-/* auto progress_bar(std::string const& description) -> void; */
-
-} // namespace Fermi
+namespace Fermi::Config {
+auto parse_cli_to_cfg(int const argc, char** argv) -> Config::XtCfg;
+} // namespace Fermi::Config

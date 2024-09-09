@@ -2,33 +2,17 @@
 #include "xtsrcmaps/config/config.hxx"
 #include "xtsrcmaps/fits/fits.hxx"
 #include "xtsrcmaps/misc/misc.hxx"
-#include "xtsrcmaps/source/source.hxx"
 
-#include "fmt/color.h"
 
 auto
-Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
+Fermi::Obs::collect_observation_data(Fermi::Config::XtCfg const& cfg)
+    -> Obs::XtObs {
 
-    /* fmt::print(fg(fmt::color::light_pink), "Collecting Observation Data.\n"); */
-
-    auto const energies = good(Fermi::fits::ccube_energies(cfg.cmap),
+    auto const energies = good(Fermi::fits::read_energies(cfg.cmap),
                                "Cannot read ccube_energies file!");
 
-    /* fmt::print(fg(fmt::color::light_green), */
-    /*            "\t{} Energy Bins\n", */
-    /*            energies.size()); */
-
-    auto const ccube = good(Fermi::fits::ccube_pixels(cfg.cmap),
-                            "Cannot read counts cube map file!");
-
-    /* fmt::print(fg(fmt::color::light_green), */
-    /*            "\t{} x {} pixel grid\n", */
-    /*            ccube.naxes[0], */
-    /*            ccube.naxes[1]); */
-
-    auto const srcs = Fermi::parse_src_xml(cfg.srcmdl);
-
-    /* fmt::print(fg(fmt::color::light_green), "\t{} Sources\n", srcs.size()); */
+    auto const pars     = good(Fermi::fits::read_image_meta(cfg.cmap),
+                           "Cannot read counts cube map file!");
 
     //**************************************************************************
     // Read Exposure Cube Fits File.
@@ -41,15 +25,12 @@ Fermi::collect_observation_data(Fermi::XtCfg const& cfg) -> XtObs {
                "Cannot read exposure cube map file!");
 
     return {
+        .Nh                = pars.naxes[0],
+        .Nw                = pars.naxes[1],
         .energies          = energies,
         .logEs             = Fermi::log10_v(energies),
-        .ccube             = ccube,
-        .srcs              = srcs,
-        .src_sph           = Fermi::spherical_coords_from_point_sources(srcs),
-        .src_names         = Fermi::names_from_point_sources(srcs),
         .exp_cube          = exp_cube,
         .weighted_exp_cube = wexp_cube,
-        .Nh                = ccube.naxes[0],
-        .Nw                = ccube.naxes[1],
+        .skygeom           = SkyGeom<double> { pars },
     };
 };

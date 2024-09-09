@@ -4,7 +4,7 @@
 
 namespace irf_private {
 auto
-prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::IrfScale {
+prepare_scale(Fermi::fits::TablePars const& pars) -> Fermi::Irf::IrfScale {
     assert(pars.rowdata.extent(0) == 1);
     assert(pars.rowdata.extent(1) == 3);
 

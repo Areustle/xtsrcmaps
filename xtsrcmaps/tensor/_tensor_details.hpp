@@ -6,6 +6,7 @@
 #include <limits>
 #include <new>
 #include <type_traits>
+#include <vector>
 
 
 // Internal details namespace
@@ -78,6 +79,10 @@ struct AlignedAllocator {
     bool operator!=(const AlignedAllocator&) const noexcept { return false; }
 };
 
+template <typename T>
+using AlignedVector = std::vector<T, tensor_details::AlignedAllocator<T>>;
+
+
 // Define the SameRankTensor concept
 template <typename T1, typename T2, std::size_t R1, std::size_t R2>
 concept SameRankTensor = std::is_arithmetic_v<T1> && std::is_arithmetic_v<T2>
@@ -91,4 +96,4 @@ concept ArithmeticBinaryOp = requires(Op op, T a, U b) {
 } && std::is_arithmetic_v<T> && std::is_arithmetic_v<U>;
 
 
-} // namespace Fermi::tensor
+} // namespace Fermi::tensor_details

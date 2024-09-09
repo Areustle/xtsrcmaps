@@ -16,18 +16,10 @@ namespace Fermi {
 /********************************************************************************
  * Convolve the PSF via lookup table, with each of the pixels for every source.
  * ----
- * Split the spherical pixels into 2 spherical triangles and apply the ARPIST[1]
- * algorithm with a degree 4 triangular cubature scheme[2].
- *
- * [1] Yipeng Li 1, Xiangmin Jiao, ARPIST: Provably accurate and stable
- * numerical integration over spherical triangles. J. Comp. & Ap. Math. (2023)
- * [2]  G.R. Cowper, Gaussian quadrature formulas for triangles, Internat.
- * J. Numer. Methods Engrg. 7 (1973).
- * https://www.math.unipd.it/~alvise/SETS_CUBATURE_TRIANGLE/rules_triangle.html
  ********************************************************************************/
 
 auto
-convolve_psf_with_map(
+cubature_convolve_map_psf(
     size_t const             Nh,
     size_t const             Nw,
     Tensor<double, 2> const& src_sph,
@@ -42,7 +34,7 @@ convolve_psf_with_map(
     model_map.clear();
 
     auto points_weights = Fermi::square_ptswts(
-        Nh, Nw, skygeom, Fermi::CubatureSets::square_deg15);
+        Nh, Nw, skygeom, Fermi::CubatureSets::square_deg7);
 
 #pragma omp parallel for schedule(static, 16)
     for (size_t s = 0; s < Ns; ++s) {
@@ -50,7 +42,7 @@ convolve_psf_with_map(
         for (size_t w = 0; w < Nw; ++w) {
             for (size_t h = 0; h < Nh; ++h) {
                 convolve_pixel_psf_logsep<double,
-                                          Fermi::CubatureSets::N_SQUARE_D15>(
+                                          Fermi::CubatureSets::N_SQUARE_D7>(
                     &(model_map[s, h, w, 0]),
                     Ne,
                     &(points_weights[h, w, 0]),

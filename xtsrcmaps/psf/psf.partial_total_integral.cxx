@@ -6,7 +6,7 @@ using Tensor3d = Fermi::Tensor<double, 3>;
 using Tensor3f = Fermi::Tensor<float, 3>;
 
 auto
-Fermi::PSF::partial_total_integral(Tensor3d const& uPsf /* [Ns, Nd, Ne] */
+Fermi::Psf::partial_total_integral(Tensor3d const& uPsf /* [Ns, Nd, Ne] */
                                    ) -> std::pair<Tensor3d, Tensor2d> {
     size_t const Ns   = uPsf.extent(0);
     size_t const Nd   = uPsf.extent(1);
@@ -41,7 +41,9 @@ Fermi::PSF::partial_total_integral(Tensor3d const& uPsf /* [Ns, Nd, Ne] */
             // We only need to do the normilization if the sum in non-zero
             totint[s, e] = cumulative;
             if (totint[s, e]) {
-                for (size_t d = 0; d < Nd; ++d) { parint[s, d, e] /= cumulative; }
+                for (size_t d = 0; d < Nd; ++d) {
+                    parint[s, d, e] /= cumulative;
+                }
             }
         }
     }

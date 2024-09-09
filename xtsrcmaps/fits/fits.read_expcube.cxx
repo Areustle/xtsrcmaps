@@ -106,11 +106,11 @@ Fermi::fits::read_expcube(std::string const& filename,
     if (status) return std::nullopt;
 
     return {
-        {cosbins,
+        { cosbins,
          ra, dec,
          nside, nbrbins,
          cosmin, { ordering },
          { coordsys },
-         (std::string(thetabin) != "COSTHETA")}
+         (std::string(thetabin) != "COSTHETA") }
     };
 }

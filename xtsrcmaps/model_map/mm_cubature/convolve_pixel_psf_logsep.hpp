@@ -1,25 +1,11 @@
 #pragma once
 
 #include "xtsrcmaps/misc/misc.hxx"
+#include "xtsrcmaps/misc/simdwidth.hpp"
 
 #include <array>
 #include <map>
 #include <utility>
-
-// Set SIMD width based on the architecture
-#if defined(__AVX512F__)
-constexpr size_t simd_width = 8; // AVX-512 has 8 floats per vector
-#elif defined(__AVX__) || defined(__AVX2__)
-constexpr size_t simd_width
-    = 8; // AVX and AVX2 also support 8 floats (but 256-bit)
-#elif defined(__SSE__) || defined(__SSE2__) || defined(__SSE3__) \
-    || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__)
-constexpr size_t simd_width = 4; // SSE has 4 floats per vector
-#elif defined(__ARM_NEON)
-constexpr size_t simd_width = 4; // NEON has 4 floats per vector
-#else
-constexpr size_t simd_width = 1; // Fallback to scalar processing if no SIMD
-#endif
 
 namespace Fermi {
 //
@@ -61,7 +47,7 @@ convolve_pixel_psf_logsep(T* __restrict__ model_map,
         T        j = c ? 1.
                        : 1.
                       + recipstep
-                            * (9.2103403719761827360719658187374568304044059545150919041333116038 // ln(1e4)
+                            * (9.2103403719761827360719658187374568304044059545150919 // ln(1e4)
                                + std::log(s));
         uint16_t i = 1 + static_cast<uint16_t>(j);
         i          = i > 0x190 ? 0x190 : i; // 0x190 == 400

@@ -27,7 +27,7 @@ class Tensor {
     using value_type    = T;
     using ExtentsType   = std::array<std::size_t, R>;
     using IndicesType   = std::array<long, R>;
-    using AlignedVector = std::vector<T, tensor_details::AlignedAllocator<T>>;
+    using AlignedVector = tensor_details::AlignedVector<T>;
     using DataPtrType   = std::shared_ptr<AlignedVector>;
     using iterator      = std::conditional_t<IsBcast,
                                              BroadcastIterator<T, R>,

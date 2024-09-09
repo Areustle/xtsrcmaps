@@ -9,8 +9,8 @@
 namespace fs = std::filesystem;
 
 // Function to parse the CSV parfile and return XtCfg struct
-std::optional<Fermi::XtCfg>
-Fermi::parse_parfile(const std::string& filename) {
+std::optional<Fermi::Config::XtCfg>
+Fermi::Config::parse_parfile(const std::string& filename) {
 
     std::ifstream file(filename);
 
@@ -85,7 +85,8 @@ valid_file(std::string const& path) -> std::string {
 }
 
 auto
-Fermi::validate_cfg(Fermi::XtCfg const& cfg) -> Fermi::XtCfg {
+Fermi::Config::validate_cfg(Fermi::Config::XtCfg const& cfg)
+    -> Fermi::Config::XtCfg {
     return {
         .sctable   = cfg.sctable,
         .expcube   = valid_file(cfg.expcube),
@@ -97,6 +98,4 @@ Fermi::validate_cfg(Fermi::XtCfg const& cfg) -> Fermi::XtCfg {
         .psf_file  = valid_file(cfg.psf_file),
         .aeff_file = valid_file(cfg.aeff_file),
     };
-
-    return {};
 }

@@ -5,7 +5,7 @@ using Tensor3d = Fermi::Tensor<double, 3>;
 /* using Tensor3f = Fermi::Tensor<float, 3>; */
 
 auto
-Fermi::PSF::normalize(Tensor3d&       uPsf,           /* [Ns, Nd, Ne] */
+Fermi::Psf::normalize(Tensor3d&       uPsf,           /* [Ns, Nd, Ne] */
                       Tensor2d const& total_integrals /*     [Ns, Ne] */
                       ) -> void {
     size_t const Ns = uPsf.extent(0);

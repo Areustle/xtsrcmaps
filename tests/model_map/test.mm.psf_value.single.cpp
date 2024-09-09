@@ -40,7 +40,7 @@ class TestModelMap : public ::testing::Test {
         exp        = Fermi::compute_exposure_data(cfg, obs, irf);
         psf        = Fermi::PSF::compute_psf_data(obs, irf, exp);
         skygeom    = { obs.ccube };
-        Ns         = obs.src_sph.extent(0);
+        Ns         = obs.sph_locs.extent(0);
         Nh         = obs.Nh;
         Nw         = obs.Nw;
         Ne         = psf.uPsf.extent(2);
@@ -164,7 +164,7 @@ TEST_F(TestModelMap, ModelMapSquareDeg7psf_value) {
     /* auto points_weights = Fermi::deg12_asymsquare_ptswts(Nh, Nw, skygeom); */
     auto points_weights = Fermi::square_ptswts(
         Nh, Nw, skygeom, Fermi::CubatureSets::square_deg7);
-    auto source = skygeom.sph2dir({ obs.src_sph[0, 0], obs.src_sph[0, 1] });
+    auto source = skygeom.sph2dir({ obs.sph_locs[0, 0], obs.sph_locs[0, 1] });
 
     /* #pragma omp parallel for schedule(static, 16) */
     for (size_t w = 0; w < Nw; ++w) {

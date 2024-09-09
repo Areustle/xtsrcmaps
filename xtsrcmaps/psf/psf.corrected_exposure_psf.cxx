@@ -10,7 +10,7 @@ using Tensor2d = Fermi::Tensor<double, 2>;
 using Tensor3d = Fermi::Tensor<double, 3>;
 
 auto
-Fermi::PSF::corrected_exposure_psf(
+Fermi::Psf::corrected_exposure_psf(
     Tensor3d const& obs_psf,                       /*[CDE]*/
     Tensor2d const& obs_aeff,                      /*[CE]*/
     Tensor2d const& src_exposure_cosbins,          /*[SC]*/

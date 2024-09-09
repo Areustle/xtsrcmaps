@@ -6,7 +6,7 @@
 
 #include <cassert>
 
-
+#include "fmt/format.h"
 
 //************************************************************************************
 //************************************************************************************
@@ -22,8 +22,8 @@ read_opt(auto&&             f,
 //************************************************************************************
 //************************************************************************************
 auto
-Fermi::load_aeff(std::string const& filename)
-    -> std::optional<irf::aeff::Pass8FB> {
+Fermi::Irf::load_aeff(std::string const& filename)
+    -> std::optional<Irf::aeff::Pass8FB> {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "EFFECTIVE AREA_FRONT");
     auto o1f = read_opt(f, filename, "PHI_DEPENDENCE_FRONT");
@@ -45,8 +45,8 @@ Fermi::load_aeff(std::string const& filename)
 }
 
 auto
-Fermi::load_psf(std::string const& filename)
-    -> std::optional<irf::psf::Pass8FB> {
+Fermi::Irf::load_psf(std::string const& filename)
+    -> std::optional<Irf::psf::Pass8FB> {
     auto f   = fits::read_irf_pars;
     auto o0f = read_opt(f, filename, "RPSF_FRONT");
     auto o1f = read_opt(f, filename, "PSF_SCALING_PARAMS_FRONT");
@@ -68,8 +68,8 @@ Fermi::load_psf(std::string const& filename)
 }
 
 auto
-Fermi::livetime_efficiency_factors(std::vector<double> const& logEs,
-                                   IrfEffic const&            effic)
+Fermi::Irf::livetime_efficiency_factors(std::vector<double> const& logEs,
+                                        IrfEffic const&            effic)
     -> Tensor<double, 2> /* [2, Ne] */ {
     // pair<vector<double>, vector<double>> {
 
