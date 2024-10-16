@@ -18,8 +18,6 @@ struct ExposureMap {
 
 struct XtExp {
     std::vector<double> exp_costhetas;
-    /* ExposureMap         exp_map; */
-    /* ExposureMap         wexp_map; */
     Tensor<double, 2>   front_aeff;
     Tensor<double, 2>   back_aeff;
     Tensor<double, 2>   src_exposure_cosbins;
@@ -62,7 +60,7 @@ compute_exposure(Config::XtCfg const&         cfg,
         = src_cosbins(src.sph_locs, wexp_map);
 
     //**************************************************************************
-    // Effective Area Computations.
+    // Effective Area Computations. Not Source Dependent
     //**************************************************************************
     auto const front_aeff = Irf::aeff_value(
         exp_costhetas, obs.logEs, irf.aeff_irf.front.effective_area);
@@ -81,8 +79,6 @@ compute_exposure(Config::XtCfg const&         cfg,
 
     return {
         .exp_costhetas                 = exp_costhetas,
-        /* .exp_map                       = exp_map, */
-        /* .wexp_map                      = wexp_map, */
         .front_aeff                    = front_aeff,
         .back_aeff                     = back_aeff,
         .src_exposure_cosbins          = src_exposure_cosbins,
@@ -91,4 +87,4 @@ compute_exposure(Config::XtCfg const&         cfg,
     };
 }
 
-} // namespace Fermi::Exp
+} // namespace Fermi::Exposure

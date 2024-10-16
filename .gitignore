@@ -38,3 +38,6 @@ docs/doxydoc/
 .python-version
 test.fits
 analysis/sourcemaps.fits
+analysis/old.sourcemaps.fits
+
+.zig-cache/

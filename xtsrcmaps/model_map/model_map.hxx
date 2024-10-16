@@ -26,16 +26,16 @@ auto point_src_model_map_wcs(size_t const                    Nh,
                              Tensor<double, 3> const& partial_integrals // [SDE]
                              ) -> Tensor<double, 4>;
 
-auto
-diffuse_src_model_map_wcs(size_t const                    Nh,
-                          size_t const                    Nw,
-                          SkyGeom<double> const&          skygeom,
-                          Tensor<double, 2> const&        src_sph,
-                          std::vector<std::string> const& src_names,
-                          Tensor<double, 2> const&        exposures,
-                          Tensor<double, 3> const&        uPsf,      // [SDE]
-                          Tensor<double, 3> const& partial_integrals // [SDE]
-                          ) -> Tensor<double, 4>;
+/* auto */
+/* diffuse_src_model_map_wcs(size_t const                    Nh, */
+/*                           size_t const                    Nw, */
+/*                           SkyGeom<double> const&          skygeom, */
+/*                           Tensor<double, 2> const&        src_sph, */
+/*                           std::vector<std::string> const& src_names, */
+/*                           Tensor<double, 2> const&        exposures, */
+/*                           Tensor<double, 3> const&        uPsf,      // [SDE] */
+/*                           Tensor<double, 3> const& partial_integrals, // [SDE] */
+/*                           double const                    target_pix_size) -> Tensor<double, 4>; */
 
 
 void scale_map_by_solid_angle(Tensor<double, 4>&     model_map,

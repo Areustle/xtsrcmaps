@@ -143,9 +143,10 @@ struct XtSrc {
 
 auto
 spherical_coords(std::vector<PointSource> const&) -> Fermi::Tensor<double, 2>;
-auto
-spherical_coords(std::vector<DiffuseSource> const&,
-                 std::pair<double, double> const) -> Fermi::Tensor<double, 2>;
+/* auto spherical_coords(std::vector<DiffuseSource> const&, */
+/*                       std::array<double, 2> const) -> Fermi::Tensor<double, 2>; */
+auto refsph_coords(size_t const,
+                   std::array<double, 2> const) -> Fermi::Tensor<double, 2>;
 
 
 /* auto names_from_point_sources(std::vector<Source> const&) */

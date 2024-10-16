@@ -97,4 +97,9 @@ auto compute_psf_data(Obs::XtObs const&        obs,
                       Fermi::Irf::XtIrf const& irf,
                       Exposure::XtExp const&   exp) -> XtPsf;
 
+
+auto make_kernel(size_t const             Nk,
+                 SkyGeom<double> const&   skygeom,
+                 Tensor<double, 3> const& uPsf) -> Tensor<double, 3>;
+
 } // namespace Fermi::Psf

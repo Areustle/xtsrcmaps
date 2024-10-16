@@ -2,9 +2,11 @@
 
 #include "xtsrcmaps/tensor/tensor.hpp"
 
+namespace Fermi::math {
+
 template <typename T>
 void
-trilerpEHW(const Fermi::Tensor<T, 3>& src, Fermi::Tensor<T, 3>& dest) {
+trilerpEHW(Fermi::Tensor<T, 3> const& src, Fermi::Tensor<T, 3>& dest) {
 
     // Dimensions of the input tensor
     size_t srcE = src.extent(0);
@@ -55,3 +57,4 @@ trilerpEHW(const Fermi::Tensor<T, 3>& src, Fermi::Tensor<T, 3>& dest) {
         }
     }
 }
+} // namespace Fermi::math

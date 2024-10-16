@@ -56,13 +56,6 @@ Fermi::fits::write_src_model(std::string const&              filename,
                         0,
                         &status);
 
-        // // Transpose the image to H,W,E
-        // Tensor<float, 3> img
-        //     = model_map.slice(Idx4 { 0, 0, 0, s }, Idx4 { Ne, Nh, Nw, 1 })
-        //           .reshape(Idx3 { Ne, Nh, Nw })
-        //           .shuffle(Idx3 { 1, 2, 0 });
-
-
         // Write the image
         fits_write_pix(
             fp, TDOUBLE, &*coord.begin(), image_size, &img[s, 0, 0, 0], &status);

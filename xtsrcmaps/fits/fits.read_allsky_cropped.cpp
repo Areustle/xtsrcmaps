@@ -147,64 +147,66 @@ readSegmentsAcrossBoundary(fitsfile*                  fptr,
 
 
 auto
-Fermi::fits::read_allsky_cropped(std::string const& allskyfilename,
-                                 std::string const& roifilename)
+Fermi::fits::read_allsky_cropped(SkyGeom<double> const& roiGeom,
+                                 std::string const&     allskyfilename)
     -> Fermi::SkyImage<float, 3> {
     try {
 
         // Open all-sky and ROI FITS files
-        auto allSkyFptr = fits::safe_open(allskyfilename.c_str());
-        auto roiFptr    = fits::safe_open(roifilename.c_str());
+        auto skyFptr    = fits::safe_open(allskyfilename.c_str());
 
         // Initialize SkyGeom objects
-        auto allSkyMeta = readWcsParams(allSkyFptr.get());
-        auto roiMeta    = readWcsParams(roiFptr.get());
+        auto allSkyMeta = readWcsParams(skyFptr.get());
         auto allSkyGeom = SkyGeom<double>(allSkyMeta);
-        auto roiGeom    = SkyGeom<double>(roiMeta);
 
         // Define ROI in pixel coordinates and convert to sky coordinates
         std::array<double, 2> roiPixMin = { 1.0, 1.0 };
         std::array<double, 2> roiPixMax
-            = { static_cast<double>(roiMeta.naxes[0]),
-                static_cast<double>(roiMeta.naxes[1]) };
-        auto skyMin = roiGeom.pix2sph(roiPixMin);
-        auto skyMax = roiGeom.pix2sph(roiPixMax);
-        adjustSkyCoords(skyMin);
-        adjustSkyCoords(skyMax);
+            = { static_cast<double>(roiGeom.naxes()[0]),
+                static_cast<double>(roiGeom.naxes()[1]) };
+        auto allSkySphMin = roiGeom.pix2sph(roiPixMin);
+        auto allSkySphMax = roiGeom.pix2sph(roiPixMax);
+        adjustSkyCoords(allSkySphMin);
+        adjustSkyCoords(allSkySphMax);
 
         // Convert sky coordinates to pixel coordinates in all-sky image
-        auto allSkyPixMin = allSkyGeom.sph2pix(skyMin);
-        auto allSkyPixMax = allSkyGeom.sph2pix(skyMax);
+        auto allSkyPixMin = allSkyGeom.sph2pix(allSkySphMin);
+        auto allSkyPixMax = allSkyGeom.sph2pix(allSkySphMax);
 
         // Determine pixel range to read
-        auto maxminpix    = [](double v, long max) {
+        auto bounpix      = [](double v, long max) {
             return std::max(1L,
                             std::min(static_cast<long>(std::round(v)), max));
         };
         std::array<long, 3> fpixel
-            = { maxminpix(std::min(allSkyPixMin[0], allSkyPixMax[0]),
-                          allSkyMeta.naxes[0]),
-                maxminpix(std::min(allSkyPixMin[1], allSkyPixMax[1]),
-                          allSkyMeta.naxes[1]),
+            = { bounpix(std::min(allSkyPixMin[0], allSkyPixMax[0]),
+                        allSkyMeta.naxes[0]),
+                bounpix(std::min(allSkyPixMin[1], allSkyPixMax[1]),
+                        allSkyMeta.naxes[1]),
                 1 };
 
         std::array<long, 3> lpixel
-            = { maxminpix(std::max(allSkyPixMin[0], allSkyPixMax[0]),
-                          allSkyMeta.naxes[0]),
-                maxminpix(std::max(allSkyPixMin[1], allSkyPixMax[1]),
-                          allSkyMeta.naxes[1]),
+            = { bounpix(std::max(allSkyPixMin[0], allSkyPixMax[0]),
+                        allSkyMeta.naxes[0]),
+                bounpix(std::max(allSkyPixMin[1], allSkyPixMax[1]),
+                        allSkyMeta.naxes[1]),
                 (allSkyMeta.naxes[2] > 1) ? allSkyMeta.naxes[2] : 1 };
 
         // Read image segments across boundary if necessary
-        Fermi::Tensor<float, 3> data(
-            roiMeta.naxes[0], roiMeta.naxes[1], roiMeta.naxes[2]);
-        readSegmentsAcrossBoundary(
-            allSkyFptr.get(), fpixel, lpixel, data.data(), allSkyMeta.naxes);
+        Fermi::Tensor<float, 3> allskyBuffer(
+            roiGeom.naxes()[0], roiGeom.naxes()[1], allSkyGeom.naxes()[2]);
+        readSegmentsAcrossBoundary(skyFptr.get(),
+                                   fpixel,
+                                   lpixel,
+                                   allskyBuffer.data(),
+                                   allSkyMeta.naxes);
 
         auto energies = good(fits::read_energies(allskyfilename),
                              "Cannot read energies from diffuse file");
 
-        return { data, allSkyGeom, energies };
+        return { .data     = allskyBuffer,
+                 .skygeom  = allSkyGeom,
+                 .energies = energies };
 
 
     } catch (const std::exception& e) {

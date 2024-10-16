@@ -57,8 +57,9 @@ auto write_src_model(std::string const&              filename,
                      Tensor<double, 4>&              model_map,
                      std::vector<std::string> const& srcs) -> void;
 
-auto read_allsky_cropped(std::string const& allskyfilename,
-                         std::string const& roifilename) -> SkyImage<float, 3>;
+auto
+read_allsky_cropped(SkyGeom<double> const& roiGeom,
+                    std::string const& allskyfilename) -> SkyImage<float, 3>;
 
 } // namespace fits
 } // namespace Fermi

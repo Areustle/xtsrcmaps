@@ -15,9 +15,9 @@
 namespace Fermi {
 
 struct WcsConfig {
-    std::array<long, 3>   naxes;
-    std::array<double, 3> crpix;
-    std::array<double, 3> crval;
+    std::array<long, 3>   naxes; // NAXIS extent of image
+    std::array<double, 3> crpix; // Reference Pixel Coordinate
+    std::array<double, 3> crval; // World Coord Value (RA, Dec) at Ref Pixel.
     std::array<double, 3> cdelt;
     double                axis_rot;
     std::string           proj_name;
@@ -291,12 +291,10 @@ class SkyGeom {
     }
 
     auto refsph() const -> std::array<T, 2> {
-        return pix2sph({ m_wcs->crpix[0], m_wcs->crpix[1] });
+        return { m_wcs->crval[0], m_wcs->crval[1] };
     }
 
-    auto refdir() const -> std::array<T, 3> {
-        return pix2dir({ m_wcs->crpix[0], m_wcs->crpix[1] });
-    }
+    auto refdir() const -> std::array<T, 3> { return sph2dir(refsph()); }
 
     auto srcpixoff(std::array<T, 3> const& src_dir_coord,
                    std::array<T, 2> const& delta_pix) const -> T {
@@ -352,7 +350,7 @@ class SkyGeom {
 
 template <typename T = double>
 auto
-rebin_wcs_params(WcsConfig orig, double target_pix_size) -> WcsConfig {
+rebin_wcs_config(WcsConfig orig, double target_pix_size) -> WcsConfig {
     double cdelt1 = orig.cdelt[0] < 0. ? -target_pix_size : target_pix_size;
     double cdelt2 = orig.cdelt[1] < 0. ? -target_pix_size : target_pix_size;
     double scale1 = std::abs(orig.cdelt[0] / cdelt1);
@@ -375,7 +373,7 @@ rebin_wcs_params(WcsConfig orig, double target_pix_size) -> WcsConfig {
 template <typename T = double>
 auto
 rebin_skygeom(SkyGeom<T> skygeom, double target_pix_size) -> SkyGeom<T> {
-    WcsConfig par = rebin_wcs_params(skygeom.wcs_config(), target_pix_size);
+    WcsConfig par = rebin_wcs_config(skygeom.wcs_config(), target_pix_size);
     return { par };
 };
 

@@ -41,18 +41,13 @@ Fermi::Source::spherical_coords(std::vector<PointSource> const& srcs)
 }
 
 auto
-Fermi::Source::spherical_coords(std::vector<DiffuseSource> const& srcs,
-                                std::pair<double, double> const   cmap_ref_dir)
+Fermi::Source::refsph_coords(size_t const                Nsrc,
+                             std::array<double, 2> const ref_sph)
     -> Tensor<double, 2> {
-
-    size_t const Nsrc = srcs.size();
-
     Tensor<double, 2> dirs(Nsrc, 2);
-
     for (size_t i = 0; i < Nsrc; ++i) {
-        dirs[i, 0] = std::get<0>(cmap_ref_dir);
-        dirs[i, 1] = std::get<1>(cmap_ref_dir);
+        dirs[i, 0] = (ref_sph[0]);
+        dirs[i, 1] = (ref_sph[1]);
     }
-
     return dirs;
 }

@@ -30,12 +30,21 @@ main(int const argc, char** argv) {
         maps.pt    = ModelMap::compute_srcmaps(obs, src.point, ptexp, ptpsf);
     }
 
-    // Diffuse sources
-    /* if (src.diffuse.srcs.size()) { */
-    /*     auto dsexp = Exposure::compute_exposure(cfg, obs, src.diffuse, irf); */
-    /*     auto dspsf = Psf::compute_psf_data(obs, irf, dsexp); */
-    /*     maps.ds    = ModelMap::compute_srcmaps(obs, src.diffuse, dsexp, dspsf); */
-    /* } */
+    // Gal Diffuse
+//    if (src.diffuse.srcs.size()) {
+//        auto dsexp = Exposure::compute_exposure(cfg, obs, src.diffuse, irf);
+//        auto dspsf = Psf::compute_psf_data(obs, irf, dsexp);
+//        maps.ds    = ModelMap::compute_srcmaps(obs, src.diffuse, dsexp, dspsf);
+//    }
 
     /* fits::write_src_model(cfg.outfile, model_map, src); */
+//
+//
+// 📥 X. Isotropic Diffuse sources
+// 📥 X. Localized Diffuse sources
+// 📥 X. Composite sources
+// 📥 X. Healpix-based projections
+// 📥 X. Allsky ROI
+// 📥 X. Energy Dispersion
+//
 }

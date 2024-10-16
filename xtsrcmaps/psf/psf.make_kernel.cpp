@@ -1,14 +1,14 @@
+#include "xtsrcmaps/psf/psf.hxx"
 #include "xtsrcmaps/misc/simdwidth.hpp"
 #include "xtsrcmaps/sky_geom/sky_geom.hxx"
 #include "xtsrcmaps/tensor/tensor.hpp"
 
 
-using namespace Fermi;
 
 auto
-make_kernel(size_t const             Nk,
-            SkyGeom<double> const&   skygeom,
-            Tensor<double, 3> const& uPsf) -> Tensor<double, 3> {
+Fermi::Psf::make_kernel(size_t const             Nk,
+                        SkyGeom<double> const&   skygeom,
+                        Tensor<double, 3> const& uPsf) -> Tensor<double, 3> {
     size_t const Ns         = uPsf.extent(0);
     size_t const Ne         = uPsf.extent(2);
     /* size_t       Nk   = Nh <= Nw ? Nh : Nw; */

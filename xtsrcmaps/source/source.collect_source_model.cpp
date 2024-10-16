@@ -12,7 +12,7 @@ Fermi::Source::collect_source_model(Config::XtCfg const& cfg,
         },
         .diffuse = {
             .srcs          = srcs.diffuse,
-            .sph_locs      = spherical_coords(srcs.diffuse, {obs.skygeom.crval()[0], obs.skygeom.crval()[1]}), // maybe need to adjust for galactic projections. not sure.
+            .sph_locs      = refsph_coords(srcs.diffuse.size(), obs.skygeom.refsph()), // maybe need to adjust for galactic projections. not sure.
             .names         = source_names(srcs.diffuse),
         },
     };
