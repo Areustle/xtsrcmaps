@@ -1,8 +1,9 @@
 const std = @import("std");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    const top_level_path = b.path("");
 
     const flags = [_][]const u8{
         "-Wall",
@@ -17,17 +18,18 @@ pub fn build(b: *std.build.Builder) void {
         "-std=c++23",
     };
 
-    const xtsrcmaps = b.addSharedLibrary("xtsrcmaps", null);
+    const xtsrcmaps = b.addSharedLibrary(.{
+        .name = "xtsrcmaps",
+        .target = target,
+        .optimize = optimize,
+        .pic = true,
+    });
     xtsrcmaps.linkSystemLibrary("cxxopts");
     xtsrcmaps.linkSystemLibrary("fmt");
-    xtsrcmaps.setTarget(target);
-    xtsrcmaps.setBuildMode(mode);
     xtsrcmaps.linkLibC();
     xtsrcmaps.linkLibCpp();
-    xtsrcmaps.force_pic = true;
-    xtsrcmaps.addCSourceFiles(&.{
-        "xtsrcmaps/cli/cli.cxx",
-    }, &cxxflags);
+    xtsrcmaps.addCSourceFiles(.{ .files = &.{"xtsrcmaps/cli/cli.cxx"}, .flags = &cxxflags });
+    xtsrcmaps.addIncludePath(top_level_path);
 
-    b.InstallArtifacts(xtsrcmaps);
+    b.installArtifact(xtsrcmaps);
 }
