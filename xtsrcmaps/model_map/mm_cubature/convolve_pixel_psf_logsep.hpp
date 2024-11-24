@@ -4,7 +4,6 @@
 #include "xtsrcmaps/misc/simdwidth.hpp"
 
 #include <array>
-#include <map>
 #include <utility>
 
 namespace Fermi {
@@ -34,7 +33,7 @@ convolve_pixel_psf_logsep(T* __restrict__ model_map,
     // This is efficient for small map sizes.
     //
     auto     sum_wts = std::array<std::pair<T, T>, N>();
-    auto     keys    = std::array<uint16_t, N>(0);
+    auto     keys    = std::array<uint16_t, N> { 0 };
     uint16_t keylen  = 0;
 
     for (size_t p = 0; p < 4 * N; p += 4) {
